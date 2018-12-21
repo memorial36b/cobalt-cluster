@@ -48,6 +48,7 @@ module Bot::Moderation
   # users and channels can never share IDs anyway
   mute_jobs = Hash.new
 
+  # TODO: Add code to schedule unmute jobs based on mute data file upon loading module
 
   # 12h cron job that iterates through points data file and removes one point if past decay time,
   # updating file accordingly

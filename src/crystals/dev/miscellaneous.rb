@@ -1,7 +1,7 @@
 # Crystal: Miscellaneous
 
 
-# Write what your crystal does here.
+# TODO: Write what the crystal does here.
 module Bot::Miscellaneous
   # You do not need CommandContainer or EventContainer if your crystal contains no
   # commands or event handlers respectively; you can remove the extend clause if
