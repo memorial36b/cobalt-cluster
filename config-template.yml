@@ -1,0 +1,148 @@
+# ████████████████████████████████████████████████████████████████████████████████████████████
+# █ This is a template config file for the bot. The actual config should have the filename   █
+# █ 'config.yml' exactly, using this template.                                               █
+# █ Only the fields marked ■ REQUIRED ■ need to be filled; the rest offer some finer control █
+# █ and need not be changed.                                                                 █
+# ████████████████████████████████████████████████████████████████████████████████████████████
+
+---
+
+# ===============================================================
+# Main: This section contains the required fields and basic info.
+# ===============================================================
+
+# ■ REQUIRED ■ Put the client ID (bot's user ID) here.
+id: 
+
+# ■ REQUIRED ■ Put the bot account's token here.
+token: 
+
+# ■ REQUIRED ■ Put the bot's command prefix within the brackets here. 
+# For multiple prefixes, separate each prefix with commas.
+# Surround your prefix with single ('') quotes if it contains any of the following characters:
+# : { } [ ] , ' & * ? | - < > = ! % @ \ #
+prefix: []
+
+# Put the type of account this bot is here (either user or bot account).
+# Accepted are user and bot (case sensitive); anything else defaults to bot.
+type: bot
+
+# Put the game to set the bot's "Playing" status to here.
+# Leave blank to have no game.
+game: 
+
+# Put the name of your bot here, to be sent to Discord upon making any API requests and used
+# by them to trace the source of excessive API requests.
+# Leave blank to have no name.
+name: 
+
+# ===================================================================================
+# Commands & Messages: This section contains options concerning how the bot reacts to 
+# messages and command calls.
+# ===================================================================================
+
+# Put whether the bot should react to its own messages.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
+react_to_self: no
+
+# Put the alias of the help command here, i.e. what the help command should be called as.
+# Leave blank to disable (e.g. if you have a custom implementation).
+help_alias: help
+
+# Put the message to be displayed when the user tries to use a nonexistent command here.
+# You can put the string '%command%' within the message to replace it with the command
+# the user attempted to use automatically (i.e. 'Command %command% does not exist' will be
+# replaced with 'Command foomy does not exist.')
+# Leave blank to disable.
+command_doesnt_exist_message:
+
+# Put the message to be displayed when the user doesn't have permission to use the command
+# (a NoPermission error is raised.)
+# Leave blank to disable.
+no_permission_message: 
+
+# Put whether spaces should be allowed between the prefix and the command name.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
+spaces_allowed: no
+
+# Put whether messages sent by fake webhook users should be allowed to trigger commands.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
+react_to_webhooks: no
+
+# Put the IDs of channels the bot should react to within the brackets, separated by commas.
+# Leave blank to allow the bot to accept commands in all channels.
+channel_whitelist: []
+
+# Put whether the bot should react to messages sent by other bots.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to yes.
+react_to_bots: yes
+
+# ==============================================================================
+# Logging: This section contains options concerning how the bot logs to console.
+# ==============================================================================
+
+# Put the bot's logging mode here.
+# Accepted are: (case sensitive)
+# debug: logs everything
+# verbose: logs everything except for debug messages
+# normal: logs useful information, warnings and errors
+# quiet: only logs warnings and errors
+# silent: logs nothing
+# Anything else defaults to normal.
+log_mode: normal
+
+# Put whether the log should be fancy and use ANSI escape codes here.
+# Not all terminals support this.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
+fancy_log: no
+
+# Put whether the READY packet should be printed to console here.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to yes.
+log_ready: yes
+
+# Put whether the bot's token should be printed in logs.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
+log_token: no
+
+# ========================================================================
+# Sharding: This section contains the options related to sharding the bot.
+# ========================================================================
+
+# Put the shard number that this bot should handle here.
+shard_id: 
+
+# Put the total number of shards that should be running here.
+num_shards:
+
+# =========================================================================================
+# Advanced Functionality: This section contains the options related to discordrb's advanced
+# functionality, command chaining. 
+# Details at: https://github.com/meew0/discordrb/wiki/Commands#command-chain-syntax
+# Note: All entries in this section except for enabling/disabling advanced functionality 
+# must be limited to one character only.
+# =========================================================================================
+
+# Put whether advanced functionality should be enabled or disabled here.
+# Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
+advanced_functionality: no
+
+# Put the character that designates the result of the previous command in a chain within the quotes here.
+previous: '~'
+
+# Put the character that should designate that a new command begins in the chain within the quotes here.
+chain_delimiter: '>'
+
+# Put the character that should separate the chain arguments from the chain itself within the quotes here.
+chain_args_delim: ':'
+
+# Put the character that should begin a sub-chain within the quotes here.
+sub_chain_start: '['
+
+# Put the character that should end a sub-chain within the quotes here.
+sub_chain_end: ']'
+
+# Put the character that should begin a quoted string within the quotes here.
+quote_start: '"'
+
+# Put the character that should end a quoted string within the quotes here.
+quote_end: '"'
