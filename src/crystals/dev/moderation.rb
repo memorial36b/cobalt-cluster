@@ -986,8 +986,9 @@ module Bot::Moderation
       msg.react [0x2705].pack('U*') # react with check mark (approval button)
       msg.react [0x274C].pack('U*') # react with x (rejection button)
 
-      # Approves or denies ban based on which button was pressed
-      approval = loop do
+      # Creates await for button presses, and defines variables containing whether ban was approved 
+      # or denied and which user approved/denied it
+      approval, second_user = loop do
         # Creates reaction await which detects when one of the buttons has been pressed
         await_event = Bot::BOT.add_await!(
           Discordrb::Events::ReactionAddEvent # event type
@@ -995,13 +996,13 @@ module Bot::Moderation
         )
 
         # If approval button is pressed and the user who reacted is not the same user who
-        # initiated the trial
+        # initiated the trial:
         if await_event.emoji == [0x2705].pack('U*') &&
           await_event.user != event.user
           break [true, await_event.user]
         
         # If rejection button is pressed and the user who reacted is either the same user
-        # who initiated the trial or an administrator
+        # who initiated the trial or an administrator:
         elsif await_event.emoji == [0x274C].pack('U*') &&
               (await_event.user == event.user ||
                event.user.role?(ADMINISTRATOR_ID))
@@ -1013,7 +1014,7 @@ module Bot::Moderation
       msg.delete_all_reactions
 
       # If the ban was approved:
-      if approval[0]
+      if approval
         # Bans user
         SERVER.ban(
           user, ban_days,
@@ -1031,7 +1032,7 @@ module Bot::Moderation
             description: "**#{user.mention} tried and approved for ban** in channel #{event.channel.mention}. (#{ban_days} days of messages deleted)\n" +
                          "**Reason:** #{reason}\n" +
                          "\n" +
-                         "**Approved by:** #{event.user.distinct}, #{approval[0].distinct}",
+                         "**Approved by:** #{event.user.distinct}, #{second_user.distinct}",
             thumbnail: {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/103/hammer_1f528.png'},
             color: 0xFFD700
           }
@@ -1066,7 +1067,7 @@ module Bot::Moderation
             description: "**#{user.mention} tried and denied for ban** in channel #{event.channel.mention}.\n" +
                          "**Reason for trial:** #{reason}\n" +
                          "\n" +
-                         "**Filed by:** #{event.user.distinct}\n**Denied by:** #{approval[0].distinct}",
+                         "**Filed by:** #{event.user.distinct}\n**Denied by:** #{second_user.distinct}",
             thumbnail: {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/103/hammer_1f528.png'},
             color: 0xFFD700,
           }
