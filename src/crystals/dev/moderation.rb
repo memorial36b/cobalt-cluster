@@ -5,7 +5,8 @@ require 'securerandom'
 
 
 # This crystal contains Cobalt's moderation commands, such as punishment, mute, banning, and
-# channel blocking.
+# channel blocking, as well as some things that require elevated perms like displaying a voice
+# channel's corresponding text channel.
 module Bot::Moderation
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
@@ -29,6 +30,8 @@ module Bot::Moderation
     402051258732773377,
     454304307425181696
   ]
+  # #welcome channel ID
+  WELCOME_ID = 339122866446401537
   # #bot_commands channel ID
   BOT_COMMANDS_ID = 307726225458331649
   # #muted_users channel ID
@@ -39,14 +42,20 @@ module Bot::Moderation
   HEAD_CREATOR_HQ_ID = 338689508046274561
   # #cobalt_reports channel ID
   COBALT_REPORTS_ID = 307755696198385666
+  # #bot_games channel ID
+  BOT_GAMES_ID = 402050178753757185
 
 
-  # Variable used to track when Head Creators are punishing; required so they are able to
+  # Array used to track when Head Creators are punishing; required so they are able to
   # (indirectly) execute the mute or ban commands
-  head_creator_punishing = []
+  head_creator_punishing = Array.new
   # Hash that stores Rufus job ID for each mute; this stores both user and channel mutes as
   # users and channels can never share IDs anyway
   mute_jobs = Hash.new
+  # Defines a bucket for the spam filter; triggers if user sends 5 or more messages in 4 seconds
+  Bot::BOT.bucket(:spam_filter, limit: 4, time_span: 4)
+  # Array used to track if a user has triggered the spam filter
+  spam_filter_triggered = Array.new
 
   # TODO: Add code to schedule unmute jobs based on mute data file upon loading module
 
@@ -193,7 +202,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "Warning - #{reason}"
             ]
 
           # Tier 2: 30 minute mute
@@ -209,7 +218,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "30m mute - #{reason}"
             ]
 
           # Tier 3: 1 hour mute
@@ -225,7 +234,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "1h mute - #{reason}"
             ]
 
           # Tier 4: 2 hour mute
@@ -241,7 +250,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "2h mute - #{reason}"
             ]
 
           # Tier 5: Ban
@@ -275,7 +284,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "3h mute - #{reason}"
             ]
 
           # Tier 2: 6 hour mute
@@ -291,7 +300,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "6h mute - #{reason}"
             ]
 
           # Tier 3: 12 hour mute
@@ -307,7 +316,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "12h mute - #{reason}"
             ]
 
           # Tier 4: Ban
@@ -342,7 +351,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "#{time} mute - #{reason}"
             ]
 
           # Tier 2: 2 day mute
@@ -358,7 +367,7 @@ module Bot::Moderation
             points[user.id] = [
               total_points,
               Time.now + TWO_WEEKS, # decay time
-              reason
+              "2d mute - #{reason}"
             ]
 
           # Tier 3: Ban
@@ -555,11 +564,7 @@ module Bot::Moderation
       # permissions in the event channel
       channel = event.channel
       reason = args[2..-1].join(' ')
-      if channel.permission_overwrites[MEMBER_ID]
-        permissions = channel.permission_overwrites[MEMBER_ID]
-      else
-        permissions = Discordrb::Overwrite.new(MEMBER_ID, type: :role)
-      end
+      permissions = channel.permission_overwrites[MEMBER_ID] || Discordrb::Overwrite.new(MEMBER_ID, type: :role)
 
       # Denies the permission to send messages for the Member role in the event channel
       permissions.allow.can_send_messages = false
@@ -908,6 +913,11 @@ module Bot::Moderation
         reason: "Ban -- reason: #{reason} (#{ban_days} days of messages deleted)" # audit log reason
       )
 
+      # Deletes user entry from points data file
+      YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
+        points.delete(user.id)
+      end
+
       # Sends confirmation message and logs action
       identifier = SecureRandom.hex(4)
       event.send_message( # confirmation message with identifier sent to event channel
@@ -934,11 +944,6 @@ module Bot::Moderation
           color: 0xFFD700
         }
       )
-
-      # Deletes user entry from points data file
-      YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-        points.delete(user.id)
-      end
 
     # if user is a moderator or punishing HC, needing a second opinion to ban:
     elsif (event.user.role?(MODERATOR_ID) ||
@@ -1021,6 +1026,11 @@ module Bot::Moderation
           reason: "Ban -- reason: #{reason} (#{ban_days} days of messages deleted)" # audit log reason
         )
 
+        # Deletes user entry from points data file
+        YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
+          points.delete(user.id)
+        end
+
         # Edits log message to reflect ban approval
         msg.edit(
           msg.content, # keeps the identifier
@@ -1037,11 +1047,6 @@ module Bot::Moderation
             color: 0xFFD700
           }
         )
-
-        # Deletes user entry from points data file
-        YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-          points.delete(user.id)
-        end
       
       # If the ban was rejected:
       else
@@ -1076,5 +1081,215 @@ module Bot::Moderation
     end
 
     nil # returns nil so command doesn't send an extra message
+  end
+
+
+  # Blocks user from channel
+  command :block do |event, *args|
+    # Breaks unless user is a moderator or HC, the user is valid and a reason is given
+    break unless (event.user.role?(MODERATOR_ID) ||
+                  event.user.role?(HEAD_CREATOR_ID)) &&
+                 args.size >= 2 &&
+                 SERVER.get_user(args[0])
+
+    # Defines user and reason variables and gets user's permissions in the event channel
+    user = SERVER.get_user(args[0])
+    reason = args[1..-1].join(' ')
+    permissions = event.channel.permission_overwrites[user.id] || Discordrb::Overwrite.new(user.id, type: :user)
+
+    # Denies user's perms to read messages in event channel
+    permissions.allow.can_read_messages = false
+    permissions.deny.can_read_messages = true
+    event.channel.define_overwrite(
+      permissions,
+      reason: "Block -- reason: #{reason}" # audit log reason
+    )
+
+    # Updates channel entry in block data file, and user entry in points data file
+    YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml") do |blocks|
+      blocks.default_proc = proc { |k, v| k[v] = [] } # defines default so if/else isn't needed
+      blocks[event.channel.id].push(user.id)
+    end
+    YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml") do |points|
+      if points[user.id]
+        points[user.id][0] += 2
+        points[user.id][1] = Time.now + TWO_WEEKS
+        points[user.id][2] = "Block - #{reason}"
+      else
+        points[user.id] = [
+          2,
+          Time.now + TWO_WEEKS,
+          "Block - #{reason}"
+        ]
+      end
+    end
+
+    # Sends confirmation message, dms user and logs action
+    event.respond( # confirmation message sent to event channel
+      "**Blocked #{user.distinct} from channel.**\n" +
+      "**Reason:** #{reason}"
+    )
+    user.dm( # notification dm sent to user
+      "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{YAML.load_file("#{MOD_DATA_PATH}/channel_blocks.yml")[user.id][0]}** points.\n" +
+      "**Reason:** #{reason}"
+    )
+    bot.send_message( # log message
+      COBALT_REPORTS_ID, 
+      ":no_entry: **BLOCK**\n" + 
+      "**#{event.user.distinct}: Blocked #{user.mention} from channel #{event.channel.mention}**.\n" +
+      "**Reason:** #{reason}\n" +
+      "\n" +
+      "**2** points have been added to this user."
+    )
+    
+    nil # returns nil so command doesn't send an extra message
+  end
+
+
+  # Unblocks user from channel
+  command :unblock do |event, *args|
+    # Breaks unless user is moderator or HC and the given user is valid
+    break unless (event.user.role?(MODERATOR_ID) ||
+                  event.user.role?(HEAD_CREATOR_ID)) &&
+                 SERVER.get_user(args.join(' '))
+    
+    # Defines user variable and gets user's permissions in the event channel
+    user = SERVER.get_user(args.join(' '))
+    permissions = event.channel.permission_overwrites[user.id]
+
+    # Neutralizes user's perms to read messages in event channel
+    permissions.allow.can_read_messages = false
+    permissions.deny.can_read_messages = true
+    event.channel.define_overwrite(
+      permissions,
+      reason: "Unblock" # audit log reason
+    )
+
+    # Updates channel entry in block data file
+    YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml") do |blocks|
+      blocks[event.channel.id].delete(event.user.id)
+      blocks.delete_if { |_id, u| u.empty? } # deletes channel if array is empty (no users are blocked)
+    end
+
+    # Sends confirmation message and logs action
+    event.respond "**Unblocked #{user.distinct} from channel.**" # confirmation message sent to event channel
+    bot.send_message( # log message
+      COBALT_REPORTS_ID, 
+      ":o: **UNBLOCK**\n" + "
+      **#{event.user.distinct}: Unblocked #{user.mention} from channel #{event.channel.mention}**"
+    )
+
+    nil # returns nil so command doesn't send an extra message
+  end
+
+
+  # Lists all channel blocks
+  command :blocks do |event|
+    # Breaks unless user is moderator
+    break unless event.user.role(MODERATOR_ID)
+
+    # Defines variable containing data from block data file
+    blocks = YAML.load_file "#{MOD_DATA_PATH}/channel_blocks.yml"
+
+    # Sends embed to channel displaying blocks
+    event.send_embed do |embed|
+      embed.author = {
+        name: 'Channel Blocks', 
+        icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
+      }
+      # Iterates through blocks hash, adding field for each channel
+      blocks.each do |id, users|
+        # Skips unless at least one user blocked from channel is still present on server
+        next unless users.any? { |user_id| SERVER.member(user_id) }
+
+        embed.add_field(
+          name: "##{Bot::BOT.channel(id).name}",
+          value: users.map { |uid| SERVER.member(uid) ? "• **SERVER.member(user_id).distinct**" : nil }.compact.join("\n")
+        )
+      end
+      embed.color = 0xFFD700
+    end
+
+    nil # returns nil so command doesn't send an extra message
+  end
+
+
+  # Manages logic when user joins the server
+  member_join do |event|
+    # Breaks unless the event comes from SVTFOD (i.e. a user has joined SVTFOD)
+    break unless event.server == SERVER
+
+    # Defines user variable and loads mute and block data from file
+    user = event.user.on(SERVER)
+    muted = YAML.load_file "#{MOD_DATA_PATH}/muted_users.yml"
+    blocks = YAML.load_file "#{MOD_DATA_PATH}/channel_blocks.yml"
+
+    # Denies read message perms for user in #welcome (this is necessary as when the bot is down, 
+    # any user that joins is able to talk in #welcome to ask a staff member for the Member role)
+    Bot::BOT.channel(WELCOME_ID).define_overwrite(user, 0, 1024) # uses permission bits for simplicity
+
+    # If user entry exists in muted hash, gives user Muted role
+    if muted[user.id]
+      user.add_role(MUTED_ID)
+    
+    # Otherwise, schedules  Rufus job to delete user overwrite from #welcome and add Member role after 5m
+    else
+      SCHEDULER.in '5m' do
+        Bot::BOT.channel(WELCOME_ID).delete_overwrite(user)
+        user.add_role(MEMBER_ID)
+      end
+    end
+    
+    # Denies read message perms for channels user is blocked from, if any
+    if blocks.values.any? { |u| u.include? user.id }
+      # Defines array containing the IDs of all channels user is blocked from, 
+      # and new universal permission object for user
+      ids = blocks.keys.select { |id| blocks[id].include? user.id }
+      permissions = Discordrb::Overwrite.new(user.id, type: :user)
+
+      # Denies read message permissions for universal object
+      permissions.allow.can_read_messages = false
+      permissions.deny.can_read_messages = true
+
+      # Iterates through array of channel IDs and edits permissions to deny user from all of them
+      ids.each { |id| Bot::BOT.channel(id).define_overwrite(permissions) }
+    end
+  end
+
+
+  # Spam protection; deletes messages if user sends too many too fast
+  message do |event|
+    # Skips if in the #bot_games channel
+    next if event.channel.id == BOT_GAMES_ID
+
+    # If the user has triggered the spam filter bucket:
+    if Bot::BOT.rate_limited?(:spam_filter, event.user.id)
+      # If the user has already triggered the spam filter within the past 4 seconds, deletes message:
+      if spam_filter_triggered.include? event.user.id
+        event.message.delete
+      
+      # Otherwise, add them to the spam filter tracker and delete their last 5 messages 
+      # in the event channel
+      else
+        spam_filter_triggered.push(event.user.id)
+        event.channel.delete_messages(event.channel.history(100).select { |m| m.author.id == event.user.id }[0..4])
+      end
+    
+    # Otherwise, remove them from the spam filter tracker
+    else
+      spam_filter_triggered.delete(event.user.id)
+    end
+  end
+
+
+  # Blacklist; deletes message if it contains a blacklisted word
+  message do |event|
+    # Skips if message is in #moderation_channel or user is moderator
+    next if event.channel.id == MODERATION_CHANNEL_ID || event.user.role?(MODERATOR_ID)
+
+    # Deletes message if any word from the blacklist is present within the message content
+    if YAML.load_file("#{MOD_DATA_PATH}/blacklist.yml").any? { |w| event.message.content.downcase.include? w }
+      event.message.delete
+    end
   end
 end
