@@ -2,7 +2,7 @@ require 'yaml'
 
 module Convenience
   # StarDis server object
-  SERVER = BOT.ready { BOT.server(297550039125983233) }
+  SERVER = Bot::BOT.ready { Bot::BOT.server(297550039125983233) }
   # My user ID
   MY_ID = 220509153985167360
   # Member role ID
@@ -51,6 +51,7 @@ module Convenience
         nil
       end
     end
+  end
 
     # Integer class imported from base Ruby
     class Integer

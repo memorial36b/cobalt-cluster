@@ -15,7 +15,7 @@ module Bot::Moderation
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
   # Path to crystal's data folder
-  MOD_DATA_PATH = "#{DATA_PATH}/moderation"
+  MOD_DATA_PATH = "#{Bot::DATA_PATH}/moderation"
   # Value for two weeks of time in seconds
   TWO_WEEKS = 1209600
   # Muted role ID
@@ -77,7 +77,6 @@ module Bot::Moderation
       points.delete_if { |_i, d| d[0] == 0 }
     end
   end
-
 
   # Master punish command; automatically decides punishment based on severity and existing points
   command :punish do |event, *args|
@@ -424,7 +423,7 @@ module Bot::Moderation
       event.user.dm(
         "**#{event.user.distinct}, you have: #{user_points} points.**\n" +
         "*This is an automated message. Do not reply.*"
-      end
+      )
 
     # If user is a moderator and using the command in #moderation_channel:
     elsif event.user.role?(MODERATOR_ID) && event.channel.id == MODERATION_CHANNEL_ID
@@ -455,6 +454,7 @@ module Bot::Moderation
           File.open("#{MOD_DATA_PATH}/points.txt"), 
           caption: "**All users' points:**"
         )
+
       # +points with arguments
       else
         # Adding points to user
@@ -502,21 +502,21 @@ module Bot::Moderation
             # Updates point data  
             points[user.id][0] -= removed_points
             points[user.id][0] = 0 if points[user.id][0] < 0
-            
+
             # Sends confirmation message and dms user
             event.send_message "**Removed #{removed_points} point#{removed_points > 1 ? 's' : nil} from user #{user.distinct}.**" # confirmation message
             user.pm "**#{user.distinct}, a moderator has removed some points from you.** You now have **#{points[user.id][0]} point#{points[user.id][0] == 1 ? nil : 's'}**." # notification pm
 
             # Deletes entry if user now has 0 points
-            points.delete_if { |_id, (p, _d, _r) p == 0 }
+            points.delete_if { |_id, d| d[0] == 0 }
           end
 
         # Checking points of a user
         elsif SERVER.get_user(args.join(' '))
           # Defines variables for user, their points, time object of their next decay, and last punishment reason
           user = SERVER.get_user(args.join(' '))
-          if YAML.load(File.open("#{MOD_DATA_PATH}/points.yml")).has_key?(user.id)
-            points, next_decay, reason = YAML.load(File.open("#{MOD_DATA_PATH}/points.yml"))[user.id]
+          if YAML.load_file("#{MOD_DATA_PATH}/points.yml").has_key?(user.id)
+            points, next_decay, reason = YAML.load_file("#{MOD_DATA_PATH}/points.yml")[user.id]
           else
             points = 0
             next_decay = nil
@@ -547,7 +547,7 @@ module Bot::Moderation
     # Breaks unless user is a moderator or a Head Creator punishing through +punish, the first
     # argument is a valid user or 'channel' exactly, and the mute length is a valid length of time
     break unless (event.user.role?(MODERATOR_ID) ||
-                  head_creator_punishing.include? event.user.id) &&
+                  head_creator_punishing.include?(event.user.id)) &&
                  args.size >= 2 &&
                  (SERVER.get_user(args[0]) || args[0] == 'channel') &&  # user or channel
                  args[1].to_sec > 0 # valid length of time
@@ -582,7 +582,7 @@ module Bot::Moderation
         {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
       )
       Bot::BOT.send_message( # log message
-        COBALT_REPORTS_ID
+        COBALT_REPORTS_ID,
         ":x: **CHANNEL MUTE**\n" + 
         "**#{event.user.distinct}:** Muted #{channel.mention} for **#{args[1].scan(/[1-9]\d*[smhd]/i).join}**.\n" + 
         "**Reason:** #{reason}" # audit log reason
@@ -630,7 +630,7 @@ module Bot::Moderation
       # Mutes user by adding Muted role and removing Member and opt-in roles
       user.modify_roles(
         MUTED_ID, # add Muted
-        [MEMBER_ID] + user_opt_in_roles # remove Member and opt-in roles
+        [MEMBER_ID] + user_opt_in_roles, # remove Member and opt-in roles
         "Mute -- reason: #{reason}" # audit log reason
       )
 
@@ -708,7 +708,7 @@ module Bot::Moderation
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
         user.modify_roles(
           [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
-          MUTED_ID # remove Muted
+          MUTED_ID, # remove Muted
           "Unmute" # audit log reason
         )
       end
@@ -780,7 +780,7 @@ module Bot::Moderation
       # Unmutes user by removing Muted role and re-adding Member and opt-in roles
       user.modify_roles(
         [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
-        MUTED_ID # remove Muted
+        MUTED_ID, # remove Muted
         "Unmute" # audit log reason
       )
 
@@ -857,7 +857,7 @@ module Bot::Moderation
             # Adds field to embed with the muted channel and their info
             embed.add_field(
               name: "##{Bot::BOT.channel(id).name}", 
-              value: "**Time remaining:** #{(mute_end_time - Time.now.).round.to_dhms}\n" +
+              value: "**Time remaining:** #{(mute_end_time - Time.now).round.to_dhms}\n" +
                      "**Reason:** #{reason}", 
               inline: true
             )
@@ -947,19 +947,19 @@ module Bot::Moderation
 
     # if user is a moderator or punishing HC, needing a second opinion to ban:
     elsif (event.user.role?(MODERATOR_ID) ||
-           head_creator_punishing.include? event.user.id)
+           head_creator_punishing.include?(event.user.id))
       # Defines array of IDs of user's opt-in roles
       user_opt_in_roles = OPT_IN_ROLES.select { |id| user.role?(id) }
       
       # Mutes user by adding Muted role and removing Member and opt-in roles
       user.modify_roles(
         MUTED_ID, # add Muted
-        [MEMBER_ID] + user_opt_in_roles # remove Member and opt-in roles
+        [MEMBER_ID] + user_opt_in_roles, # remove Member and opt-in roles
         "Mute -- reason: #{reason}" # audit log reason
       )
       YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
         users[user.id] = [:trial, reason, user_opt_in_roles]
-      )
+      end
 
       # Sends confirmation message and logs action, adding approve/deny buttons to log message
       identifier = SecureRandom.hex(4)
@@ -996,7 +996,7 @@ module Bot::Moderation
       approval, second_user = loop do
         # Creates reaction await which detects when one of the buttons has been pressed
         await_event = Bot::BOT.add_await!(
-          Discordrb::Events::ReactionAddEvent # event type
+          Discordrb::Events::ReactionAddEvent, # event type
           {channel: COBALT_REPORTS_ID}
         )
 
@@ -1053,7 +1053,7 @@ module Bot::Moderation
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
         user.modify_roles(
           [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
-          MUTED_ID # remove Muted
+          MUTED_ID, # remove Muted
           "Unmute" # audit log reason
         )
 
