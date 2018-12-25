@@ -1,6 +1,5 @@
 # ████████████████████████████████████████████████████████████████████████████████████████████
-# █ This is a template config file for the bot. The actual config should have the filename   █
-# █ 'config.yml' exactly, using this template.                                               █
+# █ This is the config file for the bot.                                                     █
 # █ Only the fields marked ■ REQUIRED ■ need to be filled; the rest offer some finer control █
 # █ and need not be changed.                                                                 █
 # ████████████████████████████████████████████████████████████████████████████████████████████
