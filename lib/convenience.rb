@@ -20,11 +20,17 @@ module Convenience
     # you cannot simply set it equal to another value!
     # @param      path [String] the path to the YAML file
     # @yieldparam data [Object] the data in the YAML file
-    # @return          [void]
-    def self.load_data!(path)
+    # @return          [void]   if a block was provided (as all processing is handled within block)
+    # @return          [Object] if no block was provided; returns the data in the YAML file
+    def self.load_data!(path, &block)
       data = YAML.load_file(path)
-      yield data
-      File.open(path, 'w') { |f| YAML.dump(data, f) }
+      if block_given?
+        yield data
+        File.open(path, 'w') { |f| YAML.dump(data, f) }
+        nil
+      else
+        data
+      end
     end
   end
 
@@ -39,6 +45,7 @@ module Convenience
     # @param  str [String]            the string to match to a member
     # @return     [Discordrb::Member] the member that matches the string, as detailed above; or nil if none found
     def get_user(str)
+      self.members # recaches members
       if self.member(str.scan(/\d/).join.to_i)
         self.member(str.scan(/\d/).join.to_i)
       elsif self.members.find { |m| m.distinct.downcase == str.downcase }
