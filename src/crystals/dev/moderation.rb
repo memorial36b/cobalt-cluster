@@ -57,7 +57,70 @@ module Bot::Moderation
   # Array used to track if a user has triggered the spam filter
   spam_filter_triggered = Array.new
 
-  # TODO: Add code to schedule unmute jobs based on mute data file upon loading module
+
+  # Loads mute info from file and schedules Rufus jobs for all entries; as it uses some Discord
+  # API methods, it only executes upon receiving READY packet
+  ready do
+    # Defines variables containing muted users and channels
+    muted_users = YAML.load_data! "#{MOD_DATA_PATH}/muted_users.yml"
+    muted_channels = YAML.load_data! "#{MOD_DATA_PATH}/muted_channels.yml"
+
+    # Schedules Rufus job to unmute user for all muted users
+    muted_users.each do |id, (mute_end_time, reason, user_opt_in_roles)|
+      # Skips if user is muted due to being on trial for ban
+      next if mute_end_time == :trial
+
+      # Defines user variable
+      user = SERVER.member(id)
+
+      # Schedules a Rufus job to unmute the user and stores it in the mute_jobs hash
+      mute_jobs[id] = SCHEDULER.schedule_at mute_end_time do
+        # Deletes user entry from data file and job hash
+        YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
+          users.delete(id)
+        end
+        mute_jobs.delete(id)
+
+        # Unmutes user by removing Muted role and re-adding Member and opt-in roles
+        begin
+          user.modify_roles(
+            [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
+            MUTED_ID, # remove Muted
+            "Unmute" # audit log reason
+          )
+        rescue StandardError => e
+          puts "Exception raised when modifying a user's roles -- most likely user left the server"
+        end 
+      end
+    end
+
+    # Schedules Rufus job to unmute channel for all muted channels
+    muted_channels.each do |id, (mute_end_time, reason)|
+      # Defines channel variable and gets permission object for Member role in channel
+      channel = Bot::BOT.channel(id)
+      permissions = channel.permission_overwrites[MEMBER_ID]
+
+      # Schedules a Rufus job to unmute the channel and stores it in the mute_jobs hash
+      mute_jobs[id] = SCHEDULER.schedule_at mute_end_time do
+        # Deletes channel entry from data file and job hash
+        YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml") do |channels|
+          channels.delete(id)
+        end
+        mute_jobs.delete(id)
+
+        # Neutralizes the permission to send messages for the Member role in the event channel
+        permissions.deny.can_send_messages = false
+        channel.define_overwrite(
+          permissions,
+          reason: 'Channel unmute' # audit log reason
+        )
+
+        # Sends confirmation message
+        channel.send_message('**Channel unmuted.**') # confirmation message sent to event channel
+      end
+    end
+  end
+
 
   # 12h cron job that iterates through points data file and removes one point if past decay time,
   # updating file accordingly
@@ -78,6 +141,7 @@ module Bot::Moderation
     end
   end
 
+  
   # Master punish command; automatically decides punishment based on severity and existing points
   command :punish do |event, *args|
     # Breaks unless user is a moderator or HC, the user being punished is valid, and a reason is given
@@ -416,7 +480,7 @@ module Bot::Moderation
     # If user is using command in #bot_commands:
     if event.channel.id == Bot::BOT_COMMANDS_ID
       # Defines variable containing user points; set to 0 if no user entry is found in points data
-      points = YAML.load_file "#{MOD_DATA_PATH}/points.yml"
+      points = YAML.load_data! "#{MOD_DATA_PATH}/points.yml"
       user_points = points[event.user.id] ? points[event.user.id][0] : 0
 
       # Sends dm to user
@@ -430,7 +494,7 @@ module Bot::Moderation
       # +points without arguments, returns text file of all points
       if args.empty?
         # Loads data from file into variable, and formats into array of strings
-        points = YAML.load_file "#{MOD_DATA_PATH}/points.txt"
+        points = YAML.load_data! "#{MOD_DATA_PATH}/points.txt"
         formatted_points = points.map do |id, (user_points, next_decay, reason)|
           # Skips unless user exists in server (has not left it)
           next unless SERVER.get_user(id)
@@ -515,8 +579,8 @@ module Bot::Moderation
         elsif SERVER.get_user(args.join(' '))
           # Defines variables for user, their points, time object of their next decay, and last punishment reason
           user = SERVER.get_user(args.join(' '))
-          if YAML.load_file("#{MOD_DATA_PATH}/points.yml").has_key?(user.id)
-            points, next_decay, reason = YAML.load_file("#{MOD_DATA_PATH}/points.yml")[user.id]
+          if YAML.load_data!("#{MOD_DATA_PATH}/points.yml").has_key?(user.id)
+            points, next_decay, reason = YAML.load_data!("#{MOD_DATA_PATH}/points.yml")[user.id]
           else
             points = 0
             next_decay = nil
@@ -585,7 +649,7 @@ module Bot::Moderation
         COBALT_REPORTS_ID,
         ":x: **CHANNEL MUTE**\n" + 
         "**#{event.user.distinct}:** Muted #{channel.mention} for **#{args[1].scan(/[1-9]\d*[smhd]/i).join}**.\n" + 
-        "**Reason:** #{reason}" # audit log reason
+        "**Reason:** #{reason}"
       )
 
       # Stores mute info in the muted_channels data file
@@ -706,11 +770,15 @@ module Bot::Moderation
         mute_jobs.delete(user.id)
 
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
-        user.modify_roles(
-          [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
-          MUTED_ID, # remove Muted
-          "Unmute" # audit log reason
-        )
+        begin
+          user.modify_roles(
+            [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
+            MUTED_ID, # remove Muted
+            "Unmute" # audit log reason
+          )
+        rescue StandardError => e
+          puts "Exception raised when modifying a user's roles -- most likely user left the server"
+        end 
       end
     end
 
@@ -728,7 +796,7 @@ module Bot::Moderation
     # If user is unmuting a channel:
     if args[0] == 'channel' # preferred to unmuting user, so users can't nickname themselves 'channel'
       # Breaks unless the channel is muted
-      break unless YAML.load_file("#{MOD_DATA_PATH}/muted_channels.yml").has_key? event.channel.id
+      break unless YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml").has_key? event.channel.id
 
       # Defines channel variable and the Member role's permissions in the event channel
       channel = event.channel
@@ -758,17 +826,17 @@ module Bot::Moderation
     # If user is unmuting another user:
     else
       # Breaks unless the user is muted
-      break unless YAML.load_file("#{MOD_DATA_PATH}/muted_users.yml").has_key? SERVER.get_user(args.join(' ')).id
+      break unless YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml").has_key? SERVER.get_user(args.join(' ')).id
 
       # If user is muted due to being on trial for a ban:
-      if YAML.load_file("#{MOD_DATA_PATH}/muted_users.yml")[user.id][0] == :trial
+      if YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")[user.id][0] == :trial
         event.send_message 'That user is on trial for ban and cannot be unmuted.'
         break
       end
 
       # Defines user variable and array of IDs of user's opt-in roles
       user = SERVER.get_user(args.join(' '))
-      user_opt_in_roles = YAML.load_file("#{MOD_DATA_PATH}/muted_users.yml")[user.id][2]
+      user_opt_in_roles = YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")[user.id][2]
       
       # Unschedules unmute job and deletes user entry from data file and job hash
       mute_jobs[user.id].unschedule # unschedules unmute job
@@ -797,7 +865,7 @@ module Bot::Moderation
     # If user wants to display muted users:
     if arg.downcase == 'users'
       # Defines variable containing data from data file
-      muted = YAML.load(File.open("#{MOD_DATA_PATH}/muted_users.yml"))
+      muted = YAML.load_data! "#{MOD_DATA_PATH}/muted_users.yml"
       
       # If no users are muted:
       if muted.empty?
@@ -837,7 +905,7 @@ module Bot::Moderation
     # If user wants to display muted channels:
     elsif arg.downcase == 'channels'
       # Defines variable containing data from data file
-      muted = YAML.load(File.open("#{MOD_DATA_PATH}/muted_channels.yml"))
+      muted = YAML.load_data! "#{MOD_DATA_PATH}/muted_channels.yml"
       
       # If no channels are muted:
       if muted.empty?
@@ -895,7 +963,7 @@ module Bot::Moderation
     ban_days = response.message.content.to_i
 
     # Unschedules mute job and deletes from hash if user is currently muted
-    if YAML.load_file("#{MOD_DATA_PATH}/muted_users.yml").has_key? user.id
+    if YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml").has_key? user.id
       mute_jobs[user.id].unschedule
       mute_jobs.delete(user.id)  
     end
@@ -1051,11 +1119,15 @@ module Bot::Moderation
       # If the ban was rejected:
       else
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
-        user.modify_roles(
-          [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
-          MUTED_ID, # remove Muted
-          "Unmute" # audit log reason
-        )
+        begin
+          user.modify_roles(
+            [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
+            MUTED_ID, # remove Muted
+            "Unmute" # audit log reason
+          )
+        rescue StandardError => e
+          puts "Exception raised when modifying a user's roles -- most likely user left the server"
+        end
 
         # Deletes user entry from muted data file
         YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
@@ -1130,7 +1202,7 @@ module Bot::Moderation
       "**Reason:** #{reason}"
     )
     user.dm( # notification dm sent to user
-      "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{YAML.load_file("#{MOD_DATA_PATH}/channel_blocks.yml")[user.id][0]}** points.\n" +
+      "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml")[user.id][0]}** points.\n" +
       "**Reason:** #{reason}"
     )
     bot.send_message( # log message
@@ -1189,7 +1261,7 @@ module Bot::Moderation
     break unless event.user.role(MODERATOR_ID)
 
     # Defines variable containing data from block data file
-    blocks = YAML.load_file "#{MOD_DATA_PATH}/channel_blocks.yml"
+    blocks = YAML.load_data! "#{MOD_DATA_PATH}/channel_blocks.yml"
 
     # Sends embed to channel displaying blocks
     event.send_embed do |embed|
@@ -1221,8 +1293,8 @@ module Bot::Moderation
 
     # Defines user variable and loads mute and block data from file
     user = event.user.on(SERVER)
-    muted = YAML.load_file "#{MOD_DATA_PATH}/muted_users.yml"
-    blocks = YAML.load_file "#{MOD_DATA_PATH}/channel_blocks.yml"
+    muted = YAML.load_data! "#{MOD_DATA_PATH}/muted_users.yml"
+    blocks = YAML.load_data! "#{MOD_DATA_PATH}/channel_blocks.yml"
 
     # Denies read message perms for user in #welcome (this is necessary as when the bot is down, 
     # any user that joins is able to talk in #welcome to ask a staff member for the Member role)
@@ -1288,7 +1360,7 @@ module Bot::Moderation
     next if event.channel.id == MODERATION_CHANNEL_ID || event.user.role?(MODERATOR_ID)
 
     # Deletes message if any word from the blacklist is present within the message content
-    if YAML.load_file("#{MOD_DATA_PATH}/blacklist.yml").any? { |w| event.message.content.downcase.include? w }
+    if YAML.load_data!("#{MOD_DATA_PATH}/blacklist.yml").any? { |w| event.message.content.downcase.include? w }
       event.message.delete
     end
   end
