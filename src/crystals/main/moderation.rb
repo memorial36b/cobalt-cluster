@@ -5,8 +5,7 @@ require 'securerandom'
 
 
 # This crystal contains Cobalt's moderation commands, such as punishment, mute, banning, and
-# channel blocking, as well as some things that require elevated perms like displaying a voice
-# channel's corresponding text channel.
+# channel blocking.
 module Bot::Moderation
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
@@ -22,7 +21,7 @@ module Bot::Moderation
   MUTED_ID = 307755803128102914
   # Head Creator role ID
   HEAD_CREATOR_ID = 338673551445852162
-  # Opt-in roles
+  # IDs of all opt-in roles
   OPT_IN_ROLES = [
     382433569101971456,
     310698748680601611,
@@ -30,6 +29,8 @@ module Bot::Moderation
     402051258732773377,
     454304307425181696
   ]
+  # Bounce Lounge bot ID
+  BOUNCE_LOUNGE_ID = 309018929584537602
   # #welcome channel ID
   WELCOME_ID = 339122866446401537
   # #bot_commands channel ID
@@ -1363,5 +1364,23 @@ module Bot::Moderation
     if YAML.load_data!("#{MOD_DATA_PATH}/blacklist.yml").any? { |w| event.message.content.downcase.include? w }
       event.message.delete
     end
+  end
+
+
+  # Prunes messages from channel
+  command :prune do |event, arg|
+    # Breaks unless user is moderator and the messages to delete is between 2 and 100
+    break unless event.user.role?(MODERATOR_ID) && 
+                 (2..100).include? arg.to_i
+
+    # Deletes calling message, then prunes given number of messages from event channel
+    event.message.delete
+    event.channel.prune(arg1.to_i)
+
+    # Sends temporary confirmation message
+    event.send_temporary_message(
+      "Deleted **#{arg1.to_i}** messages.", 
+      3 # seconds that the message lasts
+    )
   end
 end

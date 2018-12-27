@@ -8,18 +8,21 @@ It is currently still a work in progress -- any crystals (modules) that are comp
 [the main branch](src/crystals/main), and any crystals that are unfinished (in progress or
 not started) are in [the dev branch](src/crystals/dev).
 
+Note: Because this is a very server specific Discord bot, the code hasn't been tested beyond syntax
+errors; after finishing the first version, more revisions may be needed.
+
 ## Current crystal progress
 
 ### Finished
 
 + BasicCommands
++ Moderation
 
 ### In progress
 
-+ Moderation
++ Miscellaneous
 
 ### Not started
 
-+ Miscellaneous
 + Economy
 + BeepBoop
