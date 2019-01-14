@@ -3,3 +3,6 @@
 
 # Exclude config file
 config.yml
+
+# Exclude legacy folder (contains old Cobalt code on my local machine)
+legacy/
