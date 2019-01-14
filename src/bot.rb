@@ -33,21 +33,23 @@ module Bot
   # Cleans up config struct by deleting all nil entries
   config = OpenStruct.new(config.to_h.reject { |_a, v| v.nil? })
 
-  # Raises a RuntimeError for any missing required components and exits
+  puts '==CLUSTER: A Clunky Modular Ruby Bot Framework=='
+
+  # Prints an error message to console for any missing required components and exits
   if config.client_id.nil?
-    raise 'Client ID not found!'
+    puts '- ERROR: Client ID not found in config.yml'
   end
   if config.token.nil?
-    raise 'Token not found!'
+    puts '- ERROR: Token not found in config.yml'
   end
-  if config.prefix.nil?
-    raise 'Command prefix not found!'
+  if config.prefix.empty?
+    puts '- ERROR: Command prefix not found in config.yml'
   end
-  if config.client_id.nil? || config.token.nil? || config.prefix.nil?
+  if config.client_id.nil? || config.token.nil? || config.prefix.empty?
+    puts 'Exiting.'
     exit(false)
   end
 
-  puts '==CLUSTER: A Clunky Modular Ruby Bot Framework=='
   puts 'Initializing the bot object...'
 
   # Creates the bot object using the config attributes; this is a constant 
@@ -75,8 +77,8 @@ module Bot
   # Loads a crystal from the given file and includes the module into the bot's container.
   # 
   # @param file [File] the file to load the crystal from. Filename must be the crystal 
-  #   name in snake case, or this will not work! (The crystal template generator 
-  #   will do this automatically.)
+  #                    name in snake case, or this will not work! (The crystal template generator
+  #                    will do this automatically.)
   def self.load_crystal(file_path)
     module_name = File.basename(file_path, '.*').split('_').map(&:capitalize).join
     load file_path
@@ -84,21 +86,18 @@ module Bot
     puts "+ Loaded crystal #{module_name}"
   end
 
-  # Loads crystals depending on command line flags. Usage as follows:
-  # --main, -m: Loads all crystals in crystals/main; default with no arguments
-  # --development, -d: Loads all crystals in crystals/dev
-  # --all, -a: Loads all crystals from both crystals/main and crystals/dev
-  # NOTE: Multiple flags are not supported (or needed); only the first argument is read.
-  if !ARGV[0] || %w(--main -m --all -a).include?(ARGV[0])
+  # Loads crystals depending on command line flags.
+  # If 'main' is provided, all main crystals are loaded. If 'dev' is provided, all development crystals are loaded.
+  if ARGV.include? 'main'
     puts 'Loading main crystals...'
-    Dir['crystals/main/*.rb'].each do |file|
+    Dir['main/*.rb'].each do |file|
       load_crystal(file)
     end
     puts 'Done.'
   end
-  if %w(--development -d --all -a).include?(ARGV[0])
+  if ARGV.include? 'dev'
     puts 'Loading dev crystals'
-    Dir['crystals/dev/*.rb'].each do |file|
+    Dir['dev/*.rb'].each do |file|
       load_crystal(file)
     end
     puts 'Done.'

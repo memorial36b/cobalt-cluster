@@ -1,0 +1,5 @@
+# Exclude RubyMine workspace files
+.idea/
+
+# Exclude config file
+config.yml
