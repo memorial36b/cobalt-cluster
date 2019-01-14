@@ -7,6 +7,25 @@ module Bot::Miscellaneous
   extend Discordrb::EventContainer
   include Constants
 
+  # Role button message ID
+  ROLE_MESSAGE_ID = 439778623965233152
+  # Updates role ID
+  UPDATES_ID = 386083829699575809
+  # SVTFOE News role ID
+  SVTFOE_NEWS_ID = 411199894850764811
+  # SVTFOE Leaks role ID
+  SVTFOE_LEAKS_ID = 418824910597521419
+  # Bot Games role ID
+  BOT_GAMES_ID = 402051258732773377
+  # Vent role ID
+  VENT_ID = 382433569101971456
+  # Debate role ID
+  DEBATE_ID = 316353444971544577
+  # Sandbox role ID
+  SANDBOX_ID = 454304307425181696
+  # #cobalt_reports ID
+  COBALT_REPORTS_ID = 307755696198385666
+
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous"
   # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
@@ -79,5 +98,206 @@ module Bot::Miscellaneous
 
     # Sends gif
     event.channel.send_file(File.open("#{MISC_DATA_PATH}/quality.gif"))
+  end
+
+  # Adds role when user presses its reaction button
+  reaction_add do |event|
+    # Skips unless the message ID is equal to the role button message's ID and user has Member role
+    next unless event.message.id == ROLE_MESSAGE_ID &&
+                event.user.role?(MEMBER_ID)
+
+    # Cases reaction emoji and gives user correct role accordingly
+    case event.emoji.name
+    when '🔔'
+      event.user.add_role(UPDATES_ID)
+    when '🌟'
+      event.user.add_role(SVTFOE_NEWS_ID)
+    when '🚰'
+      event.user.add_role(SVTFOE_LEAKS_ID)
+    when '🎮'
+      event.user.add_role(BOT_GAMES_ID)
+    when '💭'
+      event.user.add_role(VENT_ID)
+    when '🗣'
+      event.user.add_role(DEBATE_ID)
+    when '🎲'
+      event.user.add_role(SANDBOX_ID)
+    end
+  end
+
+  # Removes role when user depresses its reaction button
+  reaction_remove do |event|
+    # Skips unless the message ID is equal to the role button message's ID and user has Member role
+    next unless event.message.id == ROLE_MESSAGE_ID &&
+        event.user.role?(MEMBER_ID)
+
+    # Cases reaction emoji and removes correct role from user accordingly
+    case event.emoji.name
+    when '🔔'
+      event.user.remove_role(UPDATES_ID)
+    when '🌟'
+      event.user.remove_role(SVTFOE_NEWS_ID)
+    when '🚰'
+      event.user.remove_role(SVTFOE_LEAKS_ID)
+    when '🎮'
+      event.user.remove_role(BOT_GAMES_ID)
+    when '💭'
+      event.user.remove_role(VENT_ID)
+    when '🗣'
+      event.user.remove_role(DEBATE_ID)
+    when '🎲'
+      event.user.remove_role(SANDBOX_ID)
+    end
+  end
+
+  # Displays server info
+  command(:serverinfo, channels: ['#bot_commands', '#moderation_channel']) do |event|
+    # Sends embed containing server info
+    event.send_embed do |embed|
+      embed.author = {
+          name: "SERVER: #{SERVER.name}",
+          icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
+      }
+      embed.thumbnail = {url: SERVER.icon_url}
+      embed.add_field(
+          name: 'Owner',
+          value: SERVER.owner.distinct + "\n⠀",
+          inline: true
+      )
+      embed.add_field(
+          name: 'Region',
+          value: SERVER.region_id + "\n⠀",
+          inline: true
+      )
+      embed.add_field(
+          name: 'Numerics',
+          value: "**Members: #{SERVER.member_count}**\n" +
+                 "├ Humans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
+                 "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
+                 "└ Online: **#{SERVER.online_members.size}**\n" +
+                 "\n" +
+                 "**Emotes: #{SERVER.emoji.length}**",
+          inline: true
+      )
+      embed.add_field(
+          name: '⠀',
+          value: "**Channels: #{SERVER.channels.size}**\n" +
+                 "├ Text: **#{SERVER.text_channels.size}**\n" +
+                 "├ Voice: **#{SERVER.voice_channels.size}**\n" +
+                 "└ Categories: **#{SERVER.categories.size}**\n" +
+                 "\n" +
+                 "**Roles: #{SERVER.roles.size}**",
+          inline: true
+      )
+      embed.footer = {text: "ID: 297550039125983233 • Founded on April 28, 2017"}
+      embed.color = 0xFFD700
+    end
+  end
+
+  # Displays a user's info
+  command([:userinfo, :who, :whois], channels: ['#bot_commands', '#moderation_channel']) do |event, *args|
+    # Sets argument to event user's ID if no arguments are given
+    args[0] ||= event.user.id
+
+    # Breaks unless user is valid
+    break unless SERVER.get_user(args.join(' '))
+
+    # Defines user variable
+    user =  SERVER.get_user(args.join(' '))
+
+    # Sends embed containing user info
+    event.send_embed do |embed|
+      embed.author = {
+          name: "USER: #{user.display_name} (#{user.distinct})",
+          icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
+      }
+      embed.thumbnail = {url: user.avatar_url}
+      embed.add_field(
+          name: 'Status',
+          value: user.status.to_s,
+          inline: true
+      )
+      embed.add_field(
+          name: 'Playing',
+          value: (user.game || 'None'),
+          inline: true
+      )
+      embed.add_field(
+          name: 'Joined Server',
+          value: user.joined_at.strftime('%B %-d, %Y'),
+          inline: true
+      ) if user.joined_at
+      embed.add_field(
+          name: 'Role Info',
+          value: "**Roles: #{user.roles.size}**\n" +
+                 "├ Highest: **#{user.highest_role ? user.highest_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**\n" +
+                 "├ Color: **#{user.color_role ? user.color_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**\n" +
+                 "└ Hoisted: **#{user.hoist_role ? user.hoist_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**",
+          inline: true
+      )
+      embed.footer = {text: "ID #{user.id} • Joined Discord on #{user.creation_time.strftime('%b %-d, %Y')}"}
+      embed.color = user.color_role.color.combined if user.color_role
+    end
+  end
+
+  # Reports a user
+  command :report do |event, *args|
+    # Breaks unless user and reason are given and user is valid
+    break unless args.size >= 2 &&
+                 SERVER.get_user(args[0])
+
+    # Defines user variable and an identifier
+    user = SERVER.get_user(args[0])
+    identifier = SecureRandom.hex.slice(0..7)
+
+    # Sends report and confirmation message
+    Bot::BOT.send_message( # report message sent to #cobalt_reports
+      COBALT_REPORTS_ID,
+      "@here **ID:** `#{identifier}`",
+      false, # tts
+      {
+        author: {
+          name: "REPORT | User: #{user.display_name} (#{user.distinct})",
+          icon_url: user.avatar_url
+        },
+        description: "**User #{user.mention} reported** in channel #{event.channel.mention}.\n" +
+                     "• **Reason:** #{args[1...args.size].join(' ')}\n" +
+                     "\n" +
+                     "**Filed by:** #{event.user.distinct}",
+        thumbnail: {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/103/right-pointing-magnifying-glass_1f50e.png'},
+        color: 0xFFD700
+      }
+    )
+    event.respond "• **ID** `#{identifier}`\n" + # confirmation message sent to event channel
+                  "**User #{user.distinct} has been reported.**\n" +
+                  "**Reason:** #{args[1..-1].join(' ')}"
+  end
+
+  # Allows mods to ping a role without needing to deal with mentionable permissions
+  command :roleping do |event, arg = ''|
+    # Break unless user is moderator
+    break unless event.user.role?(MODERATOR_ID)
+
+    # Delete event message
+    event.message.delete
+
+    # Cases argument and defines role variable accordingly (or breaks if invalid argument)
+    case arg.downcase
+    when 'updates'
+      role = SERVER.role(UPDATES_ID)
+    when 'svtfoe', 'svtfoenews', 'starnews'
+      role = SERVER.role(SVTFOE_NEWS_ID)
+    when 'leaks', 'svtfoeleaks', 'starleaks'
+      role = SERVER.role(SVTFOE_LEAKS_ID)
+    else
+      break
+    end
+
+    # Mentions role
+    role.mentionable = true
+    event.respond "#{role.mention} ⬆️"
+    role.mentionable = false
+
+    nil # returns nil so command doesn't send an extra message
   end
 end
