@@ -9,7 +9,7 @@ require 'securerandom'
 module Bot::Moderation
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
-  include Convenience
+  include Constants
 
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new

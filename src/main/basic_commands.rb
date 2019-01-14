@@ -4,7 +4,7 @@
 # This crystal contains the basic commands of the bot, such as ping and exit.
 module Bot::BasicCommands
   extend Discordrb::Commands::CommandContainer
-  extend Convenience
+  include Constants
   
   # Ping command
   command :ping do |event|

@@ -5,7 +5,7 @@
 module Bot::Miscellaneous
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
-  include Convenience
+  include Constants
 
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous"
