@@ -7,6 +7,16 @@ module Bot::Miscellaneous
   extend Discordrb::EventContainer
   include Constants
 
+  # Path to crystal's data folder
+  MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous".freeze
+  # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
+  VOICE_TEXT_CHANNELS = {
+      387802285733969920 => 307778254431977482, # General
+      378857349705760779 => 378857881782583296, # Generally
+      307763283677544448 => 307763370486923264, # Music
+      307882913708376065 => 307884092513583124, # Gaming
+      307747884823085056 => 307879429009309696  # Watchalongs
+  }.freeze
   # Role button message ID
   ROLE_MESSAGE_ID = 439778623965233152
   # Updates role ID
@@ -25,17 +35,23 @@ module Bot::Miscellaneous
   SANDBOX_ID = 454304307425181696
   # #cobalt_reports ID
   COBALT_REPORTS_ID = 307755696198385666
+  # #quoteboard ID
+  QUOTEBOARD_ID = 348001214698487809
+  # IDs of channels blacklisted from #quoteboard
+  QUOTEBOARD_BLACKLIST = [
+      307726630061735936, # #news
+      360720349421109258, # #svtfoe_news
+      382469794848440330, # #vent_space
+      418819468412715008  # #svtfoe_leaks
+  ].freeze
+  # Hash of channel IDs with the number of cams they need to be sent to #quoteboard, defaulting to 7
+  QUOTEBOARD_CAM_COUNT = Hash.new(7).update(
+      330586271116165120 => 3, # #moderation_channel
+      338689508046274561 => 3  # #head_creator_hq
+  ).freeze
 
-  # Path to crystal's data folder
-  MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous"
-  # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
-  VOICE_TEXT_CHANNELS = {
-    387802285733969920 => 307778254431977482, # General
-    378857349705760779 => 378857881782583296, # Generally
-    307763283677544448 => 307763370486923264, # Music
-    307882913708376065 => 307884092513583124, # Gaming
-    307747884823085056 => 307879429009309696  # Watchalongs
-  }
+  # Tracker for whether a message has been quoted to #quoteboard recently
+  qb_recent = false
   
   # Voice text channel management; detects when user has joined a voice channel that has a
   # corresponding text channel and makes its text channel visible to user
@@ -299,5 +315,53 @@ module Bot::Miscellaneous
     role.mentionable = false
 
     nil # returns nil so command doesn't send an extra message
+  end
+
+  # Sends a message to #quoteboard when it gets enough cams
+  reaction_add(emoji: [0x1F4F7].pack('U*')) do |event|
+    # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
+    # or if a message has been quoted within the last 5 minutes already
+    next if event.message.reactions[[0x1F4F7].pack('U*')].count != QUOTEBOARD_CAM_COUNT[event.channel.id] ||
+            QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
+            qb_recent
+
+    # Deletes all message reactions to prevent message being cammed again
+    event.message.delete_all_reactions
+
+    # Sends embed to #quoteboard displaying message
+    bot.channel(348001214698487809).send_embed do |embed|
+      embed.author = {
+          name: "#{event.message.author.display_name} (#{event.message.author.distinct})",
+          icon_url: event.message.author.avatar_url
+      }
+      embed.color = 0xFFD700
+      embed.description = event.message.content
+
+      # Add embed image only if original message contains an image
+      unless event.message.attachments == []
+        embed.image = Discordrb::Webhooks::EmbedImage.new(url: event.message.attachments[0].url)
+      end
+
+      embed.timestamp = event.message.timestamp.getgm
+      embed.footer = {text: "##{event.message.channel.name}"}
+    end
+
+    # Sets recent quote tracker to true, and schedules it to be set back to false in 5 minutes
+    qb_recent = true
+    scheduler.in '5m' do
+      qb_recent = false
+    end
+  end
+
+  # Randomly chooses from given options
+  command(:spinner, channels: ['#bot_commands', '#moderation_channel']) do |event, *args|
+    # Breaks unless at least one option is given and arguments do not contain @here or @everyone pings
+    break unless args[0] &&
+                 %w(@here @everyone).none? { |s| event.message.content.include? s }
+
+    # Randomly select an option after 2 seconds
+    msg = event.respond '**Spinning the spinner...**'
+    sleep 2
+    msg.edit "The spinner lands on: **#{args.join(' ').split(' | ').sample}**"
   end
 end
