@@ -14,7 +14,7 @@ module Bot::Moderation
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
   # Path to crystal's data folder
-  MOD_DATA_PATH = "#{Bot::DATA_PATH}/moderation"
+  MOD_DATA_PATH = "#{Bot::DATA_PATH}/moderation".freeze
   # Value for two weeks of time in seconds
   TWO_WEEKS = 1209600
   # Muted role ID
@@ -28,7 +28,7 @@ module Bot::Moderation
     316353444971544577,
     402051258732773377,
     454304307425181696
-  ]
+  ].freeze
   # Bounce Lounge bot ID
   BOUNCE_LOUNGE_ID = 309018929584537602
   # #welcome channel ID

@@ -318,10 +318,10 @@ module Bot::Miscellaneous
   end
 
   # Sends a message to #quoteboard when it gets enough cams
-  reaction_add(emoji: [0x1F4F7].pack('U*')) do |event|
+  reaction_add(emoji: '📷') do |event|
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # or if a message has been quoted within the last 5 minutes already
-    next if event.message.reactions[[0x1F4F7].pack('U*')].count != QUOTEBOARD_CAM_COUNT[event.channel.id] ||
+    next if event.message.reactions['📷'].count != QUOTEBOARD_CAM_COUNT[event.channel.id] ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
             qb_recent
 
