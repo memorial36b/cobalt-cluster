@@ -49,6 +49,14 @@ module Bot::Miscellaneous
       330586271116165120 => 3, # #moderation_channel
       338689508046274561 => 3  # #head_creator_hq
   ).freeze
+  # Head Creator role ID
+  HEAD_CREATOR_ID = 338673551445852162
+  # Content Creator role IDs
+  CREATOR_ROLE_IDS = {
+    art: 383960705365311488,
+    multimedia: 383961150905122828,
+    writing: 383961249899216898
+  }.freeze
 
   # Tracker for whether a message has been quoted to #quoteboard recently
   qb_recent = false
@@ -329,7 +337,7 @@ module Bot::Miscellaneous
     event.message.delete_all_reactions
 
     # Sends embed to #quoteboard displaying message
-    bot.channel(348001214698487809).send_embed do |embed|
+    Bot::BOT.channel(348001214698487809).send_embed do |embed|
       embed.author = {
           name: "#{event.message.author.display_name} (#{event.message.author.distinct})",
           icon_url: event.message.author.avatar_url
@@ -363,5 +371,40 @@ module Bot::Miscellaneous
     msg = event.respond '**Spinning the spinner...**'
     sleep 2
     msg.edit "The spinner lands on: **#{args.join(' ').split(' | ').sample}**"
+  end
+
+  # Gives/removes Content Creator role to/from users
+  command(:creator, channels:['#head_creator_hq']) do |event, *args|
+    # Breaks unless user is moderator or Head Creator, give/remove, content creator role and user are given, and both
+    # content creator role and user are valid
+    break unless (event.user.role?(MODERATOR_ID) ||
+                  event.user.role?(HEAD_CREATOR_ID)) &&
+                  args.size >= 3 &&
+                  %w(art multimedia writing).include?(args[1].downcase) &&
+                  SERVER.get_user(args[2..-1].join(' '))
+
+    # If first argument is 'give', gives user the desired Content Creator role
+    if args[0] == 'give'
+      SERVER.get_user(args[2..-1].join(' ')).add_role(CREATOR_ROLE_IDS[args[1].downcase.to_sym])
+      "**Given user Content Creator for #{args[1].downcase}.**" # confirmation message sent to event channel
+
+    # If first argument is 'remove', removes desired Content Creator role from user
+    elsif args[0] == 'remove'
+      SERVER.get_user(args[2..-1].join(' ')).remove_role(CREATOR_ROLE_IDS[args[1].downcase.to_sym])
+      "**Removed Content Creator for #{args[1].downcase} from user.**" # confirmation message sent to event channel
+    end
+  end
+
+  # Evaluates Ruby code
+  command :eval do |event|
+    # Breaks unless user is me (ethane)
+    break unless event.user.id == MY_ID
+    begin
+      "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
+    rescue => e
+      "**Error!** Message:\n" +
+      "```\n" +
+      "#{e}```"
+    end
   end
 end
