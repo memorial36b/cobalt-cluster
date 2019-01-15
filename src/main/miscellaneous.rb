@@ -116,7 +116,7 @@ module Bot::Miscellaneous
   end
 
   # Sends 'quality svtfoe discussion' gif in the #svtfoe_discussion channel
-  command :quality, channels: ['#svtfoe_discussion'] do |event|
+  command :quality, channels: %w(#svtfoe_discussion) do |event|
     # Breaks unless user is moderator
     break unless event.user.role?(MODERATOR_ID)
 
@@ -175,7 +175,7 @@ module Bot::Miscellaneous
   end
 
   # Displays server info
-  command(:serverinfo, channels: ['#bot_commands', '#moderation_channel']) do |event|
+  command(:serverinfo, channels: %w(#bot_commands #moderation_channel)) do |event|
     # Sends embed containing server info
     event.send_embed do |embed|
       embed.author = {
@@ -219,7 +219,7 @@ module Bot::Miscellaneous
   end
 
   # Displays a user's info
-  command([:userinfo, :who, :whois], channels: ['#bot_commands', '#moderation_channel']) do |event, *args|
+  command([:userinfo, :who, :whois], channels: %w(#bot_commands #moderation_channel)) do |event, *args|
     # Sets argument to event user's ID if no arguments are given
     args[0] ||= event.user.id
 
@@ -362,7 +362,7 @@ module Bot::Miscellaneous
   end
 
   # Randomly chooses from given options
-  command(:spinner, channels: ['#bot_commands', '#moderation_channel']) do |event, *args|
+  command(:spinner, channels: %w(#bot_commands #moderation_channel)) do |event, *args|
     # Breaks unless at least one option is given and arguments do not contain @here or @everyone pings
     break unless args[0] &&
                  %w(@here @everyone).none? { |s| event.message.content.include? s }
@@ -374,7 +374,7 @@ module Bot::Miscellaneous
   end
 
   # Gives/removes Content Creator role to/from users
-  command(:creator, channels:['#head_creator_hq']) do |event, *args|
+  command(:creator, channels: %w(#head_creator_hq)) do |event, *args|
     # Breaks unless user is moderator or Head Creator, give/remove, content creator role and user are given, and both
     # content creator role and user are valid
     break unless (event.user.role?(MODERATOR_ID) ||
