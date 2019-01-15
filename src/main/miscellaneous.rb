@@ -44,11 +44,6 @@ module Bot::Miscellaneous
       382469794848440330, # #vent_space
       418819468412715008  # #svtfoe_leaks
   ].freeze
-  # Hash of channel IDs with the number of cams they need to be sent to #quoteboard, defaulting to 7
-  QUOTEBOARD_CAM_COUNT = Hash.new(7).update(
-      330586271116165120 => 3, # #moderation_channel
-      338689508046274561 => 3  # #head_creator_hq
-  ).freeze
   # Head Creator role ID
   HEAD_CREATOR_ID = 338673551445852162
   # Content Creator role IDs
@@ -91,9 +86,12 @@ module Bot::Miscellaneous
 
   # Beans a user
   command :bean do |event, *args|
+    # Sets first arg to have empty string if not already defined
+    args[0] ||= ''
+
     # Defines variable containing the text at the end of the bean message, depending on if
     # arguments were given or not
-    extra_text = args.empty? ? '.' : " for #{args[1..-1].join(' ')}."
+    extra_text = args[1..-1].empty? ? '.' : " for #{args[1..-1].join(' ')}."
 
     # If the mentioned user is valid and user is a moderator, correctly beans user
     if SERVER.get_user(args[0]) && event.user.role?(MODERATOR_ID)
@@ -328,12 +326,16 @@ module Bot::Miscellaneous
   # Sends a message to #quoteboard when it gets enough cams
   reaction_add(emoji: '📷') do |event|
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
-    # or if a message has been quoted within the last 5 minutes already
-    next if event.message.reactions['📷'].count != QUOTEBOARD_CAM_COUNT[event.channel.id] ||
+    # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
+    next if event.message.reactions['📷'].count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
+            YAML.load_data!("#{MISC_DATA_PATH}/qb_messages.yml").include?(event.message.id)
             qb_recent
 
-    # Deletes all message reactions to prevent message being cammed again
+    # Push the message ID to the quoteboard messages data file
+    YAML.load_data!("#{MISC_DATA_PATH}/qb_messages.yml") { |m| m.push(event.message.id) }
+
+    # Deletes all message reactions
     event.message.delete_all_reactions
 
     # Sends embed to #quoteboard displaying message
@@ -356,7 +358,7 @@ module Bot::Miscellaneous
 
     # Sets recent quote tracker to true, and schedules it to be set back to false in 5 minutes
     qb_recent = true
-    scheduler.in '5m' do
+    scheduler.in '30s' do
       qb_recent = false
     end
   end
