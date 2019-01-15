@@ -274,7 +274,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '30m'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 30m.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 30m.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -290,7 +290,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '1h'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 1h.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 1h.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -306,7 +306,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '2h'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 2h.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 2h.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -340,7 +340,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '3h'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 3h.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 3h.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -356,7 +356,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '6h'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 6h.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 6h.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -372,7 +372,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '3h'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 3h.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 3h.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -407,7 +407,7 @@ module Bot::Moderation
             time = %w(24h 1d) # picks one of two different time formats, just for fun
             Bot::BOT.execute_command(:mute, event, args.insert(1, time))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for #{time}.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for #{time}.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -423,7 +423,7 @@ module Bot::Moderation
             # Executes mute and informs user
             Bot::BOT.execute_command(:mute, event, args.insert(1, '2d'))
             user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 2d.** Your new point total is: **#{user_points}** points.\n" +
+              "**#{user.distinct}, you have been muted for 2d.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
             )
 
@@ -479,7 +479,7 @@ module Bot::Moderation
   # or staff in #moderation_channel to get anyone's
   command :points do |event, *args|
     # If user is using command in #bot_commands:
-    if event.channel.id == Bot::BOT_COMMANDS_ID
+    if event.channel.id == BOT_COMMANDS_ID
       # Defines variable containing user points; set to 0 if no user entry is found in points data
       points = YAML.load_data! "#{MOD_DATA_PATH}/points.yml"
       user_points = points[event.user.id] ? points[event.user.id][0] : 0
@@ -595,8 +595,8 @@ module Bot::Moderation
               icon_url: user.avatar_url
             }
             embed.description = "**Points:** #{points}\n" +
-                                "**Last punishment:** #{reason}**\n" +
-                                "**Time of next decay:** #{next_decay ? next_decay.strftime('%B %-d, %Y') : 'N/A'}"
+                                "**Last punishment:** #{reason}\n" +
+                                "**Date of next decay:** #{next_decay ? next_decay.strftime('%B %-d, %Y') : 'N/A'}"
             embed.color = 0xFFD700
           end
         end
@@ -830,7 +830,7 @@ module Bot::Moderation
       break unless YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml").has_key? SERVER.get_user(args.join(' ')).id
 
       # If user is muted due to being on trial for a ban:
-      if YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")[user.id][0] == :trial
+      if YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")[SERVER.get_user(args.join(' ')).id][0] == :trial
         event.send_message 'That user is on trial for ban and cannot be unmuted.'
         break
       end
@@ -854,7 +854,7 @@ module Bot::Moderation
       )
 
       # Sends confirmation message
-      channel.send_message('**Unmuted this user.**') # confirmation message sent to event channel
+      event.send_message('**Unmuted this user.**') # confirmation message sent to event channel
     end
 
     nil # returns nil so command doesn't send an extra message
@@ -866,7 +866,7 @@ module Bot::Moderation
     # If user wants to display muted users:
     if arg.downcase == 'users'
       # Defines variable containing data from data file
-      muted = YAML.load_data! "#{MOD_DATA_PATH}/muted_users.yml"
+      muted = YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")
       
       # If no users are muted:
       if muted.empty?
@@ -1041,7 +1041,7 @@ module Bot::Moderation
       )
       msg = Bot::BOT.send_message( # trial log message
         COBALT_REPORTS_ID, 
-        "@here **| ID:** `#{identifier}`", 
+        "@ here **| ID:** `#{identifier}`",
         false, # tts
         {
           author: {
@@ -1071,13 +1071,13 @@ module Bot::Moderation
 
         # If approval button is pressed and the user who reacted is not the same user who
         # initiated the trial:
-        if await_event.emoji == [0x2705].pack('U*') &&
+        if await_event.emoji.name == [0x2705].pack('U*') &&
           await_event.user != event.user
           break [true, await_event.user]
         
         # If rejection button is pressed and the user who reacted is either the same user
         # who initiated the trial or an administrator:
-        elsif await_event.emoji == [0x274C].pack('U*') &&
+        elsif await_event.emoji.name == [0x274C].pack('U*') &&
               (await_event.user == event.user ||
                event.user.role?(ADMINISTRATOR_ID))
           break [false, await_event.user]
@@ -1095,7 +1095,10 @@ module Bot::Moderation
           reason: "Ban -- reason: #{reason} (#{ban_days} days of messages deleted)" # audit log reason
         )
 
-        # Deletes user entry from points data file
+        # Deletes user entry from mute and points data file
+        YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |muted_users|
+          muted_users.delete(user.id)
+        end
         YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
           points.delete(user.id)
         end
@@ -1290,7 +1293,7 @@ module Bot::Moderation
   # Manages logic when user joins the server
   member_join do |event|
     # Breaks unless the event comes from SVTFOD (i.e. a user has joined SVTFOD)
-    break unless event.server == SERVER
+    next unless event.server == SERVER
 
     # Defines user variable and loads mute and block data from file
     user = event.user.on(SERVER)
@@ -1366,12 +1369,11 @@ module Bot::Moderation
     end
   end
 
-
   # Prunes messages from channel
   command :prune do |event, arg|
     # Breaks unless user is moderator and the messages to delete is between 2 and 100
-    break unless event.user.role?(MODERATOR_ID) && 
-                 (2..100).include? arg.to_i
+    break unless event.user.role?(MODERATOR_ID) &&
+                 (2..100).include?(arg.to_i)
 
     # Deletes calling message, then prunes given number of messages from event channel
     event.message.delete
