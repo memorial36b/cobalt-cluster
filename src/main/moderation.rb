@@ -1377,11 +1377,11 @@ module Bot::Moderation
 
     # Deletes calling message, then prunes given number of messages from event channel
     event.message.delete
-    event.channel.prune(arg1.to_i)
+    event.channel.prune(arg.to_i)
 
     # Sends temporary confirmation message
     event.send_temporary_message(
-      "Deleted **#{arg1.to_i}** messages.", 
+      "Deleted **#{arg.to_i}** messages.",
       3 # seconds that the message lasts
     )
   end
