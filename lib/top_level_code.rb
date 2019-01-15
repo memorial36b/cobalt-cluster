@@ -46,26 +46,57 @@ module YAML
   end
 end
 
-# Server class imported from Discordrb module
-class Discordrb::Server
-  # Gets a member from a given string, either user ID, user mention, distinct (username#discrim),
-  # username, or nickname on the given server; options earlier in the list take precedence (i.e.
-  # someone with the username GeneticallyEngineeredInklings will be retrieved over a member
-  # with that as a nickname)
-  #
-  # @param  str [String]            the string to match to a member
-  # @return     [Discordrb::Member] the member that matches the string, as detailed above; or nil if none found
-  def get_user(str)
-    if self.member(str.scan(/\d/).join.to_i)
-      self.member(str.scan(/\d/).join.to_i)
-    elsif self.members.find { |m| m.distinct.downcase == str.downcase }
-      self.members.find { |m| m.distinct.downcase == str.downcase }
-    elsif self.members.find { |m| m.name.downcase == str.downcase }
-      self.members.find { |m| m.name.downcase == str.downcase }
-    elsif self.members.find { |m| m.display_name.downcase == str.downcase }
-      self.members.find { |m| m.display_name.downcase == str.downcase }
-    else
-      nil
+# Discordrb module imported from discordrb gem
+module Discordrb
+  # Server class imported from discordrb gem
+  class Server
+    # Gets a member from a given string, either user ID, user mention, distinct (username#discrim),
+    # username, or nickname on the given server; options earlier in the list take precedence (i.e.
+    # someone with the username GeneticallyEngineeredInklings will be retrieved over a member
+    # with that as a nickname)
+    #
+    # @param  str [String]            the string to match to a member
+    # @return     [Discordrb::Member] the member that matches the string, as detailed above; or nil if none found
+    def get_user(str)
+      if self.member(str.scan(/\d/).join.to_i)
+        self.member(str.scan(/\d/).join.to_i)
+      elsif self.members.find { |m| m.distinct.downcase == str.downcase }
+        self.members.find { |m| m.distinct.downcase == str.downcase }
+      elsif self.members.find { |m| m.name.downcase == str.downcase }
+        self.members.find { |m| m.name.downcase == str.downcase }
+      elsif self.members.find { |m| m.display_name.downcase == str.downcase }
+        self.members.find { |m| m.display_name.downcase == str.downcase }
+      else
+        nil
+      end
+    end
+  end
+
+  # Commands module imported from discordrb gem
+  module Commands
+    # Bucket class imported from discordrb gem
+    class Bucket
+      # Resets the number of requests by a thing
+      # @param [#resolve_key, Integer, Symbol] thing the thing to be rate limited.
+      def reset(thing)
+        # Resolves key and deletes its entry in the bucket hash
+        key = resolve_key thing
+        @bucket.delete(key)
+      end
+    end
+
+    # RateLimiter class imported from discordrb gem
+    module RateLimiter
+      # Resets the number of requests by a thing
+      # @param [Symbol]                        key   the bucket to perform the rate limit request for.
+      # @param [#resolve_key, Integer, Symbol] thing the thing to be rate limited.
+      def reset(key, thing)
+        # Do nothing unless the bucket actually exists
+        if @buckets && @buckets[key]
+          # Execute reset method
+          @buckets[:key].reset(thing)
+        end
+      end
     end
   end
 end
