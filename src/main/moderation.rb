@@ -54,7 +54,7 @@ module Bot::Moderation
   # users and channels can never share IDs anyway
   mute_jobs = Hash.new
   # Defines a bucket for the spam filter; triggers if user sends 5 or more messages in 4 seconds
-  Bot::BOT.bucket(:spam_filter, limit: 4, time_span: 4)
+  SPAM_FILTER_BUCKET = Bot::BOT.bucket(:spam_filter, limit: 4, time_span: 4)
   # Array used to track if a user has triggered the spam filter
   spam_filter_triggered = Array.new
 
@@ -1171,7 +1171,7 @@ module Bot::Moderation
     # Defines user and reason variables and gets user's permissions in the event channel
     user = SERVER.get_user(args[0])
     reason = args[1..-1].join(' ')
-    permissions = event.channel.permission_overwrites[user.id] || Discordrb::Overwrite.new(user.id, type: :user)
+    permissions = event.channel.permission_overwrites[user.id] || Discordrb::Overwrite.new(user)
 
     # Denies user's perms to read messages in event channel
     permissions.allow.can_read_messages = false
@@ -1209,7 +1209,7 @@ module Bot::Moderation
       "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml")[user.id][0]}** points.\n" +
       "**Reason:** #{reason}"
     )
-    bot.send_message( # log message
+    Bot::BOT.send_message( # log message
       COBALT_REPORTS_ID, 
       ":no_entry: **BLOCK**\n" + 
       "**#{event.user.distinct}: Blocked #{user.mention} from channel #{event.channel.mention}**.\n" +
@@ -1235,7 +1235,7 @@ module Bot::Moderation
 
     # Neutralizes user's perms to read messages in event channel
     permissions.allow.can_read_messages = false
-    permissions.deny.can_read_messages = true
+    permissions.deny.can_read_messages = false
     event.channel.define_overwrite(
       permissions,
       reason: "Unblock" # audit log reason
@@ -1249,7 +1249,7 @@ module Bot::Moderation
 
     # Sends confirmation message and logs action
     event.respond "**Unblocked #{user.distinct} from channel.**" # confirmation message sent to event channel
-    bot.send_message( # log message
+    Bot::BOT.send_message( # log message
       COBALT_REPORTS_ID, 
       ":o: **UNBLOCK**\n" + "
       **#{event.user.distinct}: Unblocked #{user.mention} from channel #{event.channel.mention}**"
@@ -1335,26 +1335,15 @@ module Bot::Moderation
 
   # Spam protection; deletes messages if user sends too many too fast
   message do |event|
-    # Skips if in the #bot_games channel
-    next if event.channel.id == BOT_GAMES_ID
+    # Skips unless the channel is not #bot_games and a user has triggered the spam filter
+    next unless (event.channel.id != BOT_GAMES_ID) && SPAM_FILTER_BUCKET.rate_limited?(event.user.id)
 
-    # If the user has triggered the spam filter bucket:
-    if Bot::BOT.rate_limited?(:spam_filter, event.user.id)
-      # If the user has already triggered the spam filter within the past 4 seconds, deletes message:
-      if spam_filter_triggered.include? event.user.id
-        event.message.delete
-      
-      # Otherwise, add them to the spam filter tracker and delete their last 5 messages 
-      # in the event channel
-      else
-        spam_filter_triggered.push(event.user.id)
-        event.channel.delete_messages(event.channel.history(100).select { |m| m.author.id == event.user.id }[0..4])
-      end
-    
-    # Otherwise, remove them from the spam filter tracker
-    else
-      spam_filter_triggered.delete(event.user.id)
-    end
+    # Resets spam filter bucket for user before deleting messages, so it isn't rate limited
+    SPAM_FILTER_BUCKET.reset(event.user.id)
+
+    # Gets the user's message history in the event channel and deletes it
+    user_messages = event.channel.history(50).select { |m| m.author == event.user }[5]
+    event.channel.delete_messages(user_messages)
   end
 
 
