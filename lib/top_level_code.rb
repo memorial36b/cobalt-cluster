@@ -6,8 +6,10 @@ end
 
 # Constants for crystals to use
 module Constants
-  # StarDis server object
-  Bot::BOT.ready { SERVER = Bot::BOT.server(297550039125983233) }
+  Bot::BOT.ready do
+    # StarDis server object
+    SERVER = Bot::BOT.server(297550039125983233)
+  end
   # My user ID
   MY_ID = 220509153985167360
   # Member role ID
@@ -54,7 +56,6 @@ class Discordrb::Server
   # @param  str [String]            the string to match to a member
   # @return     [Discordrb::Member] the member that matches the string, as detailed above; or nil if none found
   def get_user(str)
-    self.members # recaches members
     if self.member(str.scan(/\d/).join.to_i)
       self.member(str.scan(/\d/).join.to_i)
     elsif self.members.find { |m| m.distinct.downcase == str.downcase }
