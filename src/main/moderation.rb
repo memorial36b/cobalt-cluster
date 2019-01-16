@@ -45,6 +45,12 @@ module Bot::Moderation
   COBALT_REPORTS_ID = 307755696198385666
   # #bot_games channel ID
   BOT_GAMES_ID = 402050178753757185
+  # Defines a bucket for the spam filter; triggers if user sends 5 or more messages in 4 seconds
+  SPAM_FILTER_BUCKET = Bot::BOT.bucket(
+      :spam_filter,
+      limit: 4,
+      time_span: 4
+  )
 
 
   # Array used to track when Head Creators are punishing; required so they are able to
@@ -53,8 +59,6 @@ module Bot::Moderation
   # Hash that stores Rufus job ID for each mute; this stores both user and channel mutes as
   # users and channels can never share IDs anyway
   mute_jobs = Hash.new
-  # Defines a bucket for the spam filter; triggers if user sends 5 or more messages in 4 seconds
-  SPAM_FILTER_BUCKET = Bot::BOT.bucket(:spam_filter, limit: 4, time_span: 4)
   # Array used to track if a user has triggered the spam filter
   spam_filter_triggered = Array.new
 
