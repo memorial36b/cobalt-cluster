@@ -951,9 +951,11 @@ module Bot::Moderation
       break
     end
 
-    # Breaks unless valid user and reason is given
-    break unless args.size >= 2 &&
-          SERVER.get_user(args[0])
+    # Breaks unless user is either a moderator or a punishing Head Creator, a valid user and reason is given
+    break unless (event.user.role?(MODERATOR_ID) ||
+                  head_creator_punishing.include?(event.user.id)) &&
+                 args.size >= 2 &&
+                 SERVER.get_user(args[0])
     
     # Defines user and reason variable
     user = SERVER.get_user(args[0])
