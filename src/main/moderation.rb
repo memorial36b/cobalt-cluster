@@ -129,6 +129,9 @@ module Bot::Moderation
     YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
       # Removes one point from all entries where the decay time has passed
       points.each do |id, data|
+        # Skips if time does not exist
+        next unless data[1]
+
         # Skips unless current time is greater than decay time
         next unless Time.now > data[1]
         
