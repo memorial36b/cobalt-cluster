@@ -1351,7 +1351,7 @@ module Bot::Moderation
     SPAM_FILTER_BUCKET.reset(event.user.id)
 
     # Gets the user's message history in the event channel and deletes it
-    user_messages = event.channel.history(50).select { |m| m.author == event.user }[5]
+    user_messages = event.channel.history(50).select { |m| m.author == event.user }[0..4]
     event.channel.delete_messages(user_messages)
   end
 
