@@ -358,9 +358,8 @@ module Bot::Miscellaneous
 
     # Sets recent quote tracker to true, and schedules it to be set back to false in 5 minutes
     qb_recent = true
-    scheduler.in '30s' do
-      qb_recent = false
-    end
+    sleep 30
+    qb_recent = false
   end
 
   # Randomly chooses from given options
