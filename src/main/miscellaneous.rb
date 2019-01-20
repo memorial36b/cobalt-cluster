@@ -9,6 +9,8 @@ module Bot::Miscellaneous
 
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous".freeze
+  # Bounce Lounge's ID
+  BOUNCE_LOUNGE_ID = 309018929584537602
   # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
   VOICE_TEXT_CHANNELS = {
       387802285733969920 => 307778254431977482, # General
@@ -64,8 +66,7 @@ module Bot::Miscellaneous
 
     # Unless user just left a voice channel or updated their voice status (e.g. muted, unmuted,
     # deafened, undeafened), delete permission overwrites for event user in all voice text channels
-    unless event.channel.nil? ||
-           event.channel == event.old_channel
+    unless event.channel == event.old_channel
       VOICE_TEXT_CHANNELS.values.each { |id| Bot::BOT.channel(id).delete_overwrite(event.user.id) }
     end
 
@@ -74,11 +75,11 @@ module Bot::Miscellaneous
     # message in the channel
     if event.channel &&
        (event.channel != event.old_channel) &&
-       VOICE_TEXT_CHANNELS.has_key?(event.channel.id)
-      text_channel = Bot::BOT.channel(VOICE_TEXT_CHATS[event.channel.id])
+       VOICE_TEXT_CHANNELS[event.channel.id]
+      text_channel = Bot::BOT.channel(VOICE_TEXT_CHANNELS[event.channel.id])
       text_channel.define_overwrite(event.user, 1024, 0) # uses permission bits for simplicity's sake
       text_channel.send_temporary_message(
-        "**#{event.user.mention}, welcome to #{text_channel.mention}.** This is the text channel for the voice channel you're connected to.", 
+        "**#{event.user.mention}, welcome to #{text_channel.mention}.** This is the text chat for the voice channel you're connected to.",
         10 # seconds that the message lasts
       )
     end
