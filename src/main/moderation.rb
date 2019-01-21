@@ -179,7 +179,7 @@ module Bot::Moderation
       added_points = loop do
         # Creates an await for a message from the event user in the event channel, and defines
         # variable containing the await message's content
-        await_event = event.message.await!
+        await_event = event.user.await!(channel: MODERATION_CHANNEL_ID)
         await_content = await_event.message.content
 
         # If user wants to cancel punishment:
@@ -214,7 +214,7 @@ module Bot::Moderation
       # Defines variable for points to be added to user; loops until value is valid point value, or 
       # nil if user wants to cancel
       added_points = loop do
-        await_event = event.message.await!
+        await_event = event.user.await!(channel: HEAD_CREATOR_HQ_ID)
         await_content = await_event.message.content
         
         # If user wants to cancel punishment:
