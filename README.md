@@ -18,10 +18,9 @@ errors; after finishing the first version, more revisions may be needed.
 + BasicCommands
 + Moderation
 + Miscellaneous
++ BeepBoop
 
 ### In progress
-
-+ BeepBoop
 
 ### Not started
 
