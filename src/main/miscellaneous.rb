@@ -245,9 +245,13 @@ module Bot::Miscellaneous
           value: (user.game || 'None'),
           inline: true
       )
+
+      # Defines variable containing the text stating join position (nil if user is a bot)
+      join_index = SERVER.members.reject { |u| u.bot_account || !u.joined_at }.sort_by { |u| u.joined_at }.index { |u| u == user }
+      join_position_text = join_index ? " (position #{join_index + 1})" : nil
       embed.add_field(
           name: 'Joined Server',
-          value: user.joined_at.strftime('%B %-d, %Y'),
+          value: "#{user.joined_at ? user.joined_at.strftime('%B %-d, %Y') : 'Not found (cache issue)'}#{join_position_text}",
           inline: true
       ) if user.joined_at
       embed.add_field(
