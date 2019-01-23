@@ -218,7 +218,7 @@ module Bot::Miscellaneous
   end
 
   # Displays a user's info
-  command([:userinfo, :who, :whois], channels: %w(#bot_commands #moderation_channel)) do |event, *args|
+  command(:userinfo, aliases: [:who, :whois], channels: %w(#bot_commands #moderation_channel)) do |event, *args|
     # Sets argument to event user's ID if no arguments are given
     args[0] ||= event.user.id
 
