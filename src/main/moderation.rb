@@ -11,8 +11,14 @@ module Bot::Moderation
   extend Discordrb::EventContainer
   include Constants
 
-  # Scheduler constant
-  SCHEDULER = Rufus::Scheduler.new
+  # Muted users dataset
+  MUTED_USERS = DB[:muted_users]
+  # Muted channels dataset
+  MUTED_CHANNELS = DB[:muted_channels]
+  # Points dataset
+  POINTS = DB[:points]
+  # Channel blocks dataset
+  CHANNEL_BLOCKS = DB[:channel_blocks]
   # Path to crystal's data folder
   MOD_DATA_PATH = "#{Bot::DATA_PATH}/moderation".freeze
   # Value for two weeks of time in seconds
@@ -52,7 +58,6 @@ module Bot::Moderation
       time_span: 4
   )
 
-
   # Array used to track when Head Creators are punishing; required so they are able to
   # (indirectly) execute the mute or ban commands
   head_creator_punishing = Array.new
@@ -62,29 +67,25 @@ module Bot::Moderation
   # Array used to track if a user has triggered the spam filter
   spam_filter_triggered = Array.new
 
-
-  # Loads mute info from file and schedules Rufus jobs for all entries; as it uses some Discord
+  # Loads mute info from database and schedules Rufus jobs for all entries; as it uses some Discord
   # API methods, it only executes upon receiving READY packet
   ready do
-    # Defines variables containing muted users and channels
-    muted_users = YAML.load_data! "#{MOD_DATA_PATH}/muted_users.yml"
-    muted_channels = YAML.load_data! "#{MOD_DATA_PATH}/muted_channels.yml"
-
     # Schedules Rufus job to unmute user for all muted users
-    muted_users.each do |id, (mute_end_time, reason, user_opt_in_roles)|
-      # Skips if user is muted due to being on trial for ban
-      next if mute_end_time == :trial
+    MUTED_USERS.all do |entry|
+      # Defines variables for user, mute end time, reason, and user's opt-in roles
+      user = SERVER.member(entry[:id])
+      mute_end_time = Time.at(entry[:end_time])
+      reason = entry[:reason]
+      opt_in_roles = entry[:opt_in_roles].split(',')
 
-      # Defines user variable
-      user = SERVER.member(id)
+      # Skips if user is muted due to being on trial for ban
+      next if entry[:trial?]
 
       # Schedules a Rufus job to unmute the user and stores it in the mute_jobs hash
-      mute_jobs[id] = SCHEDULER.schedule_at mute_end_time do
-        # Deletes user entry from data file and job hash
-        YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-          users.delete(id)
-        end
-        mute_jobs.delete(id)
+      mute_jobs[user.id] = SCHEDULER.schedule_at mute_end_time do
+        # Deletes user entry from database and job hash
+        MUTED_USERS.where(id: user.id).delete
+        mute_jobs.delete(user.id)
 
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
         begin
@@ -100,18 +101,18 @@ module Bot::Moderation
     end
 
     # Schedules Rufus job to unmute channel for all muted channels
-    muted_channels.each do |id, (mute_end_time, reason)|
-      # Defines channel variable and gets permission object for Member role in channel
-      channel = Bot::BOT.channel(id)
+    MUTED_CHANNELS.all do |entry|
+      # Defines variables for channel, mute end time, reason, and permissions for Member role in channel
+      channel = Bot::BOT.channel(entry[:id])
+      mute_end_time = Time.at(entry[:end_time])
+      reason = entry[:reason]
       permissions = channel.permission_overwrites[MEMBER_ID]
 
       # Schedules a Rufus job to unmute the channel and stores it in the mute_jobs hash
-      mute_jobs[id] = SCHEDULER.schedule_at mute_end_time do
-        # Deletes channel entry from data file and job hash
-        YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml") do |channels|
-          channels.delete(id)
-        end
-        mute_jobs.delete(id)
+      mute_jobs[channel.id] = SCHEDULER.schedule_at mute_end_time do
+        # Deletes channel entry from database and job hash
+        MUTED_CHANNELS.where(id: channel.id).delete
+        mute_jobs.delete(channel.id)
 
         # Neutralizes the permission to send messages for the Member role in the event channel
         permissions.deny.can_send_messages = false
@@ -127,26 +128,19 @@ module Bot::Moderation
   end
 
 
-  # 12h cron job that iterates through points data file and removes one point if past decay time,
-  # updating file accordingly
+  # 12h cron job that selects database entries whose decay time has passed and decreases their points accordingly
   SCHEDULER.cron '0 */12 * * *' do
-    YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-      # Removes one point from all entries where the decay time has passed
-      points.each do |id, data|
-        # Skips if time does not exist
-        next unless data[1]
-
-        # Skips unless current time is greater than decay time
-        next unless Time.now > data[1]
-        
-        # Removes a point and updates decay time
-        data[0] -= 1
-        data[1] += TWO_WEEKS
-      end
-
-      # Deletes all entries where the points have reached 0
-      points.delete_if { |_i, d| d[0] == 0 }
+    # Selects database entries whose decay time has passed
+    POINTS.all.select { |e| Time.now.to_i > e[:decay_time] }.each do |entry|
+      # Removes a point and updates decay time
+      POINTS.where(id: entry[:id]).update(
+          points:     entry[:points] - 1,
+          decay_time: entry[:decay_time] + TWO_WEEKS
+      )
     end
+
+    # Removes all database entries whose points have reached 0
+    POINTS.where(points: 0).delete
   end
 
   
@@ -164,7 +158,7 @@ module Bot::Moderation
     
     # If user is a moderator with full punishment powers:
     if event.user.role?(MODERATOR_ID)
-      # Header
+      # Sends header
       Bot::BOT.send_message(
         MODERATION_CHANNEL_ID, 
         "#{event.user.mention}, **how many points would you like to add to user #{user.display_name} (#{user.distinct})? Guidelines as follows:**\n" +
@@ -238,244 +232,273 @@ module Bot::Moderation
 
     # If user has entered a point value for the punishment:
     if added_points
-      # Loads point data from file, so it can be read and modified
-      YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-        # Defines variable containing user's total points after adding given number of points
-        if points.has_key? user.id
-          total_points = points[user.id][0] + added_points
-        else
-          total_points = added_points
-        end
+      # Defines variable containing user's total points after adding given number of points
+      if POINTS[id: user.id]
+        total_points = POINTS[user.id][:points] + added_points
+      else
+        total_points = added_points
+      end
 
-        # If a minor punishment was chosen:
-        if (1..3).include?(added_points)
-          # Tier 1: Warning
-          if (0..4).include?(total_points)
-            # Sends confirmation message and logs action
-            event.send_message( # warning message in event channel
+      # If a minor punishment was chosen:
+      if (1..3).include?(added_points)
+        # Tier 1: Warning
+        if (0..4).include?(total_points)
+          # Sends confirmation message to event channel
+          event.respond(
               "#{user.mention}, **you have received a warning for:** #{reason}.\n" +
               "**Points have been added to your server score. Repeated infractions will lead to harsher punishments.**"
-            )
-            Bot::BOT.channel(COBALT_REPORTS_ID).send_embed do |embed| # log message
-              embed.author = {
-                name: "WARNING | User: #{user.display_name} (#{user.distinct})", 
+          )
+
+          # Sends log message to log channel
+          Bot::BOT.channel(COBALT_REPORTS_ID).send_embed do |embed|
+            embed.author = {
+                name: "WARNING | User: #{user.display_name} (#{user.distinct})",
                 icon_url: user.avatar_url
-              }
-              embed.description = "**#{user.mention} given a warning** in channel #{event.channel.mention}.\n" +
-                                  "• **Reason:** #{reason}\n" +
-                                  "\n" +
-                                  "**Warned by:** #{event.user.distinct}"
-              embed.thumbnail = {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/131/heavy-exclamation-mark-symbol_2757.png'}
-              embed.color = 0xFFD700
-            end
-
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "Warning - #{reason}"
-            ]
-
-          # Tier 2: 30 minute mute
-          elsif (5..9).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '30m'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 30m.** Your new point total is: **#{total_points}** points.\n" +
-              "**Reason:** #{reason}"
-            )
-
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "30m mute - #{reason}"
-            ]
-
-          # Tier 3: 1 hour mute
-          elsif (10..14).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '1h'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 1h.** Your new point total is: **#{total_points}** points.\n" +
-              "**Reason:** #{reason}"
-            )
-
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "1h mute - #{reason}"
-            ]
-
-          # Tier 4: 2 hour mute
-          elsif (15..19).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '2h'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 2h.** Your new point total is: **#{total_points}** points.\n" +
-              "**Reason:** #{reason}"
-            )
-
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "2h mute - #{reason}"
-            ]
-
-          # Tier 5: Ban
-          else
-            # Executes ban, informs user and logs action
-            user.dm( # confirmation dm sent to user; sent before ban so it doesn't prevent the dm
-              "**#{user.distinct}, you have passed the point threshold for a ban.**\n" +
-              "**Reason:** #{reason}\n" +
-              "\n" +
-              "If you would like to appeal your ban, send a DM to an administrator: #{SERVER.role(ADMINISTRATOR_ID).users.map { |u| "**#{u.distinct}**" }.join(', ')}."
-            )
-            Bot::BOT.execute_command(:ban, event, args) # executes ban command
-            Bot::BOT.send_message( # notification message sent in #moderation_channel
-              MODERATION_CHANNEL_ID, 
-              "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
-            )
+            }
+            embed.description = "**#{user.mention} given a warning** in channel #{event.channel.mention}.\n" +
+                                "• **Reason:** #{reason}\n" +
+                                "\n" +
+                                "**Warned by:** #{event.user.distinct}"
+            embed.thumbnail = {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/131/heavy-exclamation-mark-symbol_2757.png'}
+            embed.color = 0xFFD700
           end
 
-        # If a major punishment was chosen:
-        elsif (5..7).include?(added_points)
-          # Tier 1: 3 hour mute
-          if (5..9).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '3h'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 3h.** Your new point total is: **#{total_points}** points.\n" +
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "Warning - #{reason}"
+          )
+
+        # Tier 2: 30 minute mute
+        elsif (5..9).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '30m'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 30 minutes.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
-            )
+          )
 
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "3h mute - #{reason}"
-            ]
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "30m mute - #{reason}"
+          )
 
-          # Tier 2: 6 hour mute
-          elsif (10..14).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '6h'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 6h.** Your new point total is: **#{total_points}** points.\n" +
+        # Tier 3: 1 hour mute
+        elsif (10..14).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '1h'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 1 hour.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
-            )
+          )
 
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "6h mute - #{reason}"
-            ]
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "1h mute - #{reason}"
+          )
 
-          # Tier 3: 12 hour mute
-          elsif (15..19).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '3h'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 3h.** Your new point total is: **#{total_points}** points.\n" +
+        # Tier 4: 2 hour mute
+        elsif (15..19).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '2h'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 2 hours.** Your new point total is: **#{total_points}** points.\n" +
               "**Reason:** #{reason}"
-            )
+          )
 
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "12h mute - #{reason}"
-            ]
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "2h mute - #{reason}"
+          )
 
-          # Tier 4: Ban
-          else
-            # Executes ban, informs user and logs action
-            user.dm( # confirmation dm sent to user; sent before ban so it doesn't prevent the dm
-              "**#{user.distinct}, you have passed the point threshold for a ban.**\n" +
-              "**Reason:** #{reason}\n" +
-              "\n" +
-              "If you would like to appeal your ban, send a DM to an administrator: #{SERVER.role(ADMINISTRATOR_ID).users.map { |u| "**#{u.distinct}**" }.join(', ')}."
-            )
-            Bot::BOT.execute_command(:ban, event, args) # executes ban command
-            Bot::BOT.send_message( # notification message sent in #moderation_channel
-              MODERATION_CHANNEL_ID, 
-              "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
-            )
-          end
-
-        # If a critical punishment was chosen:
+        # Tier 5: Ban
         else
-          # Tier 1: 24 hour/1 day mute
-          if (10..14).include?(total_points)
-            # Executes mute and informs user
-            time = %w(24h 1d) # picks one of two different time formats, just for fun
-            Bot::BOT.execute_command(:mute, event, args.insert(1, time))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for #{time}.** Your new point total is: **#{total_points}** points.\n" +
-              "**Reason:** #{reason}"
-            )
-
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "#{time} mute - #{reason}"
-            ]
-
-          # Tier 2: 2 day mute
-          elsif (15..19).include?(total_points)
-            # Executes mute and informs user
-            Bot::BOT.execute_command(:mute, event, args.insert(1, '2d'))
-            user.dm( # confirmation dm sent to user
-              "**#{user.distinct}, you have been muted for 2d.** Your new point total is: **#{total_points}** points.\n" +
-              "**Reason:** #{reason}"
-            )
-
-            # Sets user entry in the points variable equal to the new data
-            points[user.id] = [
-              total_points,
-              Time.now + TWO_WEEKS, # decay time
-              "2d mute - #{reason}"
-            ]
-
-          # Tier 3: Ban
-          else
-            # Executes ban, informs user and logs action
-            user.dm( # confirmation dm sent to user; sent before ban so it doesn't prevent the dm
+          # Sends notification DM to user (sent before the ban so the bot can still DM the user)
+          user.dm(
               "**#{user.distinct}, you have passed the point threshold for a ban.**\n" +
               "**Reason:** #{reason}\n" +
               "\n" +
               "If you would like to appeal your ban, send a DM to an administrator: #{SERVER.role(ADMINISTRATOR_ID).users.map { |u| "**#{u.distinct}**" }.join(', ')}."
-            )
-            Bot::BOT.execute_command(:ban, event, args) # executes ban command
-            Bot::BOT.send_message( # notification message sent in #moderation_channel
+          )
+
+          # Executes ban
+          Bot::BOT.execute_command(:ban, event, args)
+
+          # Sends notification message to moderation channel
+          Bot::BOT.send_message(
               MODERATION_CHANNEL_ID, 
               "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
-            )
-          end
+          )
         end
 
-        # Untracks user if they were a Head Creator punishing
-        head_creator_punishing.delete(event.user.id)
+      # If a major punishment was chosen:
+      elsif (5..7).include?(added_points)
+        # Tier 1: 3 hour mute
+        if (5..9).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '3h'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 3 hours.** Your new point total is: **#{total_points}** points.\n" +
+              "**Reason:** #{reason}"
+          )
+
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "3h mute - #{reason}"
+          )
+
+        # Tier 2: 6 hour mute
+        elsif (10..14).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '6h'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 6 hours.** Your new point total is: **#{total_points}** points.\n" +
+              "**Reason:** #{reason}"
+          )
+
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "6h mute - #{reason}"
+          )
+
+        # Tier 3: 12 hour mute
+        elsif (15..19).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '12h'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 12 hours.** Your new point total is: **#{total_points}** points.\n" +
+              "**Reason:** #{reason}"
+          )
+
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "12h mute - #{reason}"
+          )
+
+        # Tier 4: Ban
+        else
+          # Sends notification DM to user (sent before the ban so the bot can still DM the user)
+          user.dm(
+              "**#{user.distinct}, you have passed the point threshold for a ban.**\n" +
+              "**Reason:** #{reason}\n" +
+              "\n" +
+              "If you would like to appeal your ban, send a DM to an administrator: #{SERVER.role(ADMINISTRATOR_ID).users.map { |u| "**#{u.distinct}**" }.join(', ')}."
+          )
+
+          # Executes ban
+          Bot::BOT.execute_command(:ban, event, args)
+
+          # Sends notification message to moderation channel
+          Bot::BOT.send_message(
+              MODERATION_CHANNEL_ID, 
+              "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
+          )
+        end
+
+      # If a critical punishment was chosen:
+      else
+        # Tier 1: 24 hour/1 day mute
+        if (10..14).include?(total_points)
+          # Executes mute
+          time = %w(24h 1d) # picks one of two different time formats, just for fun
+          Bot::BOT.execute_command(:mute, event, args.insert(1, time))
+
+          # Sends notification dm to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for #{time == '24h' ? '24 hours' : '1 day'}.** Your new point total is: **#{total_points}** points.\n" +
+              "**Reason:** #{reason}"
+          )
+
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "#{time} mute - #{reason}"
+          )
+
+        # Tier 2: 2 day mute
+        elsif (15..19).include?(total_points)
+          # Executes mute
+          Bot::BOT.execute_command(:mute, event, args.insert(1, '2d'))
+
+          # Sends notification DM to user
+          user.dm(
+              "**#{user.distinct}, you have been muted for 2 days.** Your new point total is: **#{total_points}** points.\n" +
+              "**Reason:** #{reason}"
+          )
+
+          # Updates database with the new data
+          POINTS.set_new(
+              {id: user.id},
+              points:     total_points,
+              decay_time: (Time.now + TWO_WEEKS).to_i,
+              reason:     "2d mute - #{reason}"
+          )
+
+        # Tier 3: Ban
+        else
+          # Sends notification DM to user (sent before the ban so the bot can still DM the user)
+          user.dm(
+              "**#{user.distinct}, you have passed the point threshold for a ban.**\n" +
+              "**Reason:** #{reason}\n" +
+              "\n" +
+              "If you would like to appeal your ban, send a DM to an administrator: #{SERVER.role(ADMINISTRATOR_ID).users.map { |u| "**#{u.distinct}**" }.join(', ')}."
+          )
+
+          # Executes ban
+          Bot::BOT.execute_command(:ban, event, args)
+
+          # Sends notification message to moderation channel
+          Bot::BOT.send_message(
+              MODERATION_CHANNEL_ID,
+              "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
+          )
+        end
       end
+
+      # Untracks user if they were a Head Creator punishing
+      head_creator_punishing.delete(event.user.id)
 
     # If user canceled punishment:
     else
       # Sends cancellation message to channel dependent on whether they are staff or a HC
-      if event.user.role?(MODERATOR_ID)
-        Bot::BOT.send_message(
-          MODERATION_CHANNEL_ID,
+      Bot::BOT.send_message(
+          event.user.role?(MODERATOR_ID) ? MODERATION_CHANNEL_ID : HEAD_CREATOR_HQ_ID,
           '**The punishment has been canceled.**'
-        )
-      elsif event.user.role?(HEAD_CREATOR_ID)
-        Bot::BOT.send_message(
-          HEAD_CREATOR_HQ_ID,
-          '**The punishment has been canceled.**'
-        )  
-      end
+      )
     end
 
     nil # returns nil so command doesn't send an extra message
@@ -488,8 +511,7 @@ module Bot::Moderation
     # If user is using command in #bot_commands:
     if event.channel.id == BOT_COMMANDS_ID
       # Defines variable containing user points; set to 0 if no user entry is found in points data
-      points = YAML.load_data! "#{MOD_DATA_PATH}/points.yml"
-      user_points = points[event.user.id] ? points[event.user.id][0] : 0
+      user_points = POINTS[id: event.user.id] ? POINTS[ID: event.user.id][:points] : 0
 
       # Sends dm to user
       event.user.dm(
@@ -501,31 +523,25 @@ module Bot::Moderation
     elsif event.user.role?(MODERATOR_ID) && event.channel.id == MODERATION_CHANNEL_ID
       # +points without arguments, returns text file of all points
       if args.empty?
-        # Loads data from file into variable, and formats into array of strings
-        points = YAML.load_data! "#{MOD_DATA_PATH}/points.txt"
-        formatted_points = points.map do |id, (user_points, next_decay, reason)|
-          # Skips unless user exists in server (has not left it)
-          next unless SERVER.get_user(id)
-
-          "#{SERVER.get_user(id).distinct} • Points: #{user_points}\n" +
-          "Last punishment: #{reason}\n" +
-          "Date of next decay: #{next_decay.strftime('%B %-d, %Y')}"
-        end.compact
+        # Fetches entries from database, and formats it into an array of strings
+        formatted_points = POINTS.where { |e| SERVER.member(e.id) }.map do |entry|
+          "#{SERVER.member(entry[:id]).distinct} • Points: #{entry[:points]}\n" +
+          "Last punishment: #{entry[:reason]}\n" +
+          "Date of next decay: #{Time.at(entry[:next_decay]).strftime('%B %-d, %Y')}"
+        end
 
         # Joins the array of formatted strings and writes it to file
-        f = File.open("#{MOD_DATA_PATH}/points.txt", 'w')
-        f.write(
-          "All user points:\n" +
-          "\n" +
-          points_text.join("\n--------------------\n")
-        )
-        f.close
+        File.open("#{MOD_DATA_PATH}/points.txt", 'w') do |file|
+          file.write(
+              "All user points:\n" +
+              "\n" +
+              formatted_points.join("\n--------------------\n")
+          )
+        end
 
         # Uploads file
-        event.channel.send_file(
-          File.open("#{MOD_DATA_PATH}/points.txt"), 
-          caption: "**All users' points:**"
-        )
+        event << "**All users' points:**"
+        event.attach_file(File.open("#{MOD_DATA_PATH}/points.txt"))
 
       # +points with arguments
       else
@@ -533,62 +549,52 @@ module Bot::Moderation
         if args[0].downcase == 'add' &&
            args.size >= 3 && # ensures point value and user are present
            args[1].to_i > 0 && # ensures at least 1 point is to be added
-           SERVER.get_user(args[2..-1].join(' '))
+           (user = SERVER.get_user(args[2..-1].join(' ')))
           
-          # Defines user variable and points to be added
-          user = SERVER.get_user(args[2..-1].join(' '))
+          # Defines variable containing points to be added
           added_points = args[1].to_i
 
-          # Loads points data from file to be accessed and modified
-          YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-            # Updates point data, and sets decay time and reason if user doesn't already have points
-            if points[user.id]
-              points[user.id][0] += added_points
-            else
-              points[user.id] = [
-                added_points, 
-                Time.now + TWO_WEEKS, # decay time
-                'N/A - Points added manually' # reason
-              ]
-            end
+          # Updates point data in database, and sets decay time and reason if user doesn't already have points
+          POINTS.set_new(
+              {id: user.id},
+              points:     added_points,
+              decay_time: POINTS[id: user.id] ? POINTS[id: user.id][:decay_time] : (Time.now + TWO_WEEKS).to_i,
+              reason:     'N/A - Points added manually'
+          )
 
-            # Sends confirmation message and dms user
-            event.send_message "**Added #{added_points} point#{added_points > 1 ? 's' : nil} to user #{user.distinct}.**" # confirmation message sent to event channel
-            user.pm "**#{user.distinct}, a moderator has added some points to you.** You now have **#{points[user.id][0]} point#{points[user.id][0] == 1 ? nil : 's'}**." # notification dm sent to user
-          end
+          # Sends confirmation message and dms user
+          event.respond "**Added #{added_points} point#{added_points == 1 ? nil : 's'} to user #{user.distinct}.**"
+          user.pm "**#{user.distinct}, a moderator has added some points to you.** You now have **#{POINTS[id: user.id][:points]} point#{POINTS[id: user.id][:points] == 1 ? nil : 's'}**."
 
         # Removing points from user
         elsif args[0].downcase == 'remove' &&
               args.size >= 3 && # ensures 'add' arg, point value and user are present
               args[1].to_i > 0 && # ensures points to add is valid
-              SERVER.get_user(args[2..-1].join(' '))
+              (user = SERVER.get_user(args[2..-1].join(' '))) &&
+              POINTS[id: user.id] # ensures entry exists in database
 
-          # Defines user variable and points to be added
-          user = SERVER.get_user(args[2..-1].join(' '))
+          # Defines variable containing points to be removed
           removed_points = args[1].to_i
 
-          # Loads points data from file to be accessed and modified
-          YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-            next unless points[user.id] # skips if user does not already have points
+          # Updates point data in database, setting points to 0 if removed points would make it go negative
+          POINTS.where(id: user.id).update(points: [POINTS[id: user.id][:points] - removed_points, 0].max)
 
-            # Updates point data  
-            points[user.id][0] -= removed_points
-            points[user.id][0] = 0 if points[user.id][0] < 0
+          # Sends confirmation message and dms user
+          event.respond "**Removed #{removed_points} point#{removed_points == 1 ? nil : 's'} from user #{user.distinct}.**" # confirmation message
+          user.pm "**#{user.distinct}, a moderator has removed some points from you.** You now have **#{POINTS[id: user.id][:points]} point#{POINTS[id: user.id][:points] == 1 ? nil : 's'}**." # notification pm
 
-            # Sends confirmation message and dms user
-            event.send_message "**Removed #{removed_points} point#{removed_points > 1 ? 's' : nil} from user #{user.distinct}.**" # confirmation message
-            user.pm "**#{user.distinct}, a moderator has removed some points from you.** You now have **#{points[user.id][0]} point#{points[user.id][0] == 1 ? nil : 's'}**." # notification pm
-
-            # Deletes entry if user now has 0 points
-            points.delete_if { |_id, d| d[0] == 0 }
-          end
+          # Deletes entry if user now has 0 points
+          POINTS.where(points: 0).delete
 
         # Checking points of a user
-        elsif SERVER.get_user(args.join(' '))
-          # Defines variables for user, their points, time object of their next decay, and last punishment reason
-          user = SERVER.get_user(args.join(' '))
-          if YAML.load_data!("#{MOD_DATA_PATH}/points.yml").has_key?(user.id)
-            points, next_decay, reason = YAML.load_data!("#{MOD_DATA_PATH}/points.yml")[user.id]
+        elsif (user = SERVER.get_user(args.join(' ')))
+          # Defines variables containing the user's points, time of the next point decay and
+          # reason for last punishment, using default values if no user entry exists within
+          # the database
+          if POINTS[id: user.id]
+            points = POINTS[id: user.id][:points]
+            decay_time = Time.at(POINTS[id: user.id][:decay_time])
+            reason = POINTS[id: user.id][:reason]
           else
             points = 0
             next_decay = nil
@@ -603,7 +609,7 @@ module Bot::Moderation
             }
             embed.description = "**Points:** #{points}\n" +
                                 "**Last punishment:** #{reason}\n" +
-                                "**Date of next decay:** #{next_decay ? next_decay.strftime('%B %-d, %Y') : 'N/A'}"
+                                "**Date of next decay:** #{decay_time ? decay_time.strftime('%B %-d, %Y') : 'N/A'}"
             embed.color = 0xFFD700
           end
         end
@@ -625,7 +631,7 @@ module Bot::Moderation
                  args[1].to_sec > 0 # valid length of time
 
     # Defines the time at which the mute ends
-    mute_end_time = Time.now.getgm + args[1].to_sec
+    end_time = Time.now + args[1].to_sec
 
     # If user is muting a channel:
     if args[0] == 'channel' # preferred to muting user, so users can't nickname themselves 'channel'
@@ -646,33 +652,35 @@ module Bot::Moderation
         reason: "Channel mute -- reason: #{reason}" # audit log reason
       )
 
-      # Sends confirmation message and logs action
-      channel.send_message( # confirmation message sent to event channel
+      # Sends confirmation message to event channel
+      channel.send_message(
         "**Muted channel for #{args[1].scan(/[1-9]\d*[smhd]/i).join}.**\n" +
         "**Reason:** #{reason}", 
         false, # tts
         {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
       )
-      Bot::BOT.send_message( # log message
+
+      # Sends log message to log channel
+      Bot::BOT.send_message(
         COBALT_REPORTS_ID,
         ":x: **CHANNEL MUTE**\n" + 
-        "**#{event.user.distinct}:** Muted #{channel.mention} for **#{args[1].scan(/[1-9]\d*[smhd]/i).join}**.\n" + 
+        "**#{event.user.distinct}:** Muted #{channel.mention} for **#{args[1].to_sec.to_dhms}**.\n" +
         "**Reason:** #{reason}"
       )
 
-      # Stores mute info in the muted_channels data file
-      YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml") do |channels|
-        channels[channel.id] = [mute_end_time, reason]
-      end
+      # Stores mute info in the database
+      MUTED_CHANNELS.set_new(
+          {id:       channel.id},
+           end_time: end_time,
+           reason:   reason
+      )
 
       # Schedules a Rufus job to unmute the channel and stores it in the mute_jobs hash,
       # unscheduling any previous mutes on this channel
       mute_jobs[channel.id].unschedule if mute_jobs[channel.id]
-      mute_jobs[channel.id] = SCHEDULER.schedule_at mute_end_time do
-        # Deletes channel entry from data file and job hash
-        YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml") do |channels|
-          channels.delete(channel.id)
-        end
+      mute_jobs[channel.id] = SCHEDULER.schedule_at end_time do
+        # Deletes channel entry from database and job hash
+        MUTED_CHANNELS.where(id: channel.id).delete
         mute_jobs.delete(channel.id)
 
         # Neutralizes the permission to send messages for the Member role in the event channel
@@ -697,20 +705,20 @@ module Bot::Moderation
       mute_length = args[1].to_sec
       user = SERVER.get_user(args[0])
       reason = args[1].to_sec >= 600 ? args[2..-1].join(' ') : 'N/A'
-      user_opt_in_roles = OPT_IN_ROLES.select { |id| user.role?(id) }
+      opt_in_roles = OPT_IN_ROLES.select { |id| user.role?(id) }
 
       # Mutes user by adding Muted role and removing Member and opt-in roles
       user.modify_roles(
         MUTED_ID, # add Muted
-        [MEMBER_ID] + user_opt_in_roles, # remove Member and opt-in roles
+        [MEMBER_ID] + opt_in_roles, # remove Member and opt-in roles
         "Mute -- reason: #{reason}" # audit log reason
       )
 
       # If the mute length is less than 10 minutes:
       if mute_length < 600
         # Sends only confirmation message
-        event.send_message( # confirmation message sent to event channel
-          "**Muted #{user.distinct} for #{args[1].scan(/[1-9]\d*[smhd]/i).join}.**", 
+        event.respond( # confirmation message sent to event channel
+          "**Muted #{user.distinct} for #{args[1].to_sec.to_dhms}.**",
           false, # tts
           {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
         )
@@ -719,8 +727,8 @@ module Bot::Moderation
       # Note: This is inclusive of 10 minutes, but exclusive of 30 minutes
       elsif (600...1800).include? mute_length
         # Sends confirmation message and simpler log message (no identifier or embed)
-        event.send_message( # confirmation message sent to event channel
-          "**Muted #{user.display_name} for #{args[1].scan(/[1-9]\d*[smhd]/i).join}.**\n" +
+        event.respond( # confirmation message sent to event channel
+          "**Muted #{user.display_name} for #{args[1].to_sec.to_dhms}.**\n" +
           "**Reason:** #{reason}", 
           false, # tts
           {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
@@ -728,7 +736,7 @@ module Bot::Moderation
         Bot::BOT.send_message( # log message
           COBALT_REPORTS_ID, 
           ":mute: **MUTE**\n" +
-          "**#{event.user.distinct}: Muted #{user.mention} for #{args[1].scan(/[1-9]\d*[smhd]/i).join}** in channel #{event.channel.mention}\n" +
+          "**#{event.user.distinct}: Muted #{user.mention} for #{args[1].to_sec.to_dhms}** in channel #{event.channel.mention}\n" +
           "**Reason:** #{reason}"
         )
 
@@ -736,9 +744,9 @@ module Bot::Moderation
       else
         # Sends confirmation message and full log message
         identifier = SecureRandom.hex(4)
-        event.send_message( # confirmation message with identifier sent to event channel
+        event.respond( # confirmation message with identifier sent to event channel
           "• **ID**`#{identifier}`\n" +
-          "**Muted #{user.display_name} for #{args[1].scan(/[1-9]\d*[smhd]/i).join}.**\n" +
+          "**Muted #{user.display_name} for #{args[1].to_sec.to_dhms}.**\n" +
           "**Reason:** #{reason}", 
           false, # tts
           {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
@@ -752,7 +760,7 @@ module Bot::Moderation
               name: "MUTE | User: #{user.display_name} (#{user.distinct})", 
               icon_url: user.avatar_url
             },
-            description: "**#{user.mention} muted for #{args[1].scan(/[1-9]\d*[smhd]/i).join}** in channel #{event.channel.mention}.\n" +
+            description: "**#{user.mention} muted for #{args[1].to_sec.to_dhms}** in channel #{event.channel.mention}.\n" +
                          "• **Reason:** #{reason}\n" +
                          "\n" +
                          "**Muted by:** #{event.user.distinct}",
@@ -762,25 +770,27 @@ module Bot::Moderation
         )
       end
 
-      # Stores mute info in muted_users data file
-      YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-        users[user.id] = [mute_end_time, reason, user_opt_in_roles]
-      end
+      # Stores mute info in database
+      MUTED_USERS.set_new(
+          {id:           user.id},
+           end_time:     end_time.to_i,
+           trial?:       false,
+           reason:       reason,
+           opt_in_roles: opt_in_roles.join(',')
+      )
 
       # Schedules a Rufus job to unmute the user and stores it in the mute_jobs hash,
       # unscheduling any previous mutes on this user
       mute_jobs[user.id].unschedule if mute_jobs[user.id]
-      mute_jobs[user.id] = SCHEDULER.schedule_at mute_end_time do
-        # Deletes user entry from data file and job hash
-        YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-          users.delete(user.id)
-        end
+      mute_jobs[user.id] = SCHEDULER.schedule_at end_time do
+        # Deletes user entry from database and job hash
+        MUTED_USERS.where(id: user.id).delete
         mute_jobs.delete(user.id)
 
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
         begin
           user.modify_roles(
-            [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
+            [MEMBER_ID] + opt_in_roles, # add Member and opt-in roles
             MUTED_ID, # remove Muted
             "Unmute" # audit log reason
           )
@@ -799,31 +809,25 @@ module Bot::Moderation
     # Breaks unless user is a moderator and the first argument is a valid user or 'channel' exactly
     break unless event.user.role?(MODERATOR_ID) &&
                  args.size >= 1 &&
-                 (SERVER.get_user(args.join(' ')) || args[0] == 'channel')
+                 ((user = SERVER.get_user(args.join(' '))) ||
+                  args[0] == 'channel')
     
     # If user is unmuting a channel:
     if args[0] == 'channel' # preferred to unmuting user, so users can't nickname themselves 'channel'
       # Breaks unless the channel is muted
-      break unless YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml").has_key? event.channel.id
+      break unless MUTED_CHANNELS[id: event.channel.id]
 
-      # Defines channel variable and the Member role's permissions in the event channel
-      channel = event.channel
-      if channel.permission_overwrites[MEMBER_ID]
-        permissions = channel.permission_overwrites[MEMBER_ID] # gets initial permission overwrite object of Member role for channel
-      else
-        permissions = Discordrb::Overwrite.new(MEMBER_ID, type: :role) # initializes empty permission overwrite object of Member role for channel
-      end
+      # Defines the Member role's permissions in the event channel
+      permissions = event.channel.permission_overwrites[MEMBER_ID] || Discordrb::Overwrite.new(MEMBER_ID, type: :role)
 
-      # Unschedules unmute job and deletes channel entry from data file and job hash
-      mute_jobs[channel.id].unschedule
-      YAML.load_data!("#{MOD_DATA_PATH}/muted_channels.yml") do |channels|
-        channels.delete(channel.id)
-      end
-      mute_jobs.delete(channel.id)
+      # Unschedules unmute job and deletes channel entry from database and job hash
+      mute_jobs[event.channel.id].unschedule
+      MUTED_CHANNELS.where(id: event.channel.id).delete
+      mute_jobs.delete(event.channel.id)
 
       # Neutralizes the permission to send messages for the Member role in the event channel
       permissions.deny.can_send_messages = false
-      channel.define_overwrite(
+      event.channel.define_overwrite(
         permissions,
         reason: 'Channel unmute' # audit log reason
       )
@@ -834,28 +838,25 @@ module Bot::Moderation
     # If user is unmuting another user:
     else
       # Breaks unless the user is muted
-      break unless YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml").has_key? SERVER.get_user(args.join(' ')).id
+      break unless MUTED_USERS[id: user.id]
 
       # If user is muted due to being on trial for a ban:
-      if YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")[SERVER.get_user(args.join(' ')).id][0] == :trial
-        event.send_message 'That user is on trial for ban and cannot be unmuted.'
+      if MUTED_USERS[id: user.id][:trial?]
+        event << 'That user is on trial for ban and cannot be unmuted.'
         break
       end
 
-      # Defines user variable and array of IDs of user's opt-in roles
-      user = SERVER.get_user(args.join(' '))
-      user_opt_in_roles = YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")[user.id][2]
+      # Defines array of IDs of user's opt-in roles
+      opt_in_roles = MUTED_USERS[id: user.id][:opt_in_roles].split(',')
       
       # Unschedules unmute job and deletes user entry from data file and job hash
       mute_jobs[user.id].unschedule # unschedules unmute job
-      YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-        users.delete(user.id)
-      end
+      MUTED_USERS.where(id: user.id).delete
       mute_jobs.delete(user.id)
 
       # Unmutes user by removing Muted role and re-adding Member and opt-in roles
       user.modify_roles(
-        [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
+        [MEMBER_ID] + opt_in_roles, # add Member and opt-in roles
         MUTED_ID, # remove Muted
         "Unmute" # audit log reason
       )
@@ -872,12 +873,9 @@ module Bot::Moderation
   command :muted, channels: [MODERATION_CHANNEL_ID, MUTED_USERS_ID] do |event, arg = 'users'|
     # If user wants to display muted users:
     if arg.downcase == 'users'
-      # Defines variable containing data from data file
-      muted = YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml")
-      
-      # If no users are muted:
-      if muted.empty?
-        event.send_message 'No users are muted.' 
+      # If no users are muted, send notification message
+      if MUTED_USERS.empty?
+        event.respond 'No users are muted.'
       
       # If users are muted:
       else
@@ -890,20 +888,16 @@ module Bot::Moderation
           embed.color = 0xFFD700
 
           # Iterates through every muted user and adds field for each
-          muted.each do |id, (mute_end_time, reason, _user_opt_in_roles)|
+          MUTED_USERS.all do |entry|
             # Defines user variable and string displaying how much time is left in user's mute
-            user = SERVER.get_user(id.to_s)
-            if mute_end_time == :trial
-              time_remaining = 'On trial for ban.'
-            else
-              time_remaining = (mute_end_time - Time.now).round.to_dhms
-            end
-            
+            user = SERVER.member(entry[:id])
+            time_remaining = entry[:trial?] ? 'On trial for ban.' : (entry[:end_time] - Time.now.to_i).to_dhms
+
             # Adds field to embed with the muted user and their info
             embed.add_field(
-              name: user ? user.distinct : "ID: #{id}", 
+              name: user ? user.distinct : "ID: #{entry[:id]}",
               value: "**Time remaining:** #{time_remaining}\n" + 
-                     "**Reason:** #{reason}", 
+                     "**Reason:** #{entry[:reason]}",
               inline: true
             )
           end
@@ -912,12 +906,9 @@ module Bot::Moderation
     
     # If user wants to display muted channels:
     elsif arg.downcase == 'channels'
-      # Defines variable containing data from data file
-      muted = YAML.load_data! "#{MOD_DATA_PATH}/muted_channels.yml"
-      
-      # If no channels are muted:
-      if muted.empty?
-        event.send_message 'No channels are muted.' 
+      # If no channels are muted, send notification message
+      if MUTED_CHANNELS.empty?
+        event.respond 'No channels are muted.'
 
       # If channels are muted
       else
@@ -929,12 +920,11 @@ module Bot::Moderation
           embed.color = 0xFFD700
 
           # Iterates through every muted channel and adds field for each
-          muted.each do |id, (mute_end_time, reason)|
-            # Adds field to embed with the muted channel and their info
+          MUTED_CHANNELS.all do |entry|
             embed.add_field(
-              name: "##{Bot::BOT.channel(id).name}", 
-              value: "**Time remaining:** #{(mute_end_time - Time.now).round.to_dhms}\n" +
-                     "**Reason:** #{reason}", 
+              name: "##{Bot::BOT.channel(entry[:id]).name}",
+              value: "**Time remaining:** #{(entry[:end_time] - Time.now.to_i).to_dhms}\n" +
+                     "**Reason:** #{entry[:reason]}",
               inline: true
             )
           end
@@ -951,7 +941,7 @@ module Bot::Moderation
   command :ban do |event, *args|
     # If user wants to ban brum:
     if args[0] == 'brum'
-      event.respond [0x1F44C].pack('U*')
+      event << '👌'
       break
     end
 
@@ -959,31 +949,29 @@ module Bot::Moderation
     break unless (event.user.role?(MODERATOR_ID) ||
                   head_creator_punishing.include?(event.user.id)) &&
                  args.size >= 2 &&
-                 SERVER.get_user(args[0])
+                 (user = SERVER.get_user(args[0]))
     
-    # Defines user and reason variable
-    user = SERVER.get_user(args[0])
+    # Defines reason variable
     reason = args[1..-1].join(' ')
 
     # Prompts user for how many days of messages from the user that should be deleted, and defines
     # variable for it
-    event.send_message "**#{event.user.mention}, how many days of messages would you like to delete?**\n" +
-                       "Replying without a number defaults to 0."
+    event.respond "**#{event.user.mention}, how many days of messages would you like to delete?**\n" +
+                  "Replying without a number defaults to 0."
     response = event.message.await!
     ban_days = response.message.content.to_i
 
     # Unschedules mute job and deletes from hash if user is currently muted
-    if YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml").has_key? user.id
+    if MUTED_USERS[id: user.id]
       mute_jobs[user.id].unschedule
       mute_jobs.delete(user.id)  
     end
 
     # If user is an administrator, and can immediately ban:
     if event.user.role?(ADMINISTRATOR_ID) # administrator is preferred as administrators also have moderator role
-      # Deletes user entry from mute data file
-      YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-        users.delete(user.id)
-      end
+      # Deletes user entry from database
+      MUTED_USERS.where(id: user.id).delete
+      POINTS.where(id: user.id).delete
 
       # Bans user
       SERVER.ban(
@@ -991,21 +979,18 @@ module Bot::Moderation
         reason: "Ban -- reason: #{reason} (#{ban_days} days of messages deleted)" # audit log reason
       )
 
-      # Deletes user entry from points data file
-      YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-        points.delete(user.id)
-      end
-
-      # Sends confirmation message and logs action
+      # Sends confirmation message with identifier to event channel
       identifier = SecureRandom.hex(4)
-      event.send_message( # confirmation message with identifier sent to event channel
+      event.send_message(
         "• **ID** `#{identifier}`\n" + 
         "**User #{user.distinct} banned from server.**\n" +
         "• **Reason:** #{reason}", 
         false, # tts
         {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
       )
-      Bot::BOT.send_message( # log message with identifier
+
+      # Sends log message with identifier to log channel
+      Bot::BOT.send_message(
         COBALT_REPORTS_ID, 
         "**ID:** `#{identifier}`", 
         false, # tts
@@ -1027,19 +1012,25 @@ module Bot::Moderation
     elsif (event.user.role?(MODERATOR_ID) ||
            head_creator_punishing.include?(event.user.id))
       # Defines array of IDs of user's opt-in roles
-      user_opt_in_roles = OPT_IN_ROLES.select { |id| user.role?(id) }
+      opt_in_roles = OPT_IN_ROLES.select { |id| user.role?(id) }
       
       # Mutes user by adding Muted role and removing Member and opt-in roles
       user.modify_roles(
         MUTED_ID, # add Muted
-        [MEMBER_ID] + user_opt_in_roles, # remove Member and opt-in roles
+        [MEMBER_ID] + opt_in_roles, # remove Member and opt-in roles
         "Mute -- reason: #{reason}" # audit log reason
       )
-      YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-        users[user.id] = [:trial, reason, user_opt_in_roles]
-      end
 
-      # Sends confirmation message and logs action, adding approve/deny buttons to log message
+      # Sets user entry in database
+      MUTED_USERS.set_new(
+          {id:           user.id},
+           end_time:     0,
+           trial?:       true,
+           reason:       reason,
+           opt_in_roles: opt_in_roles.join(',')
+      )
+
+      # Sends confirmation message with identifier to event channel
       identifier = SecureRandom.hex(4)
       event.send_message( # trial confirmation message with identifier sent to event channel
         "• **ID** `#{identifier}`\n" +
@@ -1048,9 +1039,11 @@ module Bot::Moderation
         false, # tts
         {image: {url: 'http://i67.tinypic.com/30moi1g.gif'}}
       )
-      msg = Bot::BOT.send_message( # trial log message
+
+      # Sends log message with identifier to log channel and adds approve/deny buttons
+      msg = Bot::BOT.send_message(
         COBALT_REPORTS_ID, 
-        "@ here **| ID:** `#{identifier}`",
+        "@here **| ID:** `#{identifier}`",
         false, # tts
         {
           author: {
@@ -1104,13 +1097,9 @@ module Bot::Moderation
           reason: "Ban -- reason: #{reason} (#{ban_days} days of messages deleted)" # audit log reason
         )
 
-        # Deletes user entry from mute and points data file
-        YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |muted_users|
-          muted_users.delete(user.id)
-        end
-        YAML.load_data!("#{MOD_DATA_PATH}/points.yml") do |points|
-          points.delete(user.id)
-        end
+        # Deletes user entry from database
+        MUTED_USERS.where(id: user.id).delete
+        POINTS.where(id: user.id).delete
 
         # Edits log message to reflect ban approval
         msg.edit(
@@ -1134,7 +1123,7 @@ module Bot::Moderation
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
         begin
           user.modify_roles(
-            [MEMBER_ID] + user_opt_in_roles, # add Member and opt-in roles
+            [MEMBER_ID] + opt_in_roles, # add Member and opt-in roles
             MUTED_ID, # remove Muted
             "Unmute" # audit log reason
           )
@@ -1142,10 +1131,8 @@ module Bot::Moderation
           puts "Exception raised when modifying a user's roles -- most likely user left the server"
         end
 
-        # Deletes user entry from muted data file
-        YAML.load_data!("#{MOD_DATA_PATH}/muted_users.yml") do |users|
-          users.delete(user.id)
-        end
+        # Deletes user entry from database
+        MUTED_USERS.where(id: user.id).delete
 
         # Edits log message to reflect ban rejection
         msg.edit(
@@ -1175,10 +1162,9 @@ module Bot::Moderation
     break unless (event.user.role?(MODERATOR_ID) ||
                   event.user.role?(HEAD_CREATOR_ID)) &&
                  args.size >= 2 &&
-                 SERVER.get_user(args[0])
+                 (user = SERVER.get_user(args[0]))
 
-    # Defines user and reason variables and gets user's permissions in the event channel
-    user = SERVER.get_user(args[0])
+    # Defines reason variable and user's permissions in the event channel
     reason = args[1..-1].join(' ')
     permissions = event.channel.permission_overwrites[user.id] || Discordrb::Overwrite.new(user)
 
@@ -1190,24 +1176,17 @@ module Bot::Moderation
       reason: "Block -- reason: #{reason}" # audit log reason
     )
 
-    # Updates channel entry in block data file, and user entry in points data file
-    YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml") do |blocks|
-      blocks.default_proc = proc { |k, v| k[v] = [] } # defines default so if/else isn't needed
-      blocks[event.channel.id].push(user.id)
-    end
-    YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml") do |points|
-      if points[user.id]
-        points[user.id][0] += 2
-        points[user.id][1] = Time.now + TWO_WEEKS
-        points[user.id][2] = "Block - #{reason}"
-      else
-        points[user.id] = [
-          2,
-          Time.now + TWO_WEEKS,
-          "Block - #{reason}"
-        ]
-      end
-    end
+    # Updates channel and user entry in database
+    CHANNEL_BLOCKS.set_new(
+        {id:            event.channel.id},
+         blocked_users: (entry = CHANNEL_BLOCKS[id: event.channel.id]) ? entry[:blocked_users] + ",#{user.id}" : user.id.to_s
+    )
+    POINTS.set_new(
+        {id:         user.id},
+         points:     (entry = POINTS[id: user.id]) ? entry[:points] + 2 : 2,
+         decay_time: (Time.now + TWO_WEEKS).to_i,
+         reason:     "2d mute - #{reason}"
+    )
 
     # Sends confirmation message, dms user and logs action
     event.respond( # confirmation message sent to event channel
@@ -1215,7 +1194,7 @@ module Bot::Moderation
       "**Reason:** #{reason}"
     )
     user.dm( # notification dm sent to user
-      "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml")[user.id][0]}** points.\n" +
+      "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{POINTS[id: user.id][:points]}** points.\n" +
       "**Reason:** #{reason}"
     )
     Bot::BOT.send_message( # log message
@@ -1233,13 +1212,14 @@ module Bot::Moderation
 
   # Unblocks user from channel
   command :unblock do |event, *args|
-    # Breaks unless user is moderator or HC and the given user is valid
+    # Breaks unless user is moderator or HC, the given user is valid and is blocked from the event channel
     break unless (event.user.role?(MODERATOR_ID) ||
                   event.user.role?(HEAD_CREATOR_ID)) &&
-                 SERVER.get_user(args.join(' '))
+                 (user = SERVER.get_user(args.join(' '))) &&
+                 CHANNEL_BLOCKS[id: event.channel.id] &&
+                 CHANNEL_BLOCKS[id: event.channel.id][:blocked_users].include?(user.id.to_s)
     
     # Defines user variable and gets user's permissions in the event channel
-    user = SERVER.get_user(args.join(' '))
     permissions = event.channel.permission_overwrites[user.id]
 
     # Neutralizes user's perms to read messages in event channel
@@ -1250,15 +1230,17 @@ module Bot::Moderation
       reason: "Unblock" # audit log reason
     )
 
-    # Updates channel entry in block data file
-    YAML.load_data!("#{MOD_DATA_PATH}/channel_blocks.yml") do |blocks|
-      blocks[event.channel.id].delete(event.user.id)
-      blocks.delete_if { |_id, u| u.empty? } # deletes channel if array is empty (no users are blocked)
-    end
+    # Updates channel entry in database, deleting the entry if there are no blocked users
+    CHANNEL_BLOCKS.where(id: event.channel.id).update(
+        blocked_users: (CHANNEL_BLOCKS[id: event.channel.id][:blocked_users].split(',') - [user.id.to_s]).join(',')
+    )
+    CHANNEL_BLOCKS.where(blocked_users: '').delete
 
-    # Sends confirmation message and logs action
-    event.respond "**Unblocked #{user.distinct} from channel.**" # confirmation message sent to event channel
-    Bot::BOT.send_message( # log message
+    # Sends confirmation message to event channel
+    event.respond "**Unblocked #{user.distinct} from channel.**"
+
+    # Sends log message to log channel
+    Bot::BOT.send_message(
       COBALT_REPORTS_ID, 
       ":o: **UNBLOCK**\n" + "
       **#{event.user.distinct}: Unblocked #{user.mention} from channel #{event.channel.mention}**"
@@ -1271,10 +1253,7 @@ module Bot::Moderation
   # Lists all channel blocks
   command :blocks do |event|
     # Breaks unless user is moderator
-    break unless event.user.role(MODERATOR_ID)
-
-    # Defines variable containing data from block data file
-    blocks = YAML.load_data! "#{MOD_DATA_PATH}/channel_blocks.yml"
+    break unless event.user.role?(MODERATOR_ID)
 
     # Sends embed to channel displaying blocks
     event.send_embed do |embed|
@@ -1282,14 +1261,17 @@ module Bot::Moderation
         name: 'Channel Blocks', 
         icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
       }
-      # Iterates through blocks hash, adding field for each channel
-      blocks.each do |id, users|
+      # Iterates through channel blocks, adding field for each channel
+      CHANNEL_BLOCKS.all do |entry|
+        # Defines variable containing IDs of all blocked users of the current channel
+        blocked_users = entry[:blocked_users].split(',')
+
         # Skips unless at least one user blocked from channel is still present on server
-        next unless users.any? { |user_id| SERVER.member(user_id) }
+        next unless blocked_users.any? { |uid| SERVER.member(uid) }
 
         embed.add_field(
-          name: "##{Bot::BOT.channel(id).name}",
-          value: users.map { |uid| SERVER.member(uid) ? "• **SERVER.member(user_id).distinct**" : nil }.compact.join("\n")
+          name: "##{Bot::BOT.channel(entry[:id]).name}",
+          value: blocked_users.select { |uid| SERVER.member(uid) }.map { |uid| "• **#{SERVER.member(uid).distinct}**" }.join("\n")
         )
       end
       embed.color = 0xFFD700
@@ -1304,21 +1286,17 @@ module Bot::Moderation
     # Breaks unless the event comes from SVTFOD (i.e. a user has joined SVTFOD)
     next unless event.server == SERVER
 
-    # Defines user variable and loads mute and block data from file
+    # Defines user variable
     user = event.user.on(SERVER)
-    muted = YAML.load_data! "#{MOD_DATA_PATH}/muted_users.yml"
-    blocks = YAML.load_data! "#{MOD_DATA_PATH}/channel_blocks.yml"
 
-    # Denies read message perms for user in #welcome (this is necessary as when the bot is down, 
-    # any user that joins is able to talk in #welcome to ask a staff member for the Member role)
-    Bot::BOT.channel(WELCOME_ID).define_overwrite(user, 0, 1024) # uses permission bits for simplicity
-
-    # If user entry exists in muted hash, gives user Muted role
-    if muted[user.id]
+    # If user entry exists in the muted dataset in the database, gives user Muted role
+    if MUTED_USERS[id: user.id]
       user.add_role(MUTED_ID)
     
-    # Otherwise, schedules  Rufus job to delete user overwrite from #welcome and add Member role after 5m
+    # Otherwise, denies read message perms in #welcome (if the bot is down users can view and ask for help in #welcome)
+    # and schedules Rufus job to delete user overwrite from #welcome and add Member role after 5m
     else
+      Bot::BOT.channel(WELCOME_ID).define_overwrite(user, 0, 1024) # uses permission bits for simplicity
       SCHEDULER.in '5m' do
         Bot::BOT.channel(WELCOME_ID).delete_overwrite(user)
         user.add_role(MEMBER_ID)
@@ -1326,10 +1304,10 @@ module Bot::Moderation
     end
     
     # Denies read message perms for channels user is blocked from, if any
-    if blocks.values.any? { |u| u.include? user.id }
-      # Defines array containing the IDs of all channels user is blocked from, 
+    if CHANNEL_BLOCKS.all.any? { |e| e[:blocked_users].include? user.id.to_s }
+      # Defines array containing the database entries of all channels user is blocked from,
       # and new universal permission object for user
-      ids = blocks.keys.select { |id| blocks[id].include? user.id }
+      entries = CHANNEL_BLOCKS.all.select { |e| e[:blocked_users].include? user.id.to_s }
       permissions = Discordrb::Overwrite.new(user.id, type: :user)
 
       # Denies read message permissions for universal object
@@ -1337,7 +1315,7 @@ module Bot::Moderation
       permissions.deny.can_read_messages = true
 
       # Iterates through array of channel IDs and edits permissions to deny user from all of them
-      ids.each { |id| Bot::BOT.channel(id).define_overwrite(permissions) }
+      entries.each { |e| Bot::BOT.channel(e[:id]).define_overwrite(permissions) }
     end
   end
 
@@ -1378,7 +1356,7 @@ module Bot::Moderation
     event.channel.prune(arg.to_i)
 
     # Sends temporary confirmation message
-    event.send_temporary_message(
+    event.send_temp(
       "Deleted **#{arg.to_i}** messages.",
       3 # seconds that the message lasts
     )
