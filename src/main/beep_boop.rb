@@ -16,9 +16,9 @@ module Bot::BeepBoop
   BIRTHDAY_ID = 316477719183491073
   # #general ID
   GENERAL_ID = 297550039125983233
-  # #bot_commands channel ID
+  # #bot_commands ID
   BOT_COMMANDS_ID = 307726225458331649
-  # #moderation_channel channel ID
+  # #moderation_channel ID
   MODERATION_CHANNEL_ID = 330586271116165120
   # Bucket for booping users
   BOOP_BUCKET = Bot::BOT.bucket(
@@ -64,6 +64,9 @@ module Bot::BeepBoop
   # Master birthday command: sets a user's birthday (normal users can set their own, staff can set anyone's),
   # gets a user's birthday, checks what the next birthday is or deletes a birthday
   command(:birthday, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
+    # Sets argument default to 'check'
+    args[0] ||= 'check'
+
     # If user wants to set birthday and the birthday date format is valid:
     if args.size >= 2 &&
        args[0].downcase == 'set' &&
@@ -74,11 +77,11 @@ module Bot::BeepBoop
          SERVER.get_user(args[2..-1].join(' '))
         # Load birthday data from file and set given user's birthday to the given date
         YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") do |birthdays|
-          birthdays[SERVER.get_user(args[2..-1].join(' ')).id] = vali_date(args[1].join('/'))
+          birthdays[SERVER.get_user(args[2..-1].join(' ')).id] = vali_date(args[1]).join('/')
         end
 
         # Sends confirmation message to event channel
-        "This user's birthday has been set as **#{vali_date(args[1].join('/'))}**."
+        "This user's birthday has been set as **#{Time.new(*[2000] + vali_date(args[1])).strftime('%B %-d')}**."
 
       # If user is setting their own birthday:
       elsif args.size == 2
@@ -100,11 +103,10 @@ module Bot::BeepBoop
 
       # If user wants to check another user's birthday and given user is valid, set user variable equal to that user
       elsif args.size >= 2 &&
-            SERVER.get_user(args[1..-1].join(' '))
-        user = SERVER.get_user(args[1..-1].join(' '))
+            (user = SERVER.get_user(args[1..-1].join(' ')))
+
       # Otherwise, break
-      else
-        break
+      else break
       end
 
       # Load birthday data from file into variable
@@ -164,9 +166,9 @@ module Bot::BeepBoop
     # file, delete the birthday
     elsif args[0].downcase == 'delete' &&
           event.user.role?(302641262240989186) &&
-          SERVER.get_user(args[1..-1].join(' ')) &&
-          YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml")[SERVER.get_user(args[1..-1].join(' ')).id]
-      YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml").delete(bot.get_user(args[1..-1].join(' ')).id)
+          (user = SERVER.get_user(args[1..-1].join(' '))) &&
+          YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml")[user.id]
+      YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") { |b| b.delete(user.id) }
       "This user's birthday has been deleted." # confirmation message sent to event channel
     end
   end
@@ -195,6 +197,11 @@ module Bot::BeepBoop
       # Stores message id in birthday message data file
       YAML.load_data!("#{BEEP_DATA_PATH}/birthday_messages.yml") { |bm| bm.push(msg.id) }
     end
+  end
+
+  # Deletes user from birthday data file if they leave
+  member_leave do |event|
+    YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") { |b| b.delete(event.user.id) }
   end
 
   # Boops a user with an optional message
@@ -283,12 +290,8 @@ module Bot::BeepBoop
 
   # Proposes to a user
   command(:propose, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
-    # Defines user variable
-    user = SERVER.get_user(args.join(' '))
-
-    # Breaks unless user is valid, not the event user and neither event user nor given user are already being
-    # proposed to
-    break unless user &&
+    # Defines user variable and breaks unless user is valid and not the same as the event user
+    break unless (user = SERVER.get_user(args.join(' '))) &&
                  event.user != user
 
     # If event user is already in a proposal, sends notification message and breaks
@@ -373,8 +376,9 @@ module Bot::BeepBoop
     # Sets argument default to user that the event user is married to
     args[0] ||= couples[event.user.id] || couples.key(event.user.id)
 
-    # Defines user variable, or breaks if user is invalid
-    break unless (user = SERVER.get_user(args.join(' ')))
+    # Defines user variable, breaking unless it is valid and not the same as event user
+    break unless (user = SERVER.get_user(args.join(' '))) &&
+                 event.user != user
 
     # If event user is in the middle of a kiss, sends notification message and breaks
     if kissing.include? event.user.id
@@ -438,16 +442,14 @@ module Bot::BeepBoop
         # Gets which user in the couple is listed as the key in the karma data file
         listed_id = couples[event.user.id] ? event.user.id : user.id
 
-        # Loads karma data from file so it can be modified
+        # Adds 50 to karma and sends confirmation message
         YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-          # Adds 50 to karma
           karma[listed_id] += 50
-
-          # Sends confirmation message with image to event channel
-          event.send_file(
-            File.open(Dir["#{BEEP_DATA_PATH}/kiss_images/*"].sample),
-            caption: "*#{YAML.load_data!("#{BEEP_DATA_PATH}/kiss_scenarios.yml").sample.gsub('[kissee]', user.name).gsub('[kisser]', event.user.name)}*\n" +
-                     "**Karma:** #{karma[listed_id]}"
+          event.send_message(
+            "*#{YAML.load_data!("#{BEEP_DATA_PATH}/kiss_scenarios.yml").sample.gsub('[kissee]', user.name).gsub('[kisser]', event.user.name)}*\n" +
+            "**Karma:** #{karma[listed_id]}",
+            false, # tts
+            {image: {url: YAML.load_data!("#{BEEP_DATA_PATH}/kiss_image_urls.yml").sample}}
           )
         end
 
@@ -603,14 +605,14 @@ module Bot::BeepBoop
 
   # Checks a user's spouse
   command(:spouse, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
-    # Loads couples list from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-
     # Sets argument default to event user's ID
     args[0] ||= event.user.id
 
     # Defines user variable, or breaks if user is invalid
     break unless (user = SERVER.get_user(args.join(' ')))
+
+    # Loads couples list from file
+    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
 
     # If user is married, loads karma from file and sends embed containing spouse's info and karma
     if (spouse_id = couples[user.id] || couples.key(user.id))

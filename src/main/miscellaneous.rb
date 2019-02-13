@@ -1,7 +1,7 @@
 # Crystal: Miscellaneous
 
 
-# This command contains Cobalt's miscellaneous features that don't really fit in anywhere else.
+# This crystal contains Cobalt's miscellaneous features that don't really fit in anywhere else.
 module Bot::Miscellaneous
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
