@@ -7,6 +7,8 @@ module Bot::Miscellaneous
   extend Discordrb::EventContainer
   include Constants
 
+  # Quoted messages dataset
+  QUOTED_MESSAGES = DB[:quoted_messages]
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous".freeze
   # Bounce Lounge's ID
@@ -334,17 +336,17 @@ module Bot::Miscellaneous
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
     next if event.message.reactions['📷'].count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
-            YAML.load_data!("#{MISC_DATA_PATH}/qb_messages.yml").include?(event.message.id)
+            QUOTED_CHANNELS[id: event.message.id] ||
             qb_recent
 
-    # Push the message ID to the quoteboard messages data file
-    YAML.load_data!("#{MISC_DATA_PATH}/qb_messages.yml") { |m| m.push(event.message.id) }
+    # Adds the message's ID to the database
+    QUOTED_MESSAGES << {id: event.message.id}
 
     # Deletes all message reactions
     event.message.delete_all_reactions
 
     # Sends embed to #quoteboard displaying message
-    Bot::BOT.channel(348001214698487809).send_embed do |embed|
+    Bot::BOT.channel(QUOTEBOARD_ID).send_embed do |embed|
       embed.author = {
           name: "#{event.message.author.display_name} (#{event.message.author.distinct})",
           icon_url: event.message.author.avatar_url

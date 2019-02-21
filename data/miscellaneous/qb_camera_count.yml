@@ -1,0 +1,8 @@
+# This is the file for the number of cams needed to quote a message.
+# The default is 7; if you want to set a special case, add a line with
+# the format <channel id>: <cams>.
+
+---
+330586271116165120: 3 # #moderation_channel
+338689508046274561: 3 # #head_creator_hq
+411173840568451072: 3 # #cobalt_workshop

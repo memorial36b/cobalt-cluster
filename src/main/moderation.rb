@@ -9,6 +9,7 @@ require 'securerandom'
 module Bot::Moderation
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
+  extend Convenience
   include Constants
 
   # Muted users dataset
@@ -133,7 +134,7 @@ module Bot::Moderation
     # Selects database entries whose decay time has passed
     POINTS.all.select { |e| Time.now.to_i > e[:decay_time] }.each do |entry|
       # Removes a point and updates decay time
-      POINTS.where(id: entry[:id]).update(
+      POINTS.where(id: entry[:id]).where(:decay_time).update(
           points:     entry[:points] - 1,
           decay_time: entry[:decay_time] + TWO_WEEKS
       )
@@ -524,10 +525,10 @@ module Bot::Moderation
       # +points without arguments, returns text file of all points
       if args.empty?
         # Fetches entries from database, and formats it into an array of strings
-        formatted_points = POINTS.where { |e| SERVER.member(e.id) }.map do |entry|
-          "#{SERVER.member(entry[:id]).distinct} • Points: #{entry[:points]}\n" +
+        formatted_points = POINTS.all.select { |e| Bot::BOT.user(e[:id]) }.map do |entry|
+          "#{Bot::BOT.user(entry[:id]).distinct} • Points: #{entry[:points]}\n" +
           "Last punishment: #{entry[:reason]}\n" +
-          "Date of next decay: #{Time.at(entry[:next_decay]).strftime('%B %-d, %Y')}"
+          "Date of next decay: #{entry[:decay_time] ? Time.at(entry[:decay_time]).strftime('%B %-d, %Y') : 'N/A'}"
         end
 
         # Joins the array of formatted strings and writes it to file
@@ -549,8 +550,7 @@ module Bot::Moderation
         if args[0].downcase == 'add' &&
            args.size >= 3 && # ensures point value and user are present
            args[1].to_i > 0 && # ensures at least 1 point is to be added
-           (user = SERVER.get_user(args[2..-1].join(' ')))
-          
+           (user = SERVER.get_user(args[2..-1].join(' '))) &&
           # Defines variable containing points to be added
           added_points = args[1].to_i
 
@@ -563,8 +563,8 @@ module Bot::Moderation
           )
 
           # Sends confirmation message and dms user
-          event.respond "**Added #{added_points} point#{added_points == 1 ? nil : 's'} to user #{user.distinct}.**"
-          user.pm "**#{user.distinct}, a moderator has added some points to you.** You now have **#{POINTS[id: user.id][:points]} point#{POINTS[id: user.id][:points] == 1 ? nil : 's'}**."
+          event.respond "**Added #{pl(added_points, 'point')} to user #{user.distinct}.**"
+          user.pm "**#{user.distinct}, a moderator has added some points to you.** You now have **#{pl(POINTS[id: user.id][:points], 'point')}**."
 
         # Removing points from user
         elsif args[0].downcase == 'remove' &&
@@ -580,11 +580,27 @@ module Bot::Moderation
           POINTS.where(id: user.id).update(points: [POINTS[id: user.id][:points] - removed_points, 0].max)
 
           # Sends confirmation message and dms user
-          event.respond "**Removed #{removed_points} point#{removed_points == 1 ? nil : 's'} from user #{user.distinct}.**" # confirmation message
-          user.pm "**#{user.distinct}, a moderator has removed some points from you.** You now have **#{POINTS[id: user.id][:points]} point#{POINTS[id: user.id][:points] == 1 ? nil : 's'}**." # notification pm
+          event.respond "**Removed #{pl(removed_points, 'point')} from user #{user.distinct}.**" # confirmation message
+          user.pm "**#{user.distinct}, a moderator has removed some points from you.** You now have **#{pl(POINTS[id: user.id][:points], 'point')}**." # notification pm
 
           # Deletes entry if user now has 0 points
           POINTS.where(points: 0).delete
+
+        # If user is setting a point decay option:
+        elsif args[0].downcase == 'decay' &&
+              args.size >= 3 && # ensures decay subargument and user exists
+              (user = SERVER.get_user(args[2..-1].join(' '))) && # ensures user is valid
+              POINTS[id: user.id] # ensures user has entry in points variable
+          # If user is resetting next decay time to two weeks from now:
+          if args[1].downcase == 'reset'
+            POINTS.where(id: user.id).update(decay_time: Time.now.to_i + TWO_WEEKS)
+            event.respond "**Set next point decay time for user #{user.distinct} to two weeks from now.**"
+
+          # If user is turning off decay:
+          elsif args[1].downcase == 'off'
+            POINTS.where(id: user.id).update(decay_time: nil)
+            event.respond "**Turned off point decay for user #{user.distinct}**."
+          end
 
         # Checking points of a user
         elsif (user = SERVER.get_user(args.join(' ')))
@@ -593,7 +609,7 @@ module Bot::Moderation
           # the database
           if POINTS[id: user.id]
             points = POINTS[id: user.id][:points]
-            decay_time = Time.at(POINTS[id: user.id][:decay_time])
+            decay_time = POINTS[id: user.id][:decay_time] ? Time.at(POINTS[id: user.id][:decay_time]) : nil
             reason = POINTS[id: user.id][:reason]
           else
             points = 0
@@ -1158,11 +1174,12 @@ module Bot::Moderation
 
   # Blocks user from channel
   command :block do |event, *args|
-    # Breaks unless user is a moderator or HC, the user is valid and a reason is given
+    # Breaks unless user is a moderator or HC, the user is valid and not already blocked, and a reason is given
     break unless (event.user.role?(MODERATOR_ID) ||
                   event.user.role?(HEAD_CREATOR_ID)) &&
                  args.size >= 2 &&
-                 (user = SERVER.get_user(args[0]))
+                 (user = SERVER.get_user(args[0])) &&
+                 !CHANNEL_BLOCKS[channel_id: event.channel.id, user_id: user.id]
 
     # Defines reason variable and user's permissions in the event channel
     reason = args[1..-1].join(' ')
@@ -1176,11 +1193,11 @@ module Bot::Moderation
       reason: "Block -- reason: #{reason}" # audit log reason
     )
 
-    # Updates channel and user entry in database
-    CHANNEL_BLOCKS.set_new(
-        {id:            event.channel.id},
-         blocked_users: (entry = CHANNEL_BLOCKS[id: event.channel.id]) ? entry[:blocked_users] + ",#{user.id}" : user.id.to_s
-    )
+    # Adds channel block entry to database and updates user's points
+    CHANNEL_BLOCKS << {
+        channel_id: event.channel.id,
+        user_id:    user.id
+    }
     POINTS.set_new(
         {id:         user.id},
          points:     (entry = POINTS[id: user.id]) ? entry[:points] + 2 : 2,
@@ -1188,16 +1205,20 @@ module Bot::Moderation
          reason:     "2d mute - #{reason}"
     )
 
-    # Sends confirmation message, dms user and logs action
-    event.respond( # confirmation message sent to event channel
+    # Sends confirmation message to event channel
+    event.respond(
       "**Blocked #{user.distinct} from channel.**\n" +
       "**Reason:** #{reason}"
     )
-    user.dm( # notification dm sent to user
+
+    # Sends notification DM to user
+    user.dm(
       "**#{user.distinct}, you have been blocked from channel ##{event.channel.name}.** Your new point total is: **#{POINTS[id: user.id][:points]}** points.\n" +
       "**Reason:** #{reason}"
     )
-    Bot::BOT.send_message( # log message
+
+    # Sends log message to log channel
+    Bot::BOT.send_message(
       COBALT_REPORTS_ID, 
       ":no_entry: **BLOCK**\n" + 
       "**#{event.user.distinct}: Blocked #{user.mention} from channel #{event.channel.mention}**.\n" +
@@ -1216,8 +1237,7 @@ module Bot::Moderation
     break unless (event.user.role?(MODERATOR_ID) ||
                   event.user.role?(HEAD_CREATOR_ID)) &&
                  (user = SERVER.get_user(args.join(' '))) &&
-                 CHANNEL_BLOCKS[id: event.channel.id] &&
-                 CHANNEL_BLOCKS[id: event.channel.id][:blocked_users].include?(user.id.to_s)
+                 CHANNEL_BLOCKS[channel_id: event.channel.id, user_id: user.id]
     
     # Defines user variable and gets user's permissions in the event channel
     permissions = event.channel.permission_overwrites[user.id]
@@ -1230,11 +1250,11 @@ module Bot::Moderation
       reason: "Unblock" # audit log reason
     )
 
-    # Updates channel entry in database, deleting the entry if there are no blocked users
-    CHANNEL_BLOCKS.where(id: event.channel.id).update(
-        blocked_users: (CHANNEL_BLOCKS[id: event.channel.id][:blocked_users].split(',') - [user.id.to_s]).join(',')
-    )
-    CHANNEL_BLOCKS.where(blocked_users: '').delete
+    # Deletes channel block entry in the database
+    CHANNEL_BLOCKS.where(
+        channel_id: event.channel.id,
+        user_id:    user.id
+    ).delete
 
     # Sends confirmation message to event channel
     event.respond "**Unblocked #{user.distinct} from channel.**"
@@ -1261,17 +1281,16 @@ module Bot::Moderation
         name: 'Channel Blocks', 
         icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
       }
-      # Iterates through channel blocks, adding field for each channel
-      CHANNEL_BLOCKS.all do |entry|
-        # Defines variable containing IDs of all blocked users of the current channel
-        blocked_users = entry[:blocked_users].split(',')
 
-        # Skips unless at least one user blocked from channel is still present on server
-        next unless blocked_users.any? { |uid| SERVER.member(uid) }
-
+      # Iterates through all unique channel IDs in the channel block database and adds field for all of them,
+      # provided at least one user within the channel is still present within the server
+      CHANNEL_BLOCKS.map(:channel_id).uniq.each do |channel_id|
+        blocked_users = CHANNEL_BLOCKS.where(channel_id: channel_id).map(:user_id)
+        blocked_users.map! { |uid| Bot::BOT.user(uid) }.compact!
+        next if blocked_users.empty? || !Bot::BOT.channel(channel_id)
         embed.add_field(
-          name: "##{Bot::BOT.channel(entry[:id]).name}",
-          value: blocked_users.select { |uid| SERVER.member(uid) }.map { |uid| "• **#{SERVER.member(uid).distinct}**" }.join("\n")
+          name: "##{Bot::BOT.channel(channel_id).name}",
+          value: blocked_users.map { |u| "• **#{u.distinct}**" }.join("\n")
         )
       end
       embed.color = 0xFFD700

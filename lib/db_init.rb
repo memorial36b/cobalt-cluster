@@ -6,7 +6,7 @@ require 'sequel'
 # Database
 DB = Sequel.sqlite("#{Bot::DATA_PATH}/data.db")
 
-# Muted users dataset\
+# Muted users dataset
 DB.create_table? :muted_users do
   Integer   :id           # User's ID
   Integer   :end_time     # Time when the mute ends, as a Unix timestamp
@@ -32,6 +32,37 @@ end
 
 # Channel blocks dataset
 DB.create_table? :channel_blocks do
-  Integer :id            # Channel's ID
-  String  :blocked_users # IDs of all users blocked from the channel, as comma-separated string
+  Integer :channel_id # Channel's ID
+  String  :user_id    # User's ID
+end
+
+# Quoted messages dataset
+DB.create_table? :quoted_messages do
+  Integer :id # Message's ID
+end
+
+# Birthdays dataset
+DB.create_table? :birthdays do
+  Integer :id       # User's ID
+  String  :birthday # User's birthday, in the form M/D
+end
+
+# Birthday messages dataset
+DB.create_table? :birthday_messages do
+  Integer :channel_id # Message channel's ID
+  Integer :id         # Message's ID
+end
+
+# Boops dataset
+DB.create_table? :boops do
+  Integer :id        # Booping user's ID
+  Integer :booped_id # Booped user's ID
+  Integer :count     # Count of how many times booping user has booped this user
+end
+
+# Couples dataset
+DB.create_table? :couples do
+  Integer :spouse1 # ID of the first spouse
+  Integer :spouse2 # ID of the second spouse
+  Integer :karma   # Marriage karma
 end

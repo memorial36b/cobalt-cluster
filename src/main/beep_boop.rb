@@ -6,8 +6,17 @@ ENV['TZ'] = 'GMT'
 module Bot::BeepBoop
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
+  extend Convenience
   include Constants
-  
+
+  # Birthdays dataset
+  BIRTHDAYS = DB[:birthdays]
+  # Birthday messages dataset
+  BIRTHDAY_MESSAGES = DB[:birthday_messages]
+  # Boops dataset
+  BOOPS = DB[:boops]
+  # Couples dataset
+  COUPLES = DB[:couples]
   # Rufus scheduler
   SCHEDULER = Rufus::Scheduler.new
   # Path to crystal's data folder
@@ -22,21 +31,23 @@ module Bot::BeepBoop
   MODERATION_CHANNEL_ID = 330586271116165120
   # Bucket for booping users
   BOOP_BUCKET = Bot::BOT.bucket(
-    :boop,
-    limit: 1,
-    time_span: 10
+      :boop,
+      limit: 1,
+      time_span: 10
   )
   # Bucket for kissing users
   KISS_BUCKET = Bot::BOT.bucket(
-    :kiss,
-    limit: 1,
-    time_span: 45
+      :kiss,
+      limit: 1,
+      time_span: 45
   )
+
+  module_function
 
   # Validates the given string as a correct date, returning the month and day integers if it is valid
   # @param  [String]              str the string to be validated, of the format mm/dd
   # @return [Array<Integer>, nil]     the month and day integers, or nil if date is invalid
-  def self.vali_date(str)
+  def vali_date(str)
     # Define month and day variables
     month, day = str.split('/').map(&:to_i)
 
@@ -51,6 +62,31 @@ module Bot::BeepBoop
     end
 
     # Return nil otherwise
+    nil
+  end
+
+  # Gets the database entry of a user in the couples dataset; returns nil if user is not married
+  # @param  [Integer]                   id the ID of the user to search for
+  # @return [Hash<Symbol=>Object>, nil]    the database entry of the user, or nil if not married
+  def couple_entry(id)
+    COUPLES[spouse1: id] || COUPLES[spouse2: id]
+  end
+
+  # Gets the dataset of a user in the greater couples dataset; returns an empty dataset if user
+  # is not married
+  # @param  [Integer]         id the ID of the user to search for
+  # @return [Sequel::Dataset]    the dataset of the user; empty if user is not married
+  def couple_dataset(id)
+    return COUPLES.where(spouse2: id) if COUPLES.where(spouse1: id).empty?
+    COUPLES.where(spouse1: id)
+  end
+
+  # Gets the ID of a user's spouse, or nil if the user is not married.
+  # @param  [Integer]      id the ID of the user to check the spouse of
+  # @return [Integer, nil]    the ID of the user's spouse, or nil if the user is not married
+  def spouse_id(id)
+    return COUPLES[spouse1: id][:spouse2] if COUPLES[spouse1: id]
+    return COUPLES[spouse2: id][:spouse1] if COUPLES[spouse2: id]
     nil
   end
 
@@ -69,79 +105,75 @@ module Bot::BeepBoop
 
     # If user wants to set birthday and the birthday date format is valid:
     if args.size >= 2 &&
-       args[0].downcase == 'set' &&
-       vali_date(args[1])
+        args[0].downcase == 'set' &&
+        vali_date(args[1])
       # If user is a moderator setting another user's birthday and user is valid:
       if args.size >= 3 &&
-         event.user.role?(MODERATOR_ID) &&
-         SERVER.get_user(args[2..-1].join(' '))
-        # Load birthday data from file and set given user's birthday to the given date
-        YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") do |birthdays|
-          birthdays[SERVER.get_user(args[2..-1].join(' ')).id] = vali_date(args[1]).join('/')
-        end
+          event.user.role?(MODERATOR_ID) &&
+          (user = SERVER.get_user(args[2..-1].join(' ')))
+        # Sets given user's birthday in the database
+        BIRTHDAYS.set_new(
+            {id:       user.id},
+            birthday: vali_date(args[1]).join('/')
+        )
 
         # Sends confirmation message to event channel
         "This user's birthday has been set as **#{Time.new(*[2000] + vali_date(args[1])).strftime('%B %-d')}**."
 
-      # If user is setting their own birthday:
+        # If user is setting their own birthday:
       elsif args.size == 2
-        # Load birthday data from file and set given user's birthday to the given date
-        YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") do |birthdays|
-          birthdays[event.user.id] = args[1]
-        end
+        # Sets given user's birthday in the database
+        BIRTHDAYS.set_new(
+            {id:       event.user.id},
+            birthday: vali_date(args[1]).join('/')
+        )
 
         # Sends confirmation message to event channel
         "#{event.user.mention}, your birthday has been set as **#{Time.utc(*[2000] + vali_date(args[1])).strftime('%B %-d')}**."
       end
 
-    # If user is checking a birthday:
+      # If user is checking a birthday:
     elsif args.size >= 1 &&
-          args[0].downcase == 'check'
+        args[0].downcase == 'check'
       # If user wants to check their own birthday, sets user variable equal to event user
       if args.size == 1
         user = event.user
 
-      # If user wants to check another user's birthday and given user is valid, set user variable equal to that user
+        # If user wants to check another user's birthday and given user is valid, set user variable equal to that user
       elsif args.size >= 2 &&
-            (user = SERVER.get_user(args[1..-1].join(' ')))
+          (user = SERVER.get_user(args[1..-1].join(' ')))
 
-      # Otherwise, break
+        # Otherwise, break
       else break
       end
 
-      # Load birthday data from file into variable
-      birthdays = YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml")
-
-      # Send embed containing birthday info if user has an entry in the birthday data file
-      if birthdays[user.id]
+      # Send embed containing birthday info if user has an entry in the database
+      if (entry = BIRTHDAYS[id: user.id])
         event.channel.send_embed do |embed|
           embed.author = {
               name: "USER: #{user.display_name} (#{user.distinct})",
               icon_url: user.avatar_url
           }
-          embed.description = "#{user.mention}'s birthday is **#{Time.utc(*[2000] + vali_date(birthdays[user.id])).strftime('%B %-d')}**."
+          embed.description = "#{user.mention}'s birthday is **#{Time.utc(*[2000] + vali_date(entry[:birthday])).strftime('%B %-d')}**."
           embed.color = 0xFFD700
         end
 
-      # Otherwise, send message saying user hasn't set birthday
-      else
-        event.channel.send_temporary_message('This user has not set their birthday.', 5)
+        # Otherwise, send message saying user hasn't set birthday
+      else event.send_temp('This user has not set their birthday.', 5)
       end
 
-    # If user is checking the next birthday:
+      # If user is checking the next birthday:
     elsif args[0].downcase == 'next'
-      # Load birthday data from file into variable
-      birthdays = YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml")
-
       # Define variable containing the next time every user's birthday will occur (i.e. if a user's birthday has
       # already occurred this year, the time defined will be next year) and sorts it
-      upcoming_birthdays = birthdays.map do |id, d|
-        if Time.utc(*[Time.now.year] + vali_date(d)) > Time.now
-          [id, Time.utc(*[Time.now.year] + vali_date(d))]
+      upcoming_birthdays = BIRTHDAYS.map do |entry|
+        if Time.utc(*[Time.now.year] + vali_date(entry[:birthday])) > Time.now
+          [entry[:id], Time.utc(*[Time.now.year] + vali_date(entry[:birthday]))]
         else
-          [id, Time.utc(*[Time.now.year + 1] + vali_date(d))]
+          [entry[:id], Time.utc(*[Time.now.year + 1] + vali_date(entry[:birthday]))]
         end
-      end.sort_by { |_id, t| t }
+      end
+      upcoming_birthdays.sort_by! { |_id, t| t }
 
       # Defines variables containing the date of the next birthday and the users with their birthday on that day
       next_date = upcoming_birthdays[0][1].strftime('%B %-d')
@@ -154,21 +186,21 @@ module Bot::BeepBoop
             icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
         }
         embed.description = "**On #{next_date}:**\n" +
-                            next_users.reduce('') do |memo, id| # combines IDs into parsed string of usernames
-                              user = SERVER.member(id)
-                              next memo unless user
-                              memo + "\n**• #{user.display_name} (#{user.distinct})**"
-                            end
+            next_users.reduce('') do |memo, id| # combines IDs into parsed string of usernames
+              user = SERVER.member(id)
+              next memo unless user
+              memo + "\n**• #{user.display_name} (#{user.distinct})**"
+            end
         embed.color = 0xFFD700
       end
 
-    # If user wants to delete a birthday, user is a moderator, given user is valid and has an entry in the birthday
-    # file, delete the birthday
+      # If user wants to delete a birthday, user is a moderator,
+      # given user is valid and has an entry in the database delete the birthday
     elsif args[0].downcase == 'delete' &&
-          event.user.role?(302641262240989186) &&
-          (user = SERVER.get_user(args[1..-1].join(' '))) &&
-          YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml")[user.id]
-      YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") { |b| b.delete(user.id) }
+        event.user.role?(302641262240989186) &&
+        (user = SERVER.get_user(args[1..-1].join(' '))) &&
+        BIRTHDAYS[id: user.id]
+      BIRTHDAYS.where(id: user.id).delete
       "This user's birthday has been deleted." # confirmation message sent to event channel
     end
   end
@@ -176,16 +208,12 @@ module Bot::BeepBoop
   # Cron job that announces birthdays 5 minutes after midnight in GMT
   SCHEDULER.cron '5 0 * * *' do
     # Unpin old birthday messages, delete from data file and remove old birthday roles
-    YAML.load_data!("#{BEEP_DATA_PATH}/birthday_messages.yml") do |birthday_messages|
-      birthday_messages.each { |id| Bot::BOT.channel(GENERAL_ID).load_message(id).delete }
-      birthday_messages.clear
-    end
+    BIRTHDAY_MESSAGES.all { |e| Bot::BOT.channel(e[:channel_id]).load_message(e[:id]).delete }
+    BIRTHDAY_MESSAGES.delete
     SERVER.role(BIRTHDAY_ID).members.each { |m| m.remove_role(BIRTHDAY_ID) }
 
-    # Selects all users who have a birthday today:
-    YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml").select do |id, d|
-      [Time.now.month, Time.now.day] == vali_date(d)
-    end.each do |id, d|
+    # Iterates through all users who have a birthday today:
+    BIRTHDAYS.all.select { |e| [Time.now.getgm.month, Time.now.getgm.day] == vali_date(e[:birthday]) }.each do |id, d|
       # Skips unless user is present within server
       next unless SERVER.member(id)
 
@@ -195,48 +223,44 @@ module Bot::BeepBoop
       msg.pin
 
       # Stores message id in birthday message data file
-      YAML.load_data!("#{BEEP_DATA_PATH}/birthday_messages.yml") { |bm| bm.push(msg.id) }
+      BIRTHDAY_MESSAGES << {
+          channel_id: msg.channel.id,
+          id:         msg.id
+      }
     end
   end
 
   # Deletes user from birthday data file if they leave
   member_leave do |event|
-    YAML.load_data!("#{BEEP_DATA_PATH}/birthdays.yml") { |b| b.delete(event.user.id) }
+    BIRTHDAYS.where(id: event.user.id).delete
   end
 
   # Boops a user with an optional message
   command(:boop, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
     # Breaks unless the mentioned user is valid and the boop message doesn't contain here or everyone pings
-    break unless SERVER.get_user(args[0]) &&
-                 !%w(@here @everyone).any? { |s| args.include? s }
+    break unless (user = SERVER.get_user(args[0])) &&
+        !%w(@here @everyone).any? { |s| args.include? s }
 
     # If the user has activated the rate limiter bucket (used command within the last 10 seconds), sends temporary
     # cooldown message to event channel
-    if rate_limit = BOOP_BUCKET.rate_limited?(event.user.id)
-      event.send_temporary_message(
-          "**This command is on cooldown!** Wait for #{rate_limit.round}s.",
-          5 # seconds until message is deleted
-      )
+    if (rate_limit = BOOP_BUCKET.rate_limited?(event.user.id))
+      event.send_temp("**This command is on cooldown!** Wait for #{rate_limit.round}s.", 5)
 
     # Otherwise:
     else
-      # Defines user variable
-      user = SERVER.get_user(args[0])
+      # Adds one to the event user's boop count for the given user in the database
+      BOOPS.set_new(
+          {
+              id:        event.user.id,
+              booped_id: user.id
+          },
+          count:     BOOPS[id: event.user.id, booped_id: user.id] ?
+                         BOOPS[id: event.user.id, booped_id: user.id][:count] + 1 : 1
+      )
 
-      # Loads boop stats from file
-      YAML.load_data!("#{BEEP_DATA_PATH}/boops.yml") do |boops|
-        # Adds one to the event user's boop counter for the given user and defines a variable with the new count
-        if boops[event.user.id][user.id]
-          boops[event.user.id][user.id] += 1
-        else
-          boops[event.user.id][user.id] = 1
-        end
-        boop_count = boops[event.user.id][user.id]
-
-        # Sends boop message to event channel
-        event.respond "**#{event.user.name} has booped #{user.name}#{(args.size == 1) ? '!**' : " with the message:** #{args[1..-1].join(' ')}"}\n" +
-                      "That's #{boop_count} time#{(boop_count == 1) ? nil : 's'} now!"
-      end
+      # Sends boop message to event channel
+      event.respond "**#{event.user.name} has booped #{user.name}#{(args.size == 1) ? '!**' : " with the message:** #{args[1..-1].join(' ')}"}\n" +
+                        "That's #{pl(BOOPS[id: event.user.id, booped_id: user.id][:count], 'time')} now!"
     end
 
     nil # returns nil so command doesn't send an extra message
@@ -244,12 +268,11 @@ module Bot::BeepBoop
 
   # Lists a user's boops, ordered by how many times they've booped each person
   command(:listboops, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
-    # Defines user variable depending on whether any arguments were given and loads boop data from file
+    # Defines user variable depending on whether any arguments were given
     user = args.empty? ? event.user : SERVER.get_user(args.join(' '))
-    boops = YAML.load_data!("#{BEEP_DATA_PATH}/boops.yml")
 
-    # Breaks unless user has an entry in the boop variable
-    break unless boops[user.id]
+    # Breaks unless user has an entry in the boop database
+    break unless BOOPS[id: user.id]
 
     # Returns embed containing the top boops
     event.send_embed do |embed|
@@ -257,14 +280,10 @@ module Bot::BeepBoop
           name: "#{user.display_name} (#{user.distinct}): Top Boop Victims",
           icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
       }
-
-      # Sorts user's boops, selects the users who are present in the server,
-      # gets the first 10 and parses it into a formatted string for the embed description
-      embed.description = boops[user.id].sort_by { |_id, c| c }
-                                        .select { |id, _c| SERVER.member(id)}
-                                        .reverse[0..9].each_with_index.map do |(id, count), i|
-        booped_user = SERVER.member(id)
-        "**#{booped_user.display_name} (#{booped_user.distinct})** #{count} boop#{(count == 1) ? nil : 's'}"
+      top_booped = BOOPS.where_all(id: user.id).select { |e| SERVER.member(e[:booped_id]) }.sort_by { |e| e[:count] }.reverse[0..9]
+      embed.description = top_booped.each_with_index.map do |entry, i|
+        booped_user = SERVER.member(entry[:id])
+        "**#{booped_user.display_name} (#{booped_user.distinct})** #{pl(entry[:count], 'boop')}"
       end.join("\n")
       embed.color = 0xFFD700
     end
@@ -292,77 +311,77 @@ module Bot::BeepBoop
   command(:propose, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
     # Defines user variable and breaks unless user is valid and not the same as the event user
     break unless (user = SERVER.get_user(args.join(' '))) &&
-                 event.user != user
+        event.user != user
 
     # If event user is already in a proposal, sends notification message and breaks
     if in_proposal.include? event.user.id
-      event.send_temporary_message(
-        'You are already in a proposal!',
-        5 # seconds until message is deleted
-      )
+      event.send_temp('You are already in a proposal!', 5)
+      break
+
+    # If event user is already married, sends notification message and breaks
+    elsif couple_entry(event.user.id)
+      event.send_temp('You are already married!', 5)
       break
 
     # If given user is already in a proposal, sends notification message and breaks
     elsif in_proposal.include? user.id
-      event.send_temporary_message(
-        'This user is already in a proposal!',
-        5 # seconds until message is deleted
-      )
+      event.send_temp('This user is already in a proposal!', 5)
+      break
+
+    # If given user is already married, sends notification message and breaks
+    elsif couple_entry(user.id)
+      event.send_temp('This user is already married!', 5)
       break
     end
 
-    # Loads couples data from file so it can be modified if a new couple needs to be added
-    YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml") do |couples|
-      # If neither user is already married:
-      if [event.user.id, user.id].none? { |id| couples[id] || couples.has_value?(id) }
-        # Adds event and given user's IDs to proposal tracker variable and sends proposal request message
-        in_proposal.push(event.user.id, user.id)
-        event.respond "**#{user.mention}, #{event.user.mention} would like your hand in marriage.**\n" +
-                      "\n" +
-                      "Do you accept? Respond with `I do` or `I don't`"
+    # Adds event and given user's IDs to proposal tracker variable and sends proposal request message
+    in_proposal.push(event.user.id, user.id)
+    event.respond "**#{user.mention}, #{event.user.mention} would like your hand in marriage.**\n" +
+                  "\n" +
+                  "Do you accept? Respond with `I do` or `I don't`"
 
-        # Defines variable containing the time at which the proposal request expires
-        expiry_time = Time.now + 60
+    # Defines variable containing the time at which the proposal request expires
+    expiry_time = Time.now + 60
 
-        # Awaits response from given user in event channel, returning true if user accepts, false if user denies,
-        # or nil if user does not respond; expires if the expiry time has passed
-        response = loop do
-          await_event = if expiry_time - Time.now > 0
-                          event.channel.await!(
-                            from: user.id,
-                            timeout: expiry_time - Time.now
-                          )
-                        end
-          break unless await_event
-          case await_event.message.content.downcase
-          when 'i do' then break true
-          when "i don't", 'i dont' then break false
-          end
-        end
-
-        # Deletes both users' IDs from proposal tracker
-        in_proposal.delete_if { |id| [event.user.id, user.id].include? id }
-
-        # Cases the response variable
-        case response
-        # When user accepts the marriage:
-        when true
-          # Defines a new couple entry in the couples data file and defines their initial karma entry
-          # in the karma data file
-          couples[event.user.id] = user.id
-          YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") { |k| k[event.user.id] = 1000 }
-
-          # Sends confirmation message to event channel
-          event.respond "**Under the red light of the Blood Moon, the souls of #{event.user.mention} and #{user.mention} are bonded in marriage.**\n" +
-                        "**Starting Karma:** 1000"
-
-        # When user denies the marriage, sends refusal message to event channel
-        when false then event.respond "**#{user.mention} refuses #{event.user.mention}'s offer of marriage.**"
-
-        # When user doesn't respond, sends notification message to event channel
-        when nil then event.respond "**#{user.mention} did not respond in time.**"
-        end
+    # Awaits response from given user in event channel, returning true if user accepts, false if user denies,
+    # or nil if user does not respond; expires if the expiry time has passed
+    response = loop do
+      await_event = if expiry_time - Time.now > 0
+                      event.channel.await!(
+                          from: user.id,
+                          timeout: expiry_time - Time.now
+                      )
+                    end
+      break unless await_event
+      case await_event.message.content.downcase
+      when 'i do' then break true
+      when "i don't", 'i dont' then break false
       end
+    end
+
+    # Deletes both users' IDs from proposal tracker
+    in_proposal - [event.user.id, user.id]
+
+    # Cases the response variable
+    case response
+      # When user accepts the marriage:
+    when true
+      # Defines a new entry in the database with the couple and their initial karma of 1000
+      COUPLES << {
+          spouse1: event.user.id,
+          spouse2: user.id,
+          karma:   1000
+      }
+
+      # Sends confirmation message to event channel
+      event.respond "**Under the red light of the Blood Moon, the souls of #{event.user.mention} and #{user.mention} are bonded in marriage.**\n" +
+                    "**Starting Karma:** 1000"
+
+      # When user denies the marriage, sends refusal message to event channel
+    when false then event.respond "**#{user.mention} refuses #{event.user.mention}'s offer of marriage.**"
+
+      # When user doesn't respond, sends notification message to event channel
+    when nil then event.respond "**#{user.mention} did not respond in time.**"
     end
 
     nil # returns nil so command doesn't send an extra message
@@ -370,11 +389,8 @@ module Bot::BeepBoop
 
   # Offers a kiss to a user
   command(:kiss, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
-    # Loads couples list from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-
     # Sets argument default to user that the event user is married to
-    args[0] ||= couples[event.user.id] || couples.key(event.user.id)
+    args[0] ||= spouse_id(event.user.id)
 
     # Defines user variable, breaking unless it is valid and not the same as event user
     break unless (user = SERVER.get_user(args.join(' '))) &&
@@ -382,47 +398,37 @@ module Bot::BeepBoop
 
     # If event user is in the middle of a kiss, sends notification message and breaks
     if kissing.include? event.user.id
-      event.send_temporary_message(
-        'You already have a pending kiss!',
-        5 # seconds until message is deleted
-      )
+      event.send_temp('You already have a pending kiss!', 5)
       break
 
     # If given user is in the middle of a kiss, sends notification message and breaks
     elsif kissing.include? user.id
-      event.send_temporary_message(
-          'This user already has a pending kiss!',
-          5 # seconds until message is deleted
-      )
+      event.send_temp('This user already has a pending kiss!', 5)
       break
 
     # If user has already kissed someone in the last 45 seconds, sends rate limit message and breaks
     elsif (rate_limit = KISS_BUCKET.rate_limited?(event.user.id))
-      event.send_temporary_message(
-          "**This command is on cooldown!** Wait for #{rate_limit.round}s.",
-          5 # seconds until message is deleted
-      )
+      event.send_temp("**This command is on cooldown!** Wait for #{rate_limit.round}s.", 5)
       break
     end
 
-    # Adds event and given user's IDs to the tracker variable and sends kiss request message
+    # Adds both users' IDs to the tracker variable and sends kiss request message
     kissing.push(event.user.id, user.id)
     event.respond "**#{user.mention}, you have been offered a kiss by #{event.user.mention}.**\n" +
-                  "Do you `+agree` or `+refuse`?"
+                      "Do you `+agree` or `+refuse`?"
 
     # Defines variable containing the time at which the kiss request expires
     expiry_time = Time.now + 30
 
     # If given user is married to event user:
-    if couples[event.user.id] == user.id ||
-       couples.key(event.user.id) == user.id
+    if spouse_id(event.user.id) == user.id
       # Awaits response from given user in event channel, returning true if user agrees, false if user refuses,
       # or nil if user does not respond; expires if the expiry time has passed
       response = loop do
         await_event = if expiry_time - Time.now > 0
                         event.channel.await!(
-                          from: user.id,
-                          timeout: expiry_time - Time.now
+                            from: user.id,
+                            timeout: expiry_time - Time.now
                         )
                       end
         break unless await_event
@@ -433,49 +439,39 @@ module Bot::BeepBoop
       end
 
       # Deletes event and given user from kiss tracker
-      kissing.delete_if { |id| [event.user.id, user.id].include? id }
+      kissing - [event.user.id, user.id]
 
       # Cases response variable:
       case response
-      # When user agrees to kiss:
+        # When user agrees to kiss:
       when true
-        # Gets which user in the couple is listed as the key in the karma data file
-        listed_id = couples[event.user.id] ? event.user.id : user.id
+        # Adds 50 to marriage karma in the database
+        couple_dataset(user.id).update(karma: couple_entry(user.id)[:karma] + 50)
 
-        # Adds 50 to karma and sends confirmation message
-        YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-          karma[listed_id] += 50
-          event.send_message(
+        # Samples a kiss scenario and gif from their data files and responds in event channel with them
+        event.respond(
             "*#{YAML.load_data!("#{BEEP_DATA_PATH}/kiss_scenarios.yml").sample.gsub('[kissee]', user.name).gsub('[kisser]', event.user.name)}*\n" +
-            "**Karma:** #{karma[listed_id]}",
+            "**Karma:** #{couple_entry(user.id)[:karma]}",
             false, # tts
             {image: {url: YAML.load_data!("#{BEEP_DATA_PATH}/kiss_image_urls.yml").sample}}
-          )
-        end
+        )
 
-      # When user refuses kiss:
+        # When user refuses kiss:
       when false
-        # Gets which user in the couple is listed as the key in the karma data file
-        listed_id = couples[event.user.id] ? event.user.id : user.id
+        # Subtracts 50 from marriage karma in the database, equating it to 0 if it were to go below
+        couple_dataset(user.id).update(karma: [couple_entry(user.id)[:karma] - 50, 0].max)
 
-        # Loads karma data from file so it can be modified
-        YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-          # Subtracts 50 from karma, equating it to 0 if it were to go below
-          karma[listed_id] = karma[listed_id] > 50 ? karma[listed_id] - 50 : 0
+        # Sends refusal message to event channel
+        event.respond "*#{user.name} refuses #{event.user.name}'s kiss!* Is there couple trouble brewing?\n" +
+                      "**Karma:** #{karma[listed_id]}"
 
-          # Sends refusal message to event channel
-          event.respond "*#{user.name} refuses #{event.user.name}'s kiss!* Is there couple trouble brewing?\n" +
-                        "**Karma:** #{karma[listed_id]}"
-        end
-
-      # When user doesn't respond, sends notification message to event channel
+        # When user doesn't respond, sends notification message to event channel
       when nil
         event.respond "**#{user.mention} did not respond in time.**"
       end
 
-    # If neither user is married to anyone:
-    elsif !(couples[event.user.id] || couples.has_value?(event.user.id) ||
-            couples[user.id] || couples.has_value?(user.id))
+      # If both users are not married to anyone:
+    elsif !(couple_entry(event.user.id) || couple_entry(user.id))
       # Awaits response for given user, returning true if user agrees, false if user refuses, or nil
       # if user doesn't respond
       response = loop do
@@ -493,7 +489,7 @@ module Bot::BeepBoop
       end
 
       # Deletes event and given user from kiss tracker
-      kissing.delete_if { |id| [event.user.id, user.id].include? id }
+      kissing - [event.user.id, user.id]
 
       # Cases response variable and responds with the message's according action (accepting kiss, refusing kiss,
       # or not responding)
@@ -503,23 +499,20 @@ module Bot::BeepBoop
       when nil then event.respond "**#{user.mention} did not respond in time.**"
       end
 
-    # If either user is married to someone else:
+      # If either user is married to someone else:
     else
-      # Gets ID of event user's spouse
-      event_user_spouse_id = couples[event.user.id] || couples.key(event.user.id)
-
       # Awaits response from given user or event user's spouse in event channel; returns true if user agrees,
       # false if user refuses, :walkin if event user's spouse sends a message in the event channel, or nil
       # if user doesn't respond
       response = loop do
         await_event = if expiry_time - Time.now > 0
                         event.channel.await!(
-                            from: [user.id, event_user_spouse_id].compact,
+                            from: [user.id, spouse_id(event.user.id)].compact,
                             timeout: expiry_time - Time.now
                         )
                       end
         break unless await_event
-        break :walkin if await_event.author.id == event_user_spouse_id
+        break :walkin if await_event.author.id == spouse_id(event.user.id)
         case await_event.message.content
         when '+agree' then break true
         when '+refuse' then break false
@@ -527,75 +520,52 @@ module Bot::BeepBoop
       end
 
       # Deletes event and given user from kiss tracker
-      kissing.delete_if { |id| [event.user.id, user.id].include? id }
+      kissing - [event.user.id, user.id]
 
       # Cases response variable:
       case response
-      # When user agrees to kiss:
+        # When user agrees to kiss:
       when true
-        # Gets ID of given user's spouse
-        given_user_spouse_id = couples[user.id] || couples.key(user.id)
-
         # If given user has a spouse that is online:
-        if SERVER.member(given_user_spouse_id) &&
-           SERVER.member(given_user_spouse_id).status == :online
-          # Gets which user in the given user's marriage is listed as the key in the karma data file
-          listed_id = couples[user.id] ? user.id : given_user_spouse_id
+        if spouse_id(user.id) &&
+            SERVER.member(spouse_id(user.id)).status == :online
+          # Subtracts 50 from given user's marriage karma in the database, equating it to 0 if it were to go below
+          couple_dataset(user.id).update(karma: [couple_entry(user.id)[:karma] - 50, 0].max)
 
-          # Loads karma data from file so it can be modified
-          YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-            # Subtracts 50 from karma, equating it to 0 if it were to go below
-            karma[listed_id] = karma[listed_id] > 100 ? karma[listed_id] - 100 : 0
+          # Sends cheat message to event channel
+          event.respond "#{SERVER.member(spouse_id(user.id)).mention} is horrified to discover #{user.mention} cheating on them!\n" +
+                        "**Karma:** #{couple_entry(user.id)[:karma]}"
 
-            # Sends cheat message to event channel
-            event.respond "#{SERVER.member(given_user_spouse_id).mention} is horrified to discover #{user.mention} cheating on them!\n" +
-                          "**Karma:** #{karma[listed_id]}"
-          end
-
-        # If neither user's spouses witness the kiss, sends confirmation message to event channel
+          # If neither user's spouses witness the kiss, sends confirmation message to event channel
         else
           event.respond "*#{event.user.name} and #{user.name} share an unfaithful, forbidden kiss.*"
         end
 
-      # When user refuses kiss:
+        # When user refuses kiss:
       when false
         # If given user has a spouse:
-        if couples[user.id] ||
-           couples.has_value?(user.id)
-          # Gets which user in the given user's marriage is listed as the key in the karma data file
-          listed_id = couples[user.id] ? user.id : couples.key(user.id)
+        if couple_entry(user.id)
+          # Adds 50 to given user's marriage karma in the database
+          couple_dataset(user.id).update(karma: couple_entry(user.id)[:karma] + 50)
 
-          # Loads karma data from file so it can be modified
-          YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-            # Adds 50 to given user's karma
-            karma[listed_id] = karma[listed_id] += 50
+          # Sends refusal message to event channel
+          event.respond "#{user.name} remains faithful to their spouse, refusing to accept #{event.user.name}'s kiss.\n" +
+                        "**Karma:** #{couple_entry(user.id)[:karma]}"
 
-            # Sends refusal message to event channel
-            event.respond "#{user.name} remains faithful to their spouse, refusing to accept #{event.user.name}'s kiss.\n" +
-                          "**Karma:** #{karma[listed_id]}"
-          end
-
-        # Otherwise, sends refusal message to event channel
-        else
-          event.respond "*#{user.name} refuses to accept #{event.user.name}'s kiss.*"
+          # Otherwise, sends refusal message to event channel
+        else event.respond "*#{user.name} refuses to accept #{event.user.name}'s kiss.*"
         end
 
-      # When event user's spouse walks in on the kiss:
+        # When event user's spouse walks in on the kiss:
       when :walkin
-        # Gets which user in the event user's marriage is listed as the key in the karma data file
-        listed_id = couples[event.user.id] ? event.user.id : event_user_spouse_id
+        # Subtracts 50 from event user's marriage karma, equating it to 0 if it were to go below
+        couple_dataset(event.user.id).update(karma: [couple_entry(event.user.id)[:karma] - 50, 0].max)
 
-        # Loads karma data from file so it can be modified
-        YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-          # Subtracts 50 from karma, equating it to 0 if it were to go below
-          karma[listed_id] = karma[listed_id] > 100 ? karma[listed_id] - 100 : 0
+        # Sends cheat message to event channel
+        event.respond "#{SERVER.member(spouse_id(event.user.id)).mention} is horrified to discover #{event.user.mention} cheating on them!\n" +
+                      "**Karma:** #{couple_entry(event.user.id)[:karma]}"
 
-          # Sends cheat message to event channel
-          event.respond "#{SERVER.member(event_user_spouse_id).mention} is horrified to discover #{event.user.mention} cheating on them!\n" +
-                            "**Karma:** #{karma[listed_id]}"
-        end
-
-      # When user doesn't respond, sends notification message to event channel
+        # When user doesn't respond, sends notification message to event channel
       when nil then event.respond "**#{user.mention} did not respond in time.**"
       end
     end
@@ -611,13 +581,8 @@ module Bot::BeepBoop
     # Defines user variable, or breaks if user is invalid
     break unless (user = SERVER.get_user(args.join(' ')))
 
-    # Loads couples list from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-
-    # If user is married, loads karma from file and sends embed containing spouse's info and karma
-    if (spouse_id = couples[user.id] || couples.key(user.id))
-      karma = YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml")
-      listed_id = karma[user.id] ? user.id : spouse_id
+    # If user is married, sends embed containing spouse's info and karma
+    if (spouse_id = spouse_id(user.id))
       event.send_embed do |embed|
         spouse = SERVER.member(spouse_id)
         embed.author = {
@@ -625,42 +590,61 @@ module Bot::BeepBoop
             icon_url: spouse.avatar_url
         }
         embed.description = "**#{user.mention} is married to #{spouse.mention}.**\n" +
-                            "**Karma:** #{karma[listed_id]}"
+            "**Karma:** #{couple_entry(user.id)[:karma]}"
         embed.color = 0xFFD700
       end
 
     # Otherwise, send not found message to event channel
     else
-      event.send_temporary_message(
-          'This user is not married!',
-          5 # seconds until message is deleted
-      )
+      event.send_temp('This user is not married!', 5)
     end
   end
 
   # Lists all couples on the server, sorted by karma
   command(:couples, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, arg = '1'|
-    # Loads couples and karma from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-    karma = YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml")
+    # Breaks unless index is within the range of 0 to the number of pages in the couples embed
+    break unless (0..((COUPLES.all.size - 1) / 10)).include?(index = arg.to_i - 1)
 
-    # Breaks unless given argument is within the range of 1 to the number of pages in the couples embed
-    break unless (1..((couples.size / 10.0).ceil)).include?(arg.to_i)
-
-    # Defines variable containing the page number and an array of the position, listed user and karma of the couples
-    # to be displayed on the given page (max 10)
-    page = arg.to_i
-    displayed_couples = karma.sort_by { |_id, k| -k }[((page - 1) * 10)...(((page - 1) * 10) + 10)]
-                             .each_with_index.map { |(id, k), i| [((page - 1) * 10) + i + 1, id, k] }
+    # Defines variable containing the database entries of the couples sorted by karma and a
+    # string array of the couples to be displayed, formatted with position
+    sorted_couples = COUPLES.all.sort { |e1, e2| e2[:karma] <=> e1[:karma] }
+    displayed_couples = sorted_couples[(index * 10)...((index + 1) * 10)].each_with_index.map do |entry, subindex|
+      position = index * 10 + subindex + 1
+      spouse1 = Bot::BOT.user(entry[:spouse1])
+      spouse2 = Bot::BOT.user(entry[:spouse2])
+      karma = entry[:karma]
+      "**#{position}.** *#{spouse1.name} & #{spouse2.name}* - **#{karma}** karma"
+    end
 
     # Sends embed containing the given page of the couples karma info
-    event.send_embed do |embed|
+    msg = event.send_embed do |embed|
       embed.author = {
-          name: "Couples: List (Page #{page}/#{((couples.size / 10.0).ceil)})",
+          name: "Couples: List (Page #{arg.to_i}/#{(sorted_couples.size - 1) / 10 + 1})",
           icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/464455380928299028/avatar.png'
       }
-      embed.description = displayed_couples.map { |p, id, k| "**#{p}.** *#{SERVER.member(id).name} & #{SERVER.member(couples[id]).name}* - **#{k}** karma" }.join("\n")
+      embed.description = displayed_couples.join("\n")
       embed.color = 0xFFD700
+    end
+
+    msg.reaction_controls(event.user, 0..((sorted_couples.size - 1) / 10), 30, index) do |new_index|
+      displayed_couples = sorted_couples[(new_index * 10)...((new_index + 1) * 10)].each_with_index.map do |entry, subindex|
+        position = new_index * 10 + subindex + 1
+        spouse1 = SERVER.member(entry[:spouse1])
+        spouse2 = SERVER.member(entry[:spouse2])
+        karma = entry[:karma]
+        "**#{position}.** *#{spouse1.name} & #{spouse2.name}* - **#{karma}** karma"
+      end
+      msg.edit(
+          '',
+          {
+              author: {
+                  name: "Couples: List (Page #{new_index + 1}/#{(sorted_couples.size - 1) / 10 + 1})",
+                  icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/464455380928299028/avatar.png'
+              },
+              description: displayed_couples.join("\n"),
+              color: 0xFFD700
+          }
+      )
     end
 
     nil # returns nil so command doesn't send an extra message
@@ -668,16 +652,12 @@ module Bot::BeepBoop
 
   # Divorces spouse, by mutual agreement
   command(:divorce, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event|
-    # Loads couples list from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-
     # Breaks unless user is married and not already in the middle of a divorce
-    break unless (couples[event.user.id] ||
-                 couples.has_value?(event.user.id)) &&
+    break unless couple_entry(event.user.id) &&
                  !in_divorce.include?(event.user.id)
 
     # Gets ID of user's spouse
-    spouse_id = couples[event.user.id] || couples.key(event.user.id)
+    spouse_id = spouse_id(event.user.id)
 
     # Adds user and spouse IDs to divorce tracker and sends notification message to event channel
     in_divorce.push(event.user.id, spouse_id)
@@ -705,7 +685,7 @@ module Bot::BeepBoop
     end
 
     # Deletes user and spouse from divorce tracker
-    in_divorce.delete_if { |id| [event.user.id, spouse_id].include? id }
+    in_divorce - [event.user.id, spouse_id]
 
     # Cases response variable:
     case response
@@ -714,9 +694,8 @@ module Bot::BeepBoop
       # Gets the ID of the user listed as key in the couple
       listed_id = couples[event.user.id] ? event.user.id : spouse_id
 
-      # Deletes couple entry from couples and karma data files
-      YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml") { |c| c.delete(listed_id) }
-      YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") { |k| k.delete(listed_id) }
+      # Deletes couple entry from database
+      couple_dataset(event.user.id).delete
 
       # Sends confirmation message to event channel
       event.respond "**The souls of #{event.user.mention} and #{SERVER.member(spouse_id).mention} are cleaved apart.**\n" +
@@ -735,80 +714,54 @@ module Bot::BeepBoop
 
   # Brings marriage to divorce court, where mutual agreement isn't needed if karma is low enough
   command(:divorcecourt, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event|
-    # Loads couples list from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-
     # Breaks unless user is married and not already in the middle of a divorce
-    break unless couples[event.user.id] ||
-                 couples.has_value?(event.user.id)
+    break unless couple_entry(event.user.id) &&
+        !in_divorce.include?(event.user.id)
 
-    # Gets the ID of user's spouse and defines variable containing which user's ID is listed as key
-    # in the couples list (and by extension the karma data file)
-    spouse_id = couples[event.user.id] || couples.key(event.user.id)
-    listed_id = couples[event.user.id] ? event.user.id : spouse_id
-
-    # Loads karma data from file so it can be modified if divorce goes through
-    YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") do |karma|
-      # If couple has 1000 karma or above, sends refusal message to event channel
-      if karma[listed_id] >= 1000
-        event.respond "**The Blood Moon observes #{event.user.mention}'s marriage karma and deems it too high to be cleaved.**\n" +
-                      "The marriage remains intact."
+    # If couple has 1000 karma or above, sends refusal message to event channel
+    if couple_entry(event.user.id)[:karma] >= 1000
+      event.respond "**The Blood Moon observes #{event.user.mention}'s marriage karma and deems it too high to be cleaved.**\n" +
+                    "The marriage remains intact."
 
       # Otherwise:
-      else
-        # Deletes couple from couples list and karma data file
-        YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml") { |c| c.delete(listed_id) }
-        karma.delete(listed_id)
+    else
+      # Gets the ID of user's spouse prior to deletion
+      spouse_id = spouse_id(event.user.id)
 
-        # Sends confirmation message to event channel
-        event.respond "**The Blood Moon observes #{event.user.mention}'s marriage karma and deems the bond unfit to remain.**\n" +
-                      "**The souls of #{event.user.mention} and #{SERVER.member(spouse_id).mention} are cleaved apart.**\n" +
-                      "The Blood Moon allows them to seek happiness elsewhere."
-      end
+      # Deletes couple from database
+      couple_dataset(event.user.id).delete
+
+      # Sends confirmation message to event channel
+      event.respond "**The Blood Moon observes #{event.user.mention}'s marriage karma and deems the bond unfit to remain.**\n" +
+                    "**The souls of #{event.user.mention} and #{SERVER.member(spouse_id).mention} are cleaved apart.**\n" +
+                    "The Blood Moon allows them to seek happiness elsewhere."
     end
 
     nil # returns nil so command doesn't send an extra message
   end
 
   command(:moddivorce, channels: [BOT_COMMANDS_ID, MODERATION_CHANNEL_ID]) do |event, *args|
-    # Loads couples list from data file and defines user variable
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-    user = SERVER.get_user(args.join(' '))
-
     # Breaks unless user is moderator, given user is valid and married
     break unless event.user.role?(MODERATOR_ID) &&
-                 user &&
-                 (couples[user.id] ||
-                  couples.key(user.id))
+        (user = SERVER.get_user(args.join(' '))) &&
+        couple_entry(user.id)
 
-    # Gets the ID of user's spouse and defines variable containing which user's ID is listed as key
-    # in the couples list (and by extension the karma data file)
-    spouse_id = couples[user.id] || couples.key(user.id)
-    listed_id = couples[user.id] ? user.id : spouse_id
+    # Gets the ID of user's spouse prior to deletion
+    spouse_id = spouse_id(user.id)
 
-    # Deletes couple from couples list and karma data file
-    YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml") { |c| c.delete(listed_id) }
-    YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") { |k| k.delete(listed_id) }
+    # Deletes couple from database
+    couple_dataset(user.id).delete
 
     # Sends notification message to event channel
-    "#{user.mention} has been divorced from #{SERVER.member(spouse_id).mention}."
+    "#{user.mention} has been divorced from #{SERVER.member(spouse_id) ? SERVER.member(spouse_id).mention : "user not found (ID #{spouse_id})"}."
   end
 
   # Deletes couple if either user leaves
   member_leave do |event|
-    # Loads couple list from file
-    couples = YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml")
-
     # Skips unless user was married
-    next unless couples[event.user.id] ||
-                couples.key(event.user.id)
+    next unless couple_entry(event.user.id)
 
-    # Defines variable containing which user's ID is listed as key in the couples list
-    # (and by extension the karma data file)
-    listed_id = couples[event.user.id] ? event.user.id : couples.key(event.user.id)
-
-    # Deletes couple from couples list and karma data file
-    YAML.load_data!("#{BEEP_DATA_PATH}/couples.yml") { |c| c.delete(listed_id) }
-    YAML.load_data!("#{BEEP_DATA_PATH}/couples_karma.yml") { |k| k.delete(listed_id) }
+    # Deletes couple from database
+    couple_dataset(event.user.id).delete
   end
 end
