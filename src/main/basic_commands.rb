@@ -9,7 +9,7 @@ module Bot::BasicCommands
   # Ping command
   command :ping do |event|
     ping = event.respond '**P** **O** **N** **G**'
-    ping.edit "**P** **O** **N** **G** **|** **#{((Time.now.getgm - event.timestamp) * 1000).round}ms**"
+    ping.edit "**P** **O** **N** **G** **|** **#{((Time.now - event.timestamp) * 1000).round}ms**"
     sleep 10
     ping.delete
   end
