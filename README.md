@@ -11,6 +11,8 @@ not started) are in [the dev branch](src/crystals/dev).
 Note: Because this is a very server specific Discord bot, the code hasn't been tested beyond syntax
 errors; after finishing the first version, more revisions may be needed.
 
+You can find me on the SVTFOE server, I'm `410,757,864,530 DEAD SALMONIDS#0659`.
+
 ## Current crystal progress
 
 ### Finished
