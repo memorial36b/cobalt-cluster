@@ -66,7 +66,7 @@ module Constants
   # Override: 🧡 Mewman Noble role ID
   OVERRIDE_MEWMAN_NOBLE_ROLE_ID = 753163836005154895
   # Override: 💛 Mewman Knight role ID
-  OVERRIDE_MEWMAN_Knight_ROLE_ID = 753163836005154894
+  OVERRIDE_MEWMAN_KNIGHT_ROLE_ID = 753163836005154894
   # Override: 💜 Mewman Squire role ID
   OVERRIDE_MEWMAN_SQUIRE_ROLE_ID = 753163836005154893
   # Override: 💙 Mewman Citizen role ID
