@@ -59,10 +59,3 @@ DB.create_table? :boops do
   Integer :booped_id # Booped user's ID
   Integer :count     # Count of how many times booping user has booped this user
 end
-
-# Couples dataset
-DB.create_table? :couples do
-  Integer :spouse1 # ID of the first spouse
-  Integer :spouse2 # ID of the second spouse
-  Integer :karma   # Marriage karma
-end
