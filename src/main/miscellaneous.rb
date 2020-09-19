@@ -11,27 +11,7 @@ module Bot::Miscellaneous
   QUOTED_MESSAGES = DB[:quoted_messages]
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous".freeze
-  # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
-  VOICE_TEXT_CHANNELS = {
-      387802285733969920 => 307778254431977482, # General
-      378857349705760779 => 378857881782583296, # Generally
-      307763283677544448 => 307763370486923264, # Music
-      307882913708376065 => 307884092513583124, # Gaming
-  }.freeze
-  # IDs of channels blacklisted from #quoteboard
-  QUOTEBOARD_BLACKLIST = [
-      307726630061735936, # #news
-      360720349421109258, # #svtfoe_news
-      382469794848440330, # #vent_space
-      418819468412715008  # #svtfoe_leaks
-  ].freeze
-  # Content Creator role IDs
-  CREATOR_ROLE_IDS = {
-    art: 383960705365311488,
-    multimedia: 383961150905122828,
-    writing: 383961249899216898
-  }.freeze
-
+  
   # Tracker for whether a message has been quoted to #quoteboard recently
   qb_recent = false
   
