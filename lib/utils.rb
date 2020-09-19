@@ -157,6 +157,8 @@ module Constants
   ROLE_COLOR_TEST_2_ROLE_ID = 753163835862417482
   # Role Color Test 3 role ID
   ROLE_COLOR_TEST_3_ROLE_ID = 753163835862417481
+  # 🔷 Cobalt's Squire role ID
+  COBALT_SQUIRE_ROLE_ID = 755020794706264215
   
   # Channel IDs
 
