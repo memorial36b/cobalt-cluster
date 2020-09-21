@@ -361,7 +361,7 @@ module Bot::Miscellaneous
   # Evaluates Ruby code
   command :eval do |event|
     # Breaks unless user is Owner, Dev, or Cobalt's Mommy
-    break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID ||event.user.role?(COBALT_MOMMY_ROLE_ID)
+    break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
     rescue => e
