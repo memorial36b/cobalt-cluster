@@ -24,14 +24,6 @@ module Bot::Moderation
   MOD_DATA_PATH = "#{Bot::DATA_PATH}/moderation".freeze
   # Value for two weeks of time in seconds
   TWO_WEEKS = 1209600
-  # IDs of all opt-in roles
-  OPT_IN_ROLES = [
-    382433569101971456,
-    310698748680601611,
-    316353444971544577,
-    402051258732773377,
-    454304307425181696
-  ].freeze
   # Defines a bucket for the spam filter; triggers if user sends 5 or more messages in 4 seconds
   SPAM_FILTER_BUCKET = Bot::BOT.bucket(
       :spam_filter,

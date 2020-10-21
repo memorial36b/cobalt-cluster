@@ -250,10 +250,10 @@ module Constants
   }.freeze
   # IDs of channels blacklisted from #quoteboard
   QUOTEBOARD_BLACKLIST = [
-    307726630061735936, # #news
-    360720349421109258, # #svtfoe_news
-    382469794848440330, # #vent_space
-    418819468412715008  # #svtfoe_leaks
+    307726630061735936, #news
+    360720349421109258, #svtfoe_news
+    382469794848440330, #vent_space
+    418819468412715008  #svtfoe_leaks
   ].freeze
   # Content Creator role IDs
   CREATOR_ROLE_IDS = {
@@ -263,6 +263,15 @@ module Constants
   }.freeze
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
+
+  # IDs of all opt-in roles
+  OPT_IN_ROLES = [
+    382433569101971456,
+    310698748680601611,
+    316353444971544577,
+    402051258732773377,
+    454304307425181696
+  ].freeze
 end
 
 # Methods for convenience:
