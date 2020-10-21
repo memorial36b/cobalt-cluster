@@ -23,7 +23,7 @@ module Bot::BasicCommands
     ping.delete
   end
 
-  # Build Version command - Should be in this format: Build MM/DD/YYYY - Revision X (revision number should start at 0)
+  # Test Server Invte Command - Enables sending a link in chat to the Cobalt test server
   command :testserver do |event|
     break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID
     ping = event.respond "https://discord.gg/PHHXXs7 This message will self-destruct in 10 seconds"
