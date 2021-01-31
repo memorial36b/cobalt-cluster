@@ -17,7 +17,7 @@ module Constants
   # Owner's (Geechan) user ID
   OWNER_ID = 108144520553578496
   # Cobalt's Dev (CorruptedPhazite) user ID
-  COBALT_DEV_ID = [99567651944165376, 220509153985167360]
+  COBALT_DEV_ID = [99567651944165376, 220509153985167360, 334094154520854530]
   # Cobalt's Artist (SkeletonOcelot) user ID
   COBALT_ART_ID = 354504581176098816
   # Bounce Lounge Bot user ID

@@ -33,7 +33,7 @@ module Bot::BasicCommands
 
   # Ded Chat Command
   command :ded do |event|
-    break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
     ping = event.respond "https://tenor.com/view/the-dancing-dorito-irevive-this-chat-dance-gif-14308244"
   end
 
