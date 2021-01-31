@@ -314,14 +314,14 @@ module Bot::Miscellaneous
       
       content = event.message.content.nil? ? "" : event.message.content
       
-      # Add embeded image/video only if original message contains an image and the content isn't a gif url 
+      # Add embedded attachment if original contains one
       unless event.message.attachments == []
         # we can only use the first attachment
         attachment = event.message.attachments[0]
 
         isimage = ( attachment.url =~ /.*(.png|.gif|.jpg|.jpeg|.webp)/ ) 
         embed.url = attachment.url
-        if isimage # custom method because attachment.image? rturns true on videos!
+        if isimage # custom method because attachment.image? returns true on videos!
           embed.image = Discordrb::Webhooks::EmbedImage.new(url: attachment.url)
         else
           # webhooks doesn't support attachment format, inject link into content
