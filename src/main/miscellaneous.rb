@@ -324,7 +324,7 @@ module Bot::Miscellaneous
           embed.image = Discordrb::Webhooks::EmbedImage.new(url: attachment.url)
         else
           # webhooks doesn't support attachment format, inject link into content
-          content += "\n#{attachment.url}"
+          content += "\n#{attachment.url}\n"
         end
       end
 
