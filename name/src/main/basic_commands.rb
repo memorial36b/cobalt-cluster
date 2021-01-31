@@ -18,7 +18,7 @@ module Bot::BasicCommands
   # Build Version command - Should be in this format: Build MM/DD/YYYY - Revision X (revision number should start at 0)
   command :build do |event|
     break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID || event.user.role?(COBALT_MOMMY_ROLE_ID)
-    ping = event.respond "Build 1/31/2021 - Revision 1"
+    ping = event.respond "Build 10/21/2020 - Revision 1"
     sleep 10
     ping.delete
   end
