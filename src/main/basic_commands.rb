@@ -40,7 +40,7 @@ module Bot::BasicCommands
 
 # Exit command
   command :exit do |event|
-    # Breaks unless event user is Owner (or Dev for testing, this should be removed in the live version)
+    # Breaks unless event user is Owner or Dev
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
     event.respond 'Shutting down.'
     exit

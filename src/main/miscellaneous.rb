@@ -297,7 +297,7 @@ module Bot::Miscellaneous
 
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
-    next if camera_reaction.count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
+    next if camera_reaction.count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 4) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
             QUOTED_MESSAGES[id: event.message.id] ||
             qb_recent
@@ -378,7 +378,7 @@ module Bot::Miscellaneous
   # Evaluates Ruby code
   command :eval do |event|
     # Breaks unless user is Owner, Dev, or Cobalt's Mommy
-    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) 
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID_EVAL.include?(event.user.id) 
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
     rescue => e
