@@ -1,5 +1,6 @@
 # Crystal: Miscellaneous
 
+
 # This crystal contains Cobalt's miscellaneous features that don't really fit in anywhere else.
 module Bot::Miscellaneous
   extend Discordrb::Commands::CommandContainer
@@ -63,7 +64,7 @@ module Bot::Miscellaneous
   # Makes bot say something
   command :say do |event|
     # Breaks unless user is Owner, Cobalt's Dev, Cobalt's Artist, or Administrator 
-    break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID || event.user.id == COBALT_ART_ID || event.user.role?(ADMINISTRATOR_ROLE_ID)
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.id == COBALT_ART_ID || event.user.role?(ADMINISTRATOR_ROLE_ID)
 
     # Deletes event message and responds with the content of it, deleting the command call
     event.message.delete
@@ -377,7 +378,7 @@ module Bot::Miscellaneous
   # Evaluates Ruby code
   command :eval do |event|
     # Breaks unless user is Owner, Dev, or Cobalt's Mommy
-    break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) 
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
     rescue => e
