@@ -17,7 +17,7 @@ module Constants
   # Owner's (Geechan) user ID
   OWNER_ID = 108144520553578496
   # Cobalt's Dev (CorruptedPhazite) user ID
-  COBALT_DEV_ID = [99567651944165376, 220509153985167360, 334094154520854530]
+  COBALT_DEV_ID = [99567651944165376, 220509153985167360]
   # Cobalt's Artist (SkeletonOcelot) user ID
   COBALT_ART_ID = 354504581176098816
   # Bounce Lounge Bot user ID
@@ -66,7 +66,7 @@ module Constants
   # Override: 🧡 Mewman Noble role ID
   OVERRIDE_MEWMAN_NOBLE_ROLE_ID = 753163836005154895
   # Override: 💛 Mewman Knight role ID
-  OVERRIDE_MEWMAN_Knight_ROLE_ID = 753163836005154894
+  OVERRIDE_MEWMAN_KNIGHT_ROLE_ID = 753163836005154894
   # Override: 💜 Mewman Squire role ID
   OVERRIDE_MEWMAN_SQUIRE_ROLE_ID = 753163836005154893
   # Override: 💙 Mewman Citizen role ID
@@ -243,10 +243,10 @@ module Constants
   ROLE_MESSAGE_ID = 753317076260880416
   # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
   VOICE_TEXT_CHANNELS = {
-    387802285733969920 => 307778254431977482, # General
-    378857349705760779 => 378857881782583296, # Generally
-    307763283677544448 => 307763370486923264, # Music
-    307882913708376065 => 307884092513583124, # Gaming
+    753163838068621408 => 753163838068621403, # General
+    753163838068621409 => 753163838068621404, # Generally
+    753163838068621410 => 753163838068621405, # Music
+    753163838068621411 => 753163838068621406, # Gaming
   }.freeze
   # IDs of channels blacklisted from #quoteboard
   QUOTEBOARD_BLACKLIST = [
