@@ -17,7 +17,7 @@ module Constants
   # Owner's (Geechan) user ID
   OWNER_ID = 108144520553578496
   # Cobalt's Dev (CorruptedPhazite) user ID
-  COBALT_DEV_ID = 99567651944165376
+  COBALT_DEV_ID = [99567651944165376, 220509153985167360]
   # Cobalt's Artist (SkeletonOcelot) user ID
   COBALT_ART_ID = 354504581176098816
   # Bounce Lounge Bot user ID
@@ -159,8 +159,6 @@ module Constants
   ROLE_COLOR_TEST_3_ROLE_ID = 753163835862417481
   # 🔷 Cobalt's Squire role ID
   COBALT_SQUIRE_ROLE_ID = 755020794706264215
-  # 🎃 Champion of Halloween
-  CHAMPION_OF_HALLOWEEN_ROLE_ID = 766072056415780885
   
   # Channel IDs
 
