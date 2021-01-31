@@ -1,6 +1,5 @@
 # Crystal: Miscellaneous
 
-
 # This crystal contains Cobalt's miscellaneous features that don't really fit in anywhere else.
 module Bot::Miscellaneous
   extend Discordrb::Commands::CommandContainer
@@ -287,18 +286,23 @@ module Bot::Miscellaneous
 
   # Sends a message to #quoteboard when it gets enough cams
   reaction_add(emoji: '📷') do |event|
+    camera_reaction = event.message.reactions.select { |react| react.name.casecmp('📷') == 0 }
+    if camera_reaction.nil? || camera_reaction.length <= 0
+      next
+    end
+
+    # first and only item in the array is the camera reaction
+    camera_reaction = camera_reaction[0]
+
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
-    next if event.message.reactions['📷'].count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
+    next if camera_reaction.count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
-            QUOTED_CHANNELS[id: event.message.id] ||
+            QUOTED_MESSAGES[id: event.message.id] ||
             qb_recent
 
     # Adds the message's ID to the database
     QUOTED_MESSAGES << {id: event.message.id}
-
-    # Deletes all message reactions
-    event.message.delete_all_reactions
 
     # Sends embed to #quoteboard displaying message
     Bot::BOT.channel(QUOTEBOARD_CHANNEL_ID).send_embed do |embed|
@@ -306,14 +310,26 @@ module Bot::Miscellaneous
           name: "#{event.message.author.display_name} (#{event.message.author.distinct})",
           icon_url: event.message.author.avatar_url
       }
-      embed.color = 0xFFD700
-      embed.description = event.message.content
-
-      # Add embed image only if original message contains an image
+      
+      content = event.message.content.nil? ? "" : event.message.content
+      
+      # Add embeded image/video only if original message contains an image and the content isn't a gif url 
       unless event.message.attachments == []
-        embed.image = Discordrb::Webhooks::EmbedImage.new(url: event.message.attachments[0].url)
+        # we can only use the first attachment
+        attachment = event.message.attachments[0]
+
+        isimage = ( attachment.url =~ /.*(.png|.gif|.jpg|.jpeg|.webp)/ ) 
+        embed.url = attachment.url
+        if isimage # custom method because attachment.image? rturns true on videos!
+          embed.image = Discordrb::Webhooks::EmbedImage.new(url: attachment.url)
+        else
+          # webhooks doesn't support attachment format, inject link into content
+          content += "\n#{attachment.url}"
+        end
       end
 
+      embed.color = 0xFFD700
+      embed.description = content + "\n[permalink](#{event.message.link})"
       embed.timestamp = event.message.timestamp.getgm
       embed.footer = {text: "##{event.message.channel.name}"}
     end
