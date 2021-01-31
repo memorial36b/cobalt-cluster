@@ -320,7 +320,7 @@ module Bot::Miscellaneous
 
         isimage = ( attachment.url =~ /.*(.png|.gif|.jpg|.jpeg|.webp)/ ) 
         embed.url = attachment.url
-        if isimage # custom method because attachment.image? rturns true on videos!
+        if isimage # custom method because attachment.image? returns true on videos!
           embed.image = Discordrb::Webhooks::EmbedImage.new(url: attachment.url)
         else
           # webhooks doesn't support attachment format, inject link into content
