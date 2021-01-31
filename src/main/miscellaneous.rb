@@ -313,7 +313,7 @@ module Bot::Miscellaneous
       
       content = event.message.content.nil? ? "" : event.message.content
       
-      # Add embeded image/video only if original message contains an image and the content isn't a gif url 
+      # Add embedded attachment if original contains one
       unless event.message.attachments == []
         # we can only use the first attachment
         attachment = event.message.attachments[0]
