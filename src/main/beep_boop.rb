@@ -242,7 +242,7 @@ module Bot::BeepBoop
   end
 
   # Hugs one or more users
-  command(:hug, channels: [BOT_COMMANDS_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID]) do |_event, *args|
+  command(:hug, channels: [BOT_COMMANDS_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID, VENT_SPACE_CHANNEL_ID, GENERAL_CHANNEL_ID]) do |_event, *args|
     # Breaks if none of the mentioned users are valid
     break if args.none? { |a| Bot::BOT.parse_mention(a) && SERVER.get_user(a) }
 
