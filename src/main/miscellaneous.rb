@@ -342,7 +342,7 @@ module Bot::Miscellaneous
   end
 
   # Randomly chooses from given options
-  command(:spinner, channels: %w(#bot_commands #moderation_channel)) do |event, *args|
+  command :spinner, channels: [BOT_COMMANDS_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID] do |event, *args|
     # Breaks unless at least one option is given and arguments do not contain @here or @everyone pings
     break unless args[0] &&
                  %w(@here @everyone).none? { |s| event.message.content.include? s }
@@ -354,7 +354,7 @@ module Bot::Miscellaneous
   end
 
   # Gives/removes Content Creator role to/from users
-  command(:creator, channels: %w(#head_creator_hq)) do |event, *args|
+  command :creator, channels: [HEAD_CREATOR_HQ_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID] do |event, *args|
     # Breaks unless user is moderator or Head Creator, give/remove, content creator role and user are given, and both
     # content creator role and user are valid
     break unless (event.user.role?(MODERATOR_ROLE_ID) ||
