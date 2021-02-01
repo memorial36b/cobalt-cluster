@@ -329,8 +329,8 @@ module Bot::Miscellaneous
         end
       end
 
-      embed.color = 0xFFD700
-      embed.description = content + "\n[permalink](#{event.message.link})"
+      embed.color = 0x0047AB
+      embed.description = content + "\n \n[Message Link](#{event.message.link})"
       embed.timestamp = event.message.timestamp.getgm
       embed.footer = {text: "##{event.message.channel.name}"}
     end
@@ -377,7 +377,7 @@ module Bot::Miscellaneous
 
   # Evaluates Ruby code
   command :eval do |event|
-    # Breaks unless user is Owner, Dev, or Cobalt's Mommy
+    # Breaks unless user is Owner or Dev
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID_EVAL.include?(event.user.id) 
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
