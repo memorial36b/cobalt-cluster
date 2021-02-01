@@ -262,7 +262,7 @@ module Constants
   CREATOR_ROLE_IDS = {
     art: 383960705365311488,
     multimedia: 383961150905122828,
-    riting: 383961249899216898
+    writing: 383961249899216898
   }.freeze
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
