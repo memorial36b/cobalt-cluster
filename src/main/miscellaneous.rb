@@ -74,7 +74,7 @@ module Bot::Miscellaneous
   # Sends 'quality svtfoe discussion' gif in the #svtfoe_discussion channel
   command :quality, channels: %w(#svtfoe_discussion) do |event|
     # Breaks unless user is moderator
-    break unless event.user.role?(MODERATOR_ROLE_ID) || event.user.role?(COBALT_MOMMY_ROLE_ID)
+    break unless event.user.role?(MODERATOR_ROLE_ID) || event.user.role?(COBALT_MOMMY_ROLE_ID) || COBALT_DEV_ID.include?(event.user.id)
 
     # Sends gif
     event.channel.send_file(File.open("#{MISC_DATA_PATH}/quality.gif"))
