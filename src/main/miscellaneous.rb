@@ -152,7 +152,7 @@ module Bot::Miscellaneous
       embed.add_field(
           name: 'Numerics',
           value: "**Members: #{SERVER.member_count}**\n" +
-                 "├ Humans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
+                 "├ Mewmans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
                  "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
                  "└ Online: **#{SERVER.online_members.size}**\n" +
                  "\n" +
