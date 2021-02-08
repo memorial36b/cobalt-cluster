@@ -1,6 +1,7 @@
 # This is the file that defines how many points each action is worth.
 
 ---
+# standard commands
 checkin_member: 50      # checkin (as member): +50 bucks
 checkin_citizen: 75     # checkin (as citizen): +75
 checkin_noble: 100      # checkin (as noble): +100
@@ -16,7 +17,7 @@ rentarole_maintain: 200 # rent-a-role daily maintenance cost
 rentarole_override: 150 # override role cost ?? not sure what this is
 unrentarole: 0          # remove rented role
 
-#tags, max one at a time
+# tags, max one at a time
 tag_add: 30          # add a customized tag
 tag_delete: 0        # remove purchased tag
 tag_edit: 0          # edit purchased tag
