@@ -118,6 +118,39 @@ class DiscordUser
   end
 end
 
+# Types for convenience
+# Class for simple Discord User.
+class DiscordUser
+  # Construct a new user.
+  # @param [Integer/String] id user id as string or integer
+  def initialize(id)
+    # get user from server
+    user = Constants::SERVER.get_user(id)
+    raise ArgumentError, "Invalid user id specified!" unless not user.nil?
+
+    # store data
+    @user = user
+  end
+
+  # Get the user id integer.
+  # @return [Integer] user id
+  def id
+    return @user.id
+  end
+
+  # Get the user mention tag.
+  # @return [String] user mention tag
+  def mention
+    return @user.mention
+  end
+
+  # Get the full discord.rb user object.
+  # @return [Discordrb::User]
+  def user
+    return @user
+  end
+end
+
 # Methods for convenience:
 
 # Module containing convenience methods (and companion variables/constants) that aren't instance/class methods
@@ -133,6 +166,121 @@ module Convenience
     "#{int} #{str}"
   end
   alias_method(:pl, :plural)
+
+  # Initialize a value of the specified type with the argument.
+  # @param [String]  command_name the command's name
+  # @param [String]  description  brief command description
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @return [String] The help message.
+  def InitType(type, arg)
+    if type == Integer
+      return Integer(arg)
+    elsif type == Float
+      return Float(arg)
+    else
+      return type.new(arg)
+    end
+  end
+
+  # Generate help message for a given command
+  # @param [String]  command_name the command's name
+  # @param [String]  description  brief command description
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @return [String] The help message.
+  def GenerateHelp(command_name, description, name_types, req_count)
+    raise ArgumentError, "Required count is larger than number of arguments" unless name_types.count >= req_count
+
+    message = command_name
+    (0...name_types.count).each do |n|
+      argname = name_types[n][0]
+      argtype = name_types[n][1].name
+      if n < req_count
+        message += " <" + argname + ": " + argtype + ">"
+      else
+        message += " [optional " + argname + ": " + argtype + "]"
+      end
+    end
+    message += "\n" + description
+    return message
+  end
+
+  # Parse an array of arguments into a dictionary of key/value pairs.
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @param [Integer] req_count    number of arguments that are required
+  # @param [Array]   opt_defaults optional parameter default values
+  # @param [Array]   args         arguments to parse
+  # @return [Hash]   {"arg_name" => arg_value, ...} or nil on failure
+  #
+  # Note: If there's an overflow of arguments the extra ones will be ignored.
+  def ParseArgs(name_types, req_count, opt_defaults, args)
+    # these are developer errors, crash command
+    raise ArgumentError, "No argument names/types were provided." unless name_types.count > 0
+    raise ArgumentError, "Required count is larger than number of arguments" unless name_types.count >= req_count
+    raise ArgumentError, "Incorrect number of default values provided!" unless name_types.count - req_count == opt_defaults.count
+
+    # these are user errors
+    if args.count < req_count
+      puts "not enough args"
+      return nil # too few arguments
+    end
+
+    # parse arguments
+    parsed_dict = {}
+    (0...args.count).each do |n|
+      arg_value = args[n]
+      arg_name  = name_types[n][0]
+      arg_type  = name_types[n][1]
+      begin # try to parse
+        parsed_dict[arg_name] = InitType(arg_type, arg_value)
+
+        # fail if it couldn't be created
+        if parsed_dict[arg_name].nil?
+          puts "failed to create " + arg_name
+          return nil
+        end
+      rescue # failure
+          puts "failed to create (rescue) " + arg_name
+        return nil
+      end
+    end
+
+    # fill unspecified optional parameters with defaults
+    total_arg_count = name_types.count
+    (args.count...total_arg_count).each do |n|
+      defaults_idx = total_arg_count - n
+
+      def_value = opt_defaults[defaults_idx]
+      arg_name  = name_types[n][0]
+      arg_type  = name_types[n][1]
+      
+      # developer error if not valid, not directly assigned to catch errors
+      parsed_dict[arg_name] = InitType(def_value)
+      raise ArgumentError, "Invalid default provided for: '" + arg_name + "'" unless not(parsed_dict[arg_name].nil?)
+    end
+
+    return parsed_dict
+  end
+
+  # Parse an array of arguments into a dictionary of key/value pairs. Automatically notify user if input is invalid.
+  # @param [Event]   event        discord command event
+  # @param [String]  command_name the command's name
+  # @param [String]  description  brief command description
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @param [Integer] req_count    number of arguments that are required
+  # @param [Array]   opt_defaults optional parameter default values
+  # @param [Array]   args         arguments to parse
+  # @return [Hash]   {"arg_name" => arg_value, ...} or nil on failure
+  #
+  # Note: If there's an overflow of arguments the extra ones will be ignored.
+  def ParseArgsAndRespondIfInvalid(event, command_name, description, name_types, req_count, opt_defaults, args)
+    parsed_dict = ParseArgs(name_types, req_count, opt_defaults, args)
+    if parsed_dict.nil?
+      message = "Sorry, I didn't quite get that. Try taking a look at this:\n"
+      message += GenerateHelp(command_name, description, name_types, req_count)
+      event.respond message
+    end
+    return parsed_dict
+  end
 end
 
 # YAML module from base Ruby
