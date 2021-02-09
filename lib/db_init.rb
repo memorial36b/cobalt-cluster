@@ -59,3 +59,11 @@ DB.create_table? :boops do
   Integer :booped_id # Booped user's ID
   Integer :count     # Count of how many times booping user has booped this user
 end
+
+# Economy data set
+DB.create_table? :econ_user_balances do
+  primary_key :transaction_id # unique transaction id
+  Integer :user_id            # User's ID
+  Integer :timestamp          # UTC transaction timestamp
+  Integer :amount             # Tranasction amount, how much was earned
+end
