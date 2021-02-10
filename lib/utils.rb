@@ -260,14 +260,13 @@ module Convenience
     # fill unspecified optional parameters with defaults
     total_arg_count = name_types.count
     (args.count...total_arg_count).each do |n|
-      defaults_idx = n - args.count
-
-      def_value = opt_defaults[defaults_idx]
+      default_idx = n - req_count
+      
+      def_value = opt_defaults[default_idx]
       arg_name  = name_types[n][0]
       arg_type  = name_types[n][1]
       
       # developer error if not valid, not directly assigned to catch errors
-      puts "#{arg_name} [#{arg_type}] inited to #{def_value}"
       parsed_dict[arg_name] = InitType(arg_type, def_value)
       raise ArgumentError, "Invalid default provided for: '" + arg_name + "'" unless not(parsed_dict[arg_name].nil?)
     end
