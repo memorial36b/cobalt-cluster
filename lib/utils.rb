@@ -125,10 +125,14 @@ class DiscordUser
   # @param [Integer/String] id user id as string or integer
   def initialize(id)
     # get user from server
-    user = Constants::SERVER.get_user(id)
+    user = nil
+    if id.class == String
+      user = Constants::SERVER.get_user(id)
+    else
+      user = Constants::SERVER.member(id)
+    end
+    
     raise ArgumentError, "Invalid user id specified!" unless not user.nil?
-
-    # store data
     @user = user
   end
 
@@ -144,8 +148,8 @@ class DiscordUser
     return @user.mention
   end
 
-  # Get the full discord.rb user object.
-  # @return [Discordrb::User]
+  # Get the discord user object.
+  # @return [Discordrb::user] user object
   def user
     return @user
   end
@@ -247,14 +251,14 @@ module Convenience
     # fill unspecified optional parameters with defaults
     total_arg_count = name_types.count
     (args.count...total_arg_count).each do |n|
-      defaults_idx = total_arg_count - n
+      defaults_idx = total_arg_count - n - 1
 
       def_value = opt_defaults[defaults_idx]
       arg_name  = name_types[n][0]
       arg_type  = name_types[n][1]
       
       # developer error if not valid, not directly assigned to catch errors
-      parsed_dict[arg_name] = InitType(def_value)
+      parsed_dict[arg_name] = InitType(arg_type, def_value)
       raise ArgumentError, "Invalid default provided for: '" + arg_name + "'" unless not(parsed_dict[arg_name].nil?)
     end
 
