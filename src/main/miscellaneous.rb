@@ -74,7 +74,7 @@ module Bot::Miscellaneous
   # Sends 'quality svtfoe discussion' gif in the #svtfoe_discussion channel
   command :quality, channels: %w(#svtfoe_discussion) do |event|
     # Breaks unless user is moderator
-    break unless event.user.role?(MODERATOR_ROLE_ID) || event.user.role?(COBALT_MOMMY_ROLE_ID)
+    break unless event.user.role?(MODERATOR_ROLE_ID) || event.user.role?(COBALT_MOMMY_ROLE_ID) || COBALT_DEV_ID.include?(event.user.id)
 
     # Sends gif
     event.channel.send_file(File.open("#{MISC_DATA_PATH}/quality.gif"))
@@ -152,7 +152,7 @@ module Bot::Miscellaneous
       embed.add_field(
           name: 'Numerics',
           value: "**Members: #{SERVER.member_count}**\n" +
-                 "├ Humans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
+                 "├ Mewmans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
                  "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
                  "└ Online: **#{SERVER.online_members.size}**\n" +
                  "\n" +
@@ -297,7 +297,7 @@ module Bot::Miscellaneous
 
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
-    next if camera_reaction.count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
+    next if camera_reaction.count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 4) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
             QUOTED_MESSAGES[id: event.message.id] ||
             qb_recent
@@ -329,8 +329,8 @@ module Bot::Miscellaneous
         end
       end
 
-      embed.color = 0xFFD700
-      embed.description = content + "\n[permalink](#{event.message.link})"
+      embed.color = 0x0047AB
+      embed.description = content + "\n \n[Message Link](#{event.message.link})"
       embed.timestamp = event.message.timestamp.getgm
       embed.footer = {text: "##{event.message.channel.name}"}
     end
@@ -342,7 +342,7 @@ module Bot::Miscellaneous
   end
 
   # Randomly chooses from given options
-  command(:spinner, channels: %w(#bot_commands #moderation_channel)) do |event, *args|
+  command :spinner, channels: [BOT_COMMANDS_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID] do |event, *args|
     # Breaks unless at least one option is given and arguments do not contain @here or @everyone pings
     break unless args[0] &&
                  %w(@here @everyone).none? { |s| event.message.content.include? s }
@@ -354,7 +354,7 @@ module Bot::Miscellaneous
   end
 
   # Gives/removes Content Creator role to/from users
-  command(:creator, channels: %w(#head_creator_hq)) do |event, *args|
+  command :creator, channels: [HEAD_CREATOR_HQ_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID] do |event, *args|
     # Breaks unless user is moderator or Head Creator, give/remove, content creator role and user are given, and both
     # content creator role and user are valid
     break unless (event.user.role?(MODERATOR_ROLE_ID) ||
@@ -377,8 +377,8 @@ module Bot::Miscellaneous
 
   # Evaluates Ruby code
   command :eval do |event|
-    # Breaks unless user is Owner, Dev, or Cobalt's Mommy
-    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) 
+    # Breaks unless user is Owner or Dev
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID_EVAL.include?(event.user.id) 
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
     rescue => e

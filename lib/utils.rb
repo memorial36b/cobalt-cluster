@@ -14,6 +14,9 @@ module Constants
   
   # Hardcoded user IDs
 
+  # Cobalt's Dev user ID - Eval Command
+  COBALT_DEV_ID_EVAL = 99567651944165376
+  
   # Owner's (Geechan) user ID
   OWNER_ID = 108144520553578496
   # Cobalt's Dev (CorruptedPhazite) user ID
@@ -259,7 +262,7 @@ module Constants
   CREATOR_ROLE_IDS = {
     art: 383960705365311488,
     multimedia: 383961150905122828,
-    riting: 383961249899216898
+    writing: 383961249899216898
   }.freeze
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new

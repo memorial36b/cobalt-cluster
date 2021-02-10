@@ -821,7 +821,7 @@ module Bot::Moderation
       )
 
       # Sends confirmation message
-      channel.send_message('**Channel unmuted.**') # confirmation message sent to event channel
+      event.channel.send_message('**Channel unmuted.**') # confirmation message sent to event channel
     
     # If user is unmuting another user:
     else

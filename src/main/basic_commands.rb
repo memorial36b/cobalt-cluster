@@ -33,14 +33,14 @@ module Bot::BasicCommands
 
   # Ded Chat Command
   command :ded do |event|
-    break unless event.user.id == OWNER_ID || event.user.id == COBALT_DEV_ID
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
     ping = event.respond "https://tenor.com/view/the-dancing-dorito-irevive-this-chat-dance-gif-14308244"
   end
 
 
 # Exit command
   command :exit do |event|
-    # Breaks unless event user is Owner (or Dev for testing, this should be removed in the live version)
+    # Breaks unless event user is Owner or Dev
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
     event.respond 'Shutting down.'
     exit
