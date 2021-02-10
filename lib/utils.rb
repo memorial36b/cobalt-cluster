@@ -159,6 +159,7 @@ end
 
 # Module containing convenience methods (and companion variables/constants) that aren't instance/class methods
 module Convenience
+  include Constants
   module_function
 
   # Rudimentary pluralize; returns pluralized str with added 's' only if the given int is not 1
@@ -170,6 +171,14 @@ module Convenience
     "#{int} #{str}"
   end
   alias_method(:pl, :plural)
+
+  # Check if the specified user is a developer.
+  # @param [Integer] user_id user id.
+  # @return [bool] Is the user a developer?
+  def self.IsUserDev(user_id)
+    return user_id == OWNER_ID || COBALT_DEV_ID.include?(user_id)
+  end
+
 
   # Initialize a value of the specified type with the argument.
   # @param [String]  command_name the command's name
@@ -251,13 +260,14 @@ module Convenience
     # fill unspecified optional parameters with defaults
     total_arg_count = name_types.count
     (args.count...total_arg_count).each do |n|
-      defaults_idx = total_arg_count - n - 1
+      defaults_idx = n - args.count
 
       def_value = opt_defaults[defaults_idx]
       arg_name  = name_types[n][0]
       arg_type  = name_types[n][1]
       
       # developer error if not valid, not directly assigned to catch errors
+      puts "#{arg_name} [#{arg_type}] inited to #{def_value}"
       parsed_dict[arg_name] = InitType(arg_type, def_value)
       raise ArgumentError, "Invalid default provided for: '" + arg_name + "'" unless not(parsed_dict[arg_name].nil?)
     end
