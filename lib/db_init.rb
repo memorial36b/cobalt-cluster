@@ -60,10 +60,16 @@ DB.create_table? :boops do
   Integer :count     # Count of how many times booping user has booped this user
 end
 
-# Economy data set
+# Economy balances data set
 DB.create_table? :econ_user_balances do
-  primary_key :transaction_id # unique transaction id
-  Integer :user_id            # User's ID
-  Integer :timestamp          # UTC transaction timestamp
-  Integer :amount             # Tranasction amount, how much was earned
+  primary_key :transaction_id, null: false # unique auto-incrementing transaction id
+  Integer :user_id, null: false            # User's ID
+  Integer :timestamp, null: false          # UTC transaction timestamp
+  Integer :amount, null: false             # Tranasction amount, how much was earned
+end
+
+# Ecnomony permanent balances data set
+DB.create_table? :econ_user_perma_balances do
+  Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
+  Integer :amount, null: false                     # Tranasction amount, how much was earned
 end
