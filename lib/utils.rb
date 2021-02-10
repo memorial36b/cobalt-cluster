@@ -335,7 +335,6 @@ module Convenience
     return user_id == OWNER_ID || COBALT_DEV_ID.include?(user_id)
   end
 
-
   # Initialize a value of the specified type with the argument.
   # @param [String]  command_name the command's name
   # @param [String]  description  brief command description
