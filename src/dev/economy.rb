@@ -1,7 +1,6 @@
 # Crystal: Economy
 require 'rufus-scheduler'
 require 'date'
-ENV['TZ'] = 'GMT'
 
 # This crystal contains Cobalt's economy features (i.e. any features related to Starbucks)
 module Bot::Economy
@@ -21,10 +20,6 @@ module Bot::Economy
   # User last checkin time, used to prevent checkin in more than once a day.
   # { user_id, checkin_timestamp }
   USER_CHECKIN_TIME = DB[:econ_user_checkin_time]
-
-  # User timezones dataset
-  # { user_id, timezone }
-  USER_TIME_ZONE = DB[:econ_user_time_zones]
 
   # Path to crystal's data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
@@ -224,6 +219,36 @@ module Bot::Economy
   ###########################
   ##   STANDARD COMMANDS   ##
   ###########################
+  # set the user's timezone
+  SETTIMEZONE_COMMAND_NAME = "settimezone"
+  SETTIMEZONE_DESCRIPTION = "Set your timezone.\nSee https://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of valid values."
+  SETTIMEZONE_ARGS = [["timezone_name", String]]
+  SETTIMEZONE_REQ_COUNT = 1
+  command :settimezone do |event, *args|
+    # parse args
+    opt_defaults = []
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      SETTIMEZONE_COMMAND_NAME,
+      SETTIMEZONE_DESCRIPTION,
+      SETTIMEZONE_ARGS,
+      SETTIMEZONE_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    timezone_name =  parsed_args["timezone_name"]
+    if Bot::Timezone::SetUserTimezone(event.user.id, timezone_name)
+      event.respond "Timezone set to #{Bot::Timezone::GetUserTimezone(event.user.id)}"
+    else
+      event.respond "Timezone not recognized \"#{timezone_name}\""
+    end
+  end
+
+  # Get the name of your currently set timezone
+  command :gettimezone do |event|
+    event.respond "Your current timezone is \"#{Bot::Timezone::GetUserTimezone(event.user.id)}\""
+  end
 
   # get daily amount
   command :checkin do |event|

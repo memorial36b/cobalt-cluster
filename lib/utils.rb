@@ -445,7 +445,6 @@ module Convenience
 
     # these are user errors
     if args.count < req_count
-      puts "not enough args"
       return nil # too few arguments
     end
 

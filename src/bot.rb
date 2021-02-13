@@ -72,6 +72,9 @@ module Bot
     puts "+ Loaded file #{path[3..-1]}"
   end
   
+  # Loads timezone helper after to prevent load order issues
+  load 'timezone.rb'
+
   puts 'Done.'
 
   # Loads a crystal from the given file and includes the module into the bot's container.
