@@ -300,6 +300,15 @@ module Bot::Economy
       break
     end
 
+    # deduct fine from bank account balance
+    balance = GetBalance(user_id)
+    withdraw_amount = [fine_size, balance].min
+    if withdraw_amount > 0
+      Withdraw(user_id, withdraw_amount)
+      fine_size -= withdraw_amount
+    end
+
+    # deposit rest as negative perma currency
     DepositPerma(user_id, -fine_size)
 
     mod_mention = DiscordUser.new(event.user.id).mention
