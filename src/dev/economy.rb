@@ -1,5 +1,6 @@
 # Crystal: Economy
 require 'rufus-scheduler'
+require 'date'
 ENV['TZ'] = 'GMT'
 
 # This crystal contains Cobalt's economy features (i.e. any features related to Starbucks)
@@ -17,6 +18,10 @@ module Bot::Economy
   # { transaction_id, user_id, timestamp, amount }
   USER_BALANCES = DB[:econ_user_balances]
 
+  # User last checkin time, used to prevent checkin in more than once a day.
+  # { user_id, checkin_timestamp }
+  USER_CHECKIN_TIME = DB[:econ_user_checkin_time]
+
   # User timezones dataset
   # { user_id, timezone }
   USER_TIME_ZONE = DB[:econ_user_time_zones]
@@ -30,7 +35,6 @@ module Bot::Economy
   ##########################
   ##   HELPER FUNCTIONS   ##
   ##########################
-
   # Check for and remove any and all expired points.
   def self.CleanupDatabase(user_id)
     # todo: remove all expired balances
@@ -142,12 +146,54 @@ module Bot::Economy
 
   # get daily amount
   command :checkin do |event|
-  	puts "checkin"
-  	#member
-  	#citizen
-  	#noble
-  	#monarch
-  	#alpha
+    # if user already checked in today, ignore
+    # TODO: utlize user's local time zone for today/yesterday comparison
+    last_timestamp = USER_CHECKIN_TIME[user_id: event.user.id]
+    if last_timestamp != nil
+      last_timestamp = last_timestamp[:checkin_timestamp]
+      last_date = Time.at(last_timestamp).to_datetime()
+      today_date = Date.today()
+      if last_date > today_date
+        event.respond "Sorry! You already checked in today!"
+        break
+      end
+    end
+
+    role_yaml_id = nil
+    case Convenience::GetHighestLevelRoleId(event.user)
+    when BEARER_OF_THE_WAND_POG_ROLE_ID
+      role_yaml_id = "checkin_bearer"
+    when MEWMAN_MONARCH_ROLE_ID
+      role_yaml_id = "checkin_monarch"
+    when MEWMAN_NOBLE_ROLE_ID
+      role_yaml_id = "checkin_noble"
+    when MEWMAN_KNIGHT_ROLE_ID
+      role_yaml_id = "checkin_knight"
+    when MEWMAN_SQUIRE_ROLE_ID
+      role_yaml_id  = "checkin_squire"
+    when MEWMAN_CITIZEN_ROLE_ID
+      role_yaml_id = "checkin_citizen"
+    when VERIFIED_ROLE_ID
+      role_yaml_id = "checkin_verified"
+    when INVALID_ROLE_ID
+      role_yaml_id = "checkin_new"    
+    end
+
+    if role_yaml_id == nil
+      raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
+      break
+    end
+
+    points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
+    checkin_value = points_yaml[role_yaml_id]
+    Deposit(event.user.id, checkin_value)
+    if last_timestamp == nil
+      USER_CHECKIN_TIME << { user_id: event.user.id, checkin_timestamp: Time.now.to_i }
+    else
+      last_timestamp = USER_CHECKIN_TIME.where(user_id: event.user.id)
+      last_timestamp.update(checkin_timestamp: Time.now.to_i)
+    end
+    event.respond "You checked in and got #{checkin_value} Starbucks!"
   end
 
   # display balances
