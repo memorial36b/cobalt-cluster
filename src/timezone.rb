@@ -9,7 +9,7 @@ module Bot::Timezone
   include Convenience
 
   module_function
-    # User timezones dataset
+  # User timezones dataset
   # { user_id, timezone }
   USER_TIMEZONE = DB[:user_timezone]
 

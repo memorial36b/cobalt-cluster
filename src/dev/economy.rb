@@ -12,6 +12,10 @@ module Bot::Economy
   # The maximum number of days old a temp balance can be before it is dropped.
   # Note: Count starts from the past monday.
   MAX_BALANCE_AGE_DAYS = 28
+
+  # The maximum number of days old a temp balance before it's considered in risk.
+  # Note: Count starts from the past monday.
+  MAX_BALANCE_AGE_SAFE_DAYS = MAX_BALANCE_AGE_DAYS - 7
   
   # Permanent user balances, one entry per user, negative => fines
   # { user_id, amount }
@@ -70,8 +74,12 @@ module Bot::Economy
 
   # Geths the amount of the user's balance that is at risk of expriring.
   def self.GetAtRiskBalance(user_id)
-    # TODO: implement
-    return 0
+    past_monday = Bot::Timezone::GetUserPastMonday(user_id)
+    last_safe_timestamp = (past_monday - MAX_BALANCE_AGE_SAFE_DAYS).to_time.to_i
+    
+    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (timestamp < last_safe_timestamp))}
+    at_risk_balance = user_transactions.sum(:amount)
+    return at_risk_balance != nil ? at_risk_balance : 0
   end
 
   # Gets the user's permanent balance.
