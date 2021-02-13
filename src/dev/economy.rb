@@ -79,6 +79,12 @@ module Bot::Economy
     return balance
   end
 
+  # Geths the amount of the user's balance that is at risk of expriring.
+  def self.GetAtRiskBalance(user_id)
+    # TODO: implement
+    return 0
+  end
+
   # Gets the user's permanent balance.
   def self.GetPermaBalance(user_id)
     balance = USER_PERMA_BALANCES.where(user_id: user_id).sum(:amount)
@@ -155,27 +161,11 @@ module Bot::Economy
     return true
   end
 
-  ###########################
-  ##   STANDARD COMMANDS   ##
-  ###########################
-
-  # get daily amount
-  command :checkin do |event|
-    # if user already checked in today, ignore
-    # TODO: utlize user's local time zone for today/yesterday comparison
-    last_timestamp = USER_CHECKIN_TIME[user_id: event.user.id]
-    if last_timestamp != nil
-      last_timestamp = last_timestamp[:checkin_timestamp]
-      last_date = Time.at(last_timestamp).to_datetime()
-      today_date = Date.today()
-      if last_date > today_date
-        event.respond "Sorry! You already checked in today!"
-        break
-      end
-    end
-
+  # Determine how many Starbucks the user gets for checking in.
+  def self.GetUserCheckinValue(user_id)
+    user = DiscordUser.new(user_id)
     role_yaml_id = nil
-    case Convenience::GetHighestLevelRoleId(event.user)
+    case Convenience::GetHighestLevelRoleId(user)
     when BEARER_OF_THE_WAND_POG_ROLE_ID
       role_yaml_id = "checkin_bearer"
     when MEWMAN_MONARCH_ROLE_ID
@@ -196,11 +186,61 @@ module Bot::Economy
 
     if role_yaml_id == nil
       raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
-      break
     end
 
     points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
-    checkin_value = points_yaml[role_yaml_id]
+    return points_yaml[role_yaml_id]
+  end
+
+  # Determine how long the user has to wait until their next checkin.
+  # Zero if they can checkin now
+  # TODO: factor in user's timezone
+  def self.GetTimeUntilNextCheckin(user_id)
+    last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
+    return 0 if last_timestamp == nil || last_timestamp.first == nil
+
+    last_timestamp = last_timestamp[:checkin_timestamp]
+    last_time = Time.at(last_timestamp)
+    today_date = Date.today()
+    return 0 if last_time.to_datetime < today_date
+
+    tomorrow_date = today_date + 1
+    return tomorrow_date.to_time.to_i - Time.now.to_i
+  end
+
+  # Determine how long the user has to wait until their next checkin.
+  # Formats as string as so:
+  # if >1 hour: # of hours
+  # if >1 minute: # of minutes
+  # if >1 second: # of seconds
+  def self.GetTimeUntilNextCheckinString(user_id)
+    seconds = GetTimeUntilNextCheckin(user_id)
+    return "#{seconds / (60*60)} hours" if seconds > 60*60
+    return "#{seconds / 60} minutes" if seconds > 60
+    return "#{seconds} seconds" if seconds > 0
+    return "now"
+  end
+
+  ###########################
+  ##   STANDARD COMMANDS   ##
+  ###########################
+
+  # get daily amount
+  command :checkin do |event|
+    # if user already checked in today, ignore
+    # TODO: utlize user's local time zone for today/yesterday comparison
+    last_timestamp = USER_CHECKIN_TIME[user_id: event.user.id]
+    if last_timestamp != nil
+      last_timestamp = last_timestamp[:checkin_timestamp]
+      last_date = Time.at(last_timestamp).to_datetime()
+      today_date = Date.today()
+      if last_date > today_date
+        event.respond "Sorry! You already checked in today!"
+        break
+      end
+    end
+
+    checkin_value = GetUserCheckinValue(event.user.id)
     Deposit(event.user.id, checkin_value)
     if last_timestamp == nil
       USER_CHECKIN_TIME << { user_id: event.user.id, checkin_timestamp: Time.now.to_i }
@@ -229,27 +269,66 @@ module Bot::Economy
       args)
     break unless not parsed_args.nil? 
 
-    user_id = parsed_args["user"].id
-    user_mention = parsed_args["user"].mention
-    CleanupDatabase(user_id)
-    perma_balance = GetPermaBalance(user_id)
-    balance = GetBalance(user_id)
+    user = parsed_args["user"]
+    CleanupDatabase(user.id)
 
-    # build response
-    response = "#{user_mention}" +
-      "\nYour total balance is #{balance} Starbucks" +
-      "\nYou have #{perma_balance} non-expiring Starbucks"
+    # Sends embed containing user bank profile
+    event.send_embed do |embed|
+      embed.author = {
+          name: STRING_BANK_NAME,
+          icon_url: IMAGE_BANK
+      }
 
-    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
-    (0...user_transactions.count).each do |n|
-      transaction = user_transactions[n]
+      embed.thumbnail = {url: user.avatar_url}
+      embed.footer = {text: "Use +checkin once a day to earn #{GetUserCheckinValue(user.id)} Starbucks"}
+      embed.color = COLOR_EMBED
 
-      amount = transaction[:amount]
-      timestamp = transaction[:timestamp]
-      response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
+      # generate centered title
+      title = ""
+      if user.nickname?
+        title = " #{user.nickname} (#{user.full_username}) "
+      else
+        title = " #{user.full_username} "
+      end
+      embed.title = title
+
+      # ROW 1: Balances
+      embed.add_field(
+          name: 'Networth',
+          value: "#{GetBalance(user.id)} Starbucks",
+          inline: true
+      )
+
+      embed.add_field(
+        name: 'At Risk',
+        value: "#{GetAtRiskBalance(user.id)} Starbucks",
+        inline: true
+      )
+
+      perma_balance = GetPermaBalance(user.id)
+      if perma_balance < 0
+        embed.add_field(
+          name: "Outstanding Fines",
+          value: "#{-perma_balance} Starbucks",
+          inline: true
+        )
+      else
+        embed.add_field(
+          name: "Non-Expiring",
+          value: "#{perma_balance} Starbucks",
+          inline: true
+        )
+      end
+
+      # ROW 2: Time until next checkin
+      embed.add_field(
+        name: "Time Until Next Check-in",
+        value: GetTimeUntilNextCheckinString(user.id),
+        inline: false
+      )
+
+      # ROW 3: TODO: Roles, Tags, Commands
     end
-
-    event.respond response
   end
 
   # display leaderboard
@@ -281,7 +360,7 @@ module Bot::Economy
     top_user_stats = richest.all
     event.send_embed do |embed|
       embed.author = {
-          name: "Bank: Top 10",
+          name: "#{STRING_BANK_NAME}: Top 10",
           icon_url: IMAGE_BANK
       }
       embed.thumbnail = {url: IMAGE_RICHEST}
@@ -296,12 +375,12 @@ module Bot::Economy
         user = DiscordUser.new(user_id)
         networth = user_stats[:networth]
 
-        if user.nickname != nil && user.nickname != ""
+        if user.nickname?
           top_names += "#{n + 1}: #{user.nickname} (#{user.full_username})\n"
         else
           top_names += "#{n + 1}: #{user.full_username}\n"
         end
-        
+
         top_networths += "#{networth} Starbucks\n"
       end
 
@@ -578,5 +657,23 @@ module Bot::Economy
 
     CleanupDatabase(user_id)    
   	puts "econdummy"
+  end
+
+  # print out the user's debug profile
+  command :debugprofile do |event, *user|
+    # TODO: uncomment and implement
+    # build response
+    #response = "#{user.mention}" +
+    #  "\nYour total balance is #{balance} Starbucks" +
+    #  "\nYou have #{perma_balance} non-expiring Starbucks"
+
+    #user_transactions = USER_BALANCES.where{Sequel.&({user_id: user.id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
+    #(0...user_transactions.count).each do |n|
+    #  transaction = user_transactions[n]
+
+    #  amount = transaction[:amount]
+    #  timestamp = transaction[:timestamp]
+    #  response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
+    #end
   end
 end
