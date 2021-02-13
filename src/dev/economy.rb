@@ -245,33 +245,78 @@ module Bot::Economy
 
   # get daily amount
   command :checkin do |event|
-    # if user already checked in today, ignore
-    user_id = event.user.id
-    last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
+    user = DiscordUser.new(event.user.id)
+
+    # determine if the user can checkin
+    can_checkin = false
+    last_timestamp = USER_CHECKIN_TIME[user_id: user.id]
     if last_timestamp != nil
       last_timestamp = last_timestamp[:checkin_timestamp]
       
-      last_datetime = Bot::Timezone::GetTimestampInUserLocal(user_id, last_timestamp)
-      today_datetime = Bot::Timezone::GetUserToday(user_id)
-      if last_datetime > today_datetime
-        event.respond "Sorry! You already checked in today!"
-        break
-      end
+      last_datetime = Bot::Timezone::GetTimestampInUserLocal(user.id, last_timestamp)
+      today_datetime = Bot::Timezone::GetUserToday(user.id)
+      can_checkin = last_datetime < today_datetime
+    else
+      can_checkin = true
     end
 
     # clean up for good measure since this will one of be the most performed action
     # note: calling this has no impact on the results of checkin
-    CleanupDatabase(event.user.id)
+    CleanupDatabase(user.id)
 
-    checkin_value = GetUserCheckinValue(event.user.id)
-    Deposit(event.user.id, checkin_value)
-    if last_timestamp == nil
-      USER_CHECKIN_TIME << { user_id: event.user.id, checkin_timestamp: Time.now.to_i }
-    else
-      last_timestamp = USER_CHECKIN_TIME.where(user_id: event.user.id)
-      last_timestamp.update(checkin_timestamp: Time.now.to_i)
+    # checkin if they can do that today
+    checkin_value = GetUserCheckinValue(user.id)
+    if can_checkin
+      Deposit(user.id, checkin_value)
+      if last_timestamp == nil
+        USER_CHECKIN_TIME << { user_id: user.id, checkin_timestamp: Time.now.to_i }
+      else
+        last_timestamp = USER_CHECKIN_TIME.where(user_id: user.id)
+        last_timestamp.update(checkin_timestamp: Time.now.to_i)
+      end
     end
-    event.respond "You checked in and got #{checkin_value} Starbucks!"
+
+     # Sends embed containing user bank profile
+    event.send_embed do |embed|
+      embed.author = {
+          name: STRING_BANK_NAME,
+          icon_url: IMAGE_BANK
+      }
+
+      embed.thumbnail = {url: user.avatar_url}
+      embed.footer = {text: "Use +checkin once a day to earn #{checkin_value} Starbucks"}
+      embed.color = COLOR_EMBED
+
+      title = ""
+      if user.nickname?
+        title = " #{user.nickname} (#{user.full_username}) "
+      else
+        title = " #{user.full_username} "
+      end
+      embed.title = title
+
+      # row: checkin won if could checkin
+      if can_checkin
+        embed.add_field(
+          name: 'Checked in for',
+          value: "#{checkin_value} Starbucks",
+          inline: false
+        )
+      end
+
+      # row: networth and next checkin time
+      embed.add_field(
+          name: 'Networth',
+          value: "#{GetBalance(user.id)} Starbucks",
+          inline: true
+      )
+
+      embed.add_field(
+        name: "Time Until Next Check-in",
+        value: GetTimeUntilNextCheckinString(user.id),
+        inline: true
+      )
+    end
   end
 
   # display balances
@@ -307,7 +352,6 @@ module Bot::Economy
       embed.footer = {text: "Use +checkin once a day to earn #{GetUserCheckinValue(user.id)} Starbucks"}
       embed.color = COLOR_EMBED
 
-      # generate centered title
       title = ""
       if user.nickname?
         title = " #{user.nickname} (#{user.full_username}) "
@@ -753,6 +797,29 @@ module Bot::Economy
 
     last_timestamp = last_timestamp[:checkin_timestamp]
     event.respond "Last checked in #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, last_timestamp)}"
+  end
+
+  # clear last checkin timestamp
+  CLEARLASTCHECKIN_COMMAND_NAME = "clearlastcheckin"
+  CLEARLASTCHECKIN_DESCRIPTION = "Clear out the last checkin time."
+  CLEARLASTCHECKIN_ARGS = [["user", DiscordUser]]
+  CLEARLASTCHECKIN_REQ_COUNT = 0
+  command :clearlastcheckin do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      LASTCHECKIN_COMMAND_NAME,
+      LASTCHECKIN_DESCRIPTION,
+      LASTCHECKIN_ARGS,
+      LASTCHECKIN_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?  
+
+    USER_CHECKIN_TIME.where(user_id: parsed_args["user"].id).delete
+    event.respond "Last checkin time cleared for #{parsed_args["user"].full_username}"
   end
 
   # econ dummy command, does nothing lazy cleanup devs only
