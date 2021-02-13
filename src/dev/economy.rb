@@ -1,5 +1,6 @@
 # Crystal: Economy
 require 'rufus-scheduler'
+require 'date'
 ENV['TZ'] = 'GMT'
 
 # This crystal contains Cobalt's economy features (i.e. any features related to Starbucks)
@@ -17,6 +18,10 @@ module Bot::Economy
   # { transaction_id, user_id, timestamp, amount }
   USER_BALANCES = DB[:econ_user_balances]
 
+  # User last checkin time, used to prevent checkin in more than once a day.
+  # { user_id, checkin_timestamp }
+  USER_CHECKIN_TIME = DB[:econ_user_checkin_time]
+
   # User timezones dataset
   # { user_id, timezone }
   USER_TIME_ZONE = DB[:econ_user_time_zones]
@@ -30,6 +35,20 @@ module Bot::Economy
   ##########################
   ##   HELPER FUNCTIONS   ##
   ##########################
+  # Get the last Monday since this date.
+  # If it is Monday, this returns the input.
+  def self.GetLastMonday(date)
+    # use the work week instead of the biblical week
+    wwday = date.cwday - 1
+    return date - wwday
+  end
+
+  # Get the last timestamp that temporary transactions would
+  # be valid on. Anything older should be purched.
+  def self.GetLastValidTimestamp()
+    past_monday = GetLastMonday(Date.today)
+    return ( past_monday - 28 ).to_time.to_i
+  end
 
   # Check for and remove any and all expired points.
   def self.CleanupDatabase(user_id)
@@ -142,12 +161,54 @@ module Bot::Economy
 
   # get daily amount
   command :checkin do |event|
-  	puts "checkin"
-  	#member
-  	#citizen
-  	#noble
-  	#monarch
-  	#alpha
+    # if user already checked in today, ignore
+    # TODO: utlize user's local time zone for today/yesterday comparison
+    last_timestamp = USER_CHECKIN_TIME[user_id: event.user.id]
+    if last_timestamp != nil
+      last_timestamp = last_timestamp[:checkin_timestamp]
+      last_date = Time.at(last_timestamp).to_datetime()
+      today_date = Date.today()
+      if last_date > today_date
+        event.respond "Sorry! You already checked in today!"
+        break
+      end
+    end
+
+    role_yaml_id = nil
+    case Convenience::GetHighestLevelRoleId(event.user)
+    when BEARER_OF_THE_WAND_POG_ROLE_ID
+      role_yaml_id = "checkin_bearer"
+    when MEWMAN_MONARCH_ROLE_ID
+      role_yaml_id = "checkin_monarch"
+    when MEWMAN_NOBLE_ROLE_ID
+      role_yaml_id = "checkin_noble"
+    when MEWMAN_KNIGHT_ROLE_ID
+      role_yaml_id = "checkin_knight"
+    when MEWMAN_SQUIRE_ROLE_ID
+      role_yaml_id  = "checkin_squire"
+    when MEWMAN_CITIZEN_ROLE_ID
+      role_yaml_id = "checkin_citizen"
+    when VERIFIED_ROLE_ID
+      role_yaml_id = "checkin_verified"
+    when INVALID_ROLE_ID
+      role_yaml_id = "checkin_new"    
+    end
+
+    if role_yaml_id == nil
+      raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
+      break
+    end
+
+    points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
+    checkin_value = points_yaml[role_yaml_id]
+    Deposit(event.user.id, checkin_value)
+    if last_timestamp == nil
+      USER_CHECKIN_TIME << { user_id: event.user.id, checkin_timestamp: Time.now.to_i }
+    else
+      last_timestamp = USER_CHECKIN_TIME.where(user_id: event.user.id)
+      last_timestamp.update(checkin_timestamp: Time.now.to_i)
+    end
+    event.respond "You checked in and got #{checkin_value} Starbucks!"
   end
 
   # display balances
@@ -179,13 +240,13 @@ module Bot::Economy
       "\nYour total balance is #{balance} Starbucks" +
       "\nYou have #{perma_balance} non-expiring Starbucks"
 
-    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (amount > 0))}.order(Sequel.asc(:timestamp))
-    (0..(user_transactions.count - 1)).each do |n|
-      transaction = user_transactions.offset(n)
+    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
+    (0...user_transactions.count).each do |n|
+      transaction = user_transactions[n]
 
-      amount = transaction.get(:amount)
-      timestamp = transaction.get(:timestamp)
-      response += "\n#{amount} received on #{timestamp}"
+      amount = transaction[:amount]
+      timestamp = transaction[:timestamp]
+      response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
     end
 
     event.respond response
@@ -196,29 +257,39 @@ module Bot::Economy
     # note: need to filter by valid range, this will likely need to 
     # be a rough estimate, since it may not be possible to factor in
     # every user's individual time zones
+    last_valid_timestamp = GetLastValidTimestamp()
+    sql =
+      "SELECT user_id, SUM(amount) networth\n" +
+      "FROM\n" + 
+      "(\n" +
+      "  SELECT user_id, amount FROM econ_user_balances\n" +
+      "  WHERE timestamp >= #{last_valid_timestamp}\n" +
+      "  UNION ALL\n" +
+      "  SELECT user_id, amount FROM econ_user_perma_balances\n" +
+      ") s\n" +
+      "GROUP BY user_id\n" +
+      "ORDER BY networth DESC;"
 
-    # note 2: need to union perma and regular
-    # SELECT UserId, SUM(Amount) total
-    # FROM
-    #   (
-    #     SELECT UserId, Amount From UserBalanaces
-    #     WHERE timestamp >= oldestAllowed
-    #     UNION 
-    #     SELECT UserId, Amount From UserPermaBalanaces
-    #   ) s
-    # GROUP BY UserId;
+    richest = DB[sql]
+    if richest == nil || richest.first == nil
+      event.respond "No one appears to have money! Please give the devs a ring!!"
+      break
+    end
 
-    # note 3: we'll do a rough estimate on this exluding timezones
-    #
-    # EXAMPLE
-    # SELECT AccountNumber, 
-    #    Bill, 
-    #    BillDate, 
-    #    SUM(Bill) over (partition by accountNumber) as account_total
-    # FROM Table1
-    # order by AccountNumber, BillDate;
-    
-  	puts "richest"
+    # TODO: Create a nicer looking embed!
+    all_user_stats = richest.all
+    response = "============== Richest ==============\n"
+    count = [5, all_user_stats.count].min
+    (0...count).each do |n|
+      user_stats = all_user_stats[n] 
+      user_id = user_stats[:user_id]
+      user = DiscordUser.new(user_id)
+
+      networth = user_stats[:networth]
+      response += "#{user.user.username}\t\t\t\t\t\t\t\t#{networth} Starbucks\n"
+    end
+
+    event.respond response
   end
 
   # transfer money to another account
@@ -295,6 +366,7 @@ module Bot::Economy
 
     entry_id = "fine_#{severity}"
     fine_size = points_yaml[entry_id]
+    orig_fine_size = fine_size
     if fine_size == nil
       event.respond "Invalid fine size specified (small, medium, large)."
       break
@@ -312,7 +384,7 @@ module Bot::Economy
     DepositPerma(user_id, -fine_size)
 
     mod_mention = DiscordUser.new(event.user.id).mention
-    event.respond "#{user_mention} has been fined #{fine_size} by #{mod_mention}"
+    event.respond "#{user_mention} has been fined #{orig_fine_size} by #{mod_mention}"
   end
 
   ############################

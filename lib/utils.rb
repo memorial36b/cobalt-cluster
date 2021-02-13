@@ -162,6 +162,8 @@ module Constants
   ROLE_COLOR_TEST_3_ROLE_ID = 753163835862417481
   # 🔷 Cobalt's Squire role ID
   COBALT_SQUIRE_ROLE_ID = 755020794706264215
+  # SPECIAL CODE ONLY: INVALID ROLE ID
+  INVALID_ROLE_ID = -1
   
   # Channel IDs
 
@@ -308,7 +310,7 @@ class DiscordUser
   end
 
   # Get the discord user object.
-  # @return [Discordrb::user] user object
+  # @return [Discordrb::User] user object
   def user
     return @user
   end
@@ -451,6 +453,30 @@ module Convenience
       event.respond message
     end
     return parsed_dict
+  end
+
+  # Get the highest leveled rank role of a given user.
+  # @param [Discordrb::User] The discord user.
+  # @returns The highest ranked role.
+  # Note: This is only the roles assigned as a result of leveling up.
+  def GetHighestLevelRoleId(user)
+    if user.role?(BEARER_OF_THE_WAND_POG_ROLE_ID)
+      return BEARER_OF_THE_WAND_POG_ROLE_ID
+    elsif user.role?(MEWMAN_MONARCH_ROLE_ID)
+      return MEWMAN_MONARCH_ROLE_ID
+    elsif user.role?(MEWMAN_NOBLE_ROLE_ID)
+      return MEWMAN_NOBLE_ROLE_ID
+    elsif user.role?(MEWMAN_KNIGHT_ROLE_ID)
+      return MEWMAN_KNIGHT_ROLE_ID
+    elsif user.role?(MEWMAN_SQUIRE_ROLE_ID)
+      return MEWMAN_SQUIRE_ROLE_ID
+    elsif user.role?(MEWMAN_SQUIRE_ROLE_ID)
+      return MEWMAN_CITIZEN_ROLE_ID
+    elsif user.role?(VERIFIED_ROLE_ID)
+      return VERIFIED_ROLE_ID
+    else
+      return INVALID_ROLE_ID
+    end
   end
 end
 
