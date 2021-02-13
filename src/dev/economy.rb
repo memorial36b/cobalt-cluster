@@ -293,10 +293,38 @@ module Bot::Economy
   end
 
   # transfer money to another account
+  TRANSFERMONEY_COMMAND_NAME = "transfermoney"
+  TRANSFERMONEY_DESCRIPTION = "Transfer funds to the specified user."
+  TRANSFERMONEY_ARGS = [["to_user", DiscordUser], ["amount", Integer]]
+  TRANSFERMONEY_REQ_COUNT = 2
   command :transfermoney do |event, *args|
-    CleanupDatabase(from_user_id)
+    opt_defaults = []
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      TRANSFERMONEY_COMMAND_NAME,
+      TRANSFERMONEY_DESCRIPTION,
+      TRANSFERMONEY_ARGS,
+      TRANSFERMONEY_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?  
 
-  	puts "transfermoney"
+    CleanupDatabase(event.user.id)
+
+    from_user_id = event.user.id
+    to_user_id = parsed_args["to_user"].id
+    amount = parsed_args["amount"]
+    if amount <= 0
+      event.respond "You can't transfer negative funds!"
+      break
+    end
+
+    if Withdraw(from_user_id, amount)
+      Deposit(to_user_id, amount)
+      event.respond "#{parsed_args["to_user"].mention}, #{event.user.username} has transfered #{amount} Starbucks to your account!"
+    else
+      event.respond "You have insufficient funds to transfer that much!"
+    end
   end
 
   # rent a new role
