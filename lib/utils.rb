@@ -277,6 +277,17 @@ module Constants
     402051258732773377,
     454304307425181696
   ].freeze
+
+  # Colors
+  COLOR_EMBED = 0xFFD700
+
+  # Images (TODO: Replace temp images)
+  IMAGE_BANK = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
+  IMAGE_STARBUCKS = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
+  IMAGE_RICHEST = 'https://pbs.twimg.com/profile_images/780589072733593600/3rG5efnk_400x400.jpg'
+
+  # Strings
+  STRING_BANK_NAME = "Bank"
 end
 
 # Types for convenience
@@ -293,6 +304,7 @@ class DiscordUser
       user = Constants::SERVER.member(id)
     end
     
+    # TODO: check what happens if they leave the server!
     raise ArgumentError, "Invalid user id specified!" unless not user.nil?
     @user = user
   end
@@ -308,6 +320,49 @@ class DiscordUser
   def mention
     return @user.mention
   end
+
+  # Get the user's username.
+  # @return [String] username
+  def username
+    return @user.username
+  end
+
+  # Get the user's 4 digit discriminator.
+  # @return [String] part of user's identifier after #
+  def discriminator
+    return @user.discriminator
+  end
+
+  # Get the user's full username combined with their descriminator.
+  # @return [String] user's fully qualitifed username
+  def full_username
+    return @user.username + '#' + @user.discriminator
+  end
+
+  # Get the user's server nickname.
+  # @return [String] server nickname
+  def nickname
+    return @user.nickname
+  end
+
+  # Check if the user has a server nickname.
+  # @return [bool] has nickname? 
+  def nickname?
+    return @user.nickname != nil && @user.nickname != ""
+  end
+
+  # Get a url to the user's avatar.
+  # @return [String] avatar url
+  def avatar_url
+    return @user.avatar_url
+  end
+
+  # Check if the user has the specified role.
+  # @param [Integer] role id
+  # @return [bool] has role?
+  def role?(role_id)
+    return @user.role?(role_id)
+  end 
 
   # Get the discord user object.
   # @return [Discordrb::User] user object
@@ -393,7 +448,6 @@ module Convenience
 
     # these are user errors
     if args.count < req_count
-      puts "not enough args"
       return nil # too few arguments
     end
 
@@ -456,7 +510,7 @@ module Convenience
   end
 
   # Get the highest leveled rank role of a given user.
-  # @param [Discordrb::User] The discord user.
+  # @param [Discordrb::User/DiscordUser] The discord user.
   # @returns The highest ranked role.
   # Note: This is only the roles assigned as a result of leveling up.
   def GetHighestLevelRoleId(user)

@@ -1,7 +1,6 @@
 # Crystal: Economy
 require 'rufus-scheduler'
 require 'date'
-ENV['TZ'] = 'GMT'
 
 # This crystal contains Cobalt's economy features (i.e. any features related to Starbucks)
 module Bot::Economy
@@ -9,6 +8,9 @@ module Bot::Economy
   extend Discordrb::EventContainer
   include Constants
   include Convenience
+
+  # The maximum number of days old a temp balance can be before it is dropped.
+  MAX_BALANCE_AGE = 28
   
   # Permanent user balances, one entry per user, negative => fines
   # { user_id, amount }
@@ -22,10 +24,6 @@ module Bot::Economy
   # { user_id, checkin_timestamp }
   USER_CHECKIN_TIME = DB[:econ_user_checkin_time]
 
-  # User timezones dataset
-  # { user_id, timezone }
-  USER_TIME_ZONE = DB[:econ_user_time_zones]
-
   # Path to crystal's data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
   
@@ -35,21 +33,6 @@ module Bot::Economy
   ##########################
   ##   HELPER FUNCTIONS   ##
   ##########################
-  # Get the last Monday since this date.
-  # If it is Monday, this returns the input.
-  def self.GetLastMonday(date)
-    # use the work week instead of the biblical week
-    wwday = date.cwday - 1
-    return date - wwday
-  end
-
-  # Get the last timestamp that temporary transactions would
-  # be valid on. Anything older should be purched.
-  def self.GetLastValidTimestamp()
-    past_monday = GetLastMonday(Date.today)
-    return ( past_monday - 28 ).to_time.to_i
-  end
-
   # Check for and remove any and all expired points.
   def self.CleanupDatabase(user_id)
     # todo: remove all expired balances
@@ -77,6 +60,12 @@ module Bot::Economy
     end
 
     return balance
+  end
+
+  # Geths the amount of the user's balance that is at risk of expriring.
+  def self.GetAtRiskBalance(user_id)
+    # TODO: implement
+    return 0
   end
 
   # Gets the user's permanent balance.
@@ -155,27 +144,11 @@ module Bot::Economy
     return true
   end
 
-  ###########################
-  ##   STANDARD COMMANDS   ##
-  ###########################
-
-  # get daily amount
-  command :checkin do |event|
-    # if user already checked in today, ignore
-    # TODO: utlize user's local time zone for today/yesterday comparison
-    last_timestamp = USER_CHECKIN_TIME[user_id: event.user.id]
-    if last_timestamp != nil
-      last_timestamp = last_timestamp[:checkin_timestamp]
-      last_date = Time.at(last_timestamp).to_datetime()
-      today_date = Date.today()
-      if last_date > today_date
-        event.respond "Sorry! You already checked in today!"
-        break
-      end
-    end
-
+  # Determine how many Starbucks the user gets for checking in.
+  def self.GetUserCheckinValue(user_id)
+    user = DiscordUser.new(user_id)
     role_yaml_id = nil
-    case Convenience::GetHighestLevelRoleId(event.user)
+    case Convenience::GetHighestLevelRoleId(user)
     when BEARER_OF_THE_WAND_POG_ROLE_ID
       role_yaml_id = "checkin_bearer"
     when MEWMAN_MONARCH_ROLE_ID
@@ -196,11 +169,91 @@ module Bot::Economy
 
     if role_yaml_id == nil
       raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
-      break
     end
 
     points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
-    checkin_value = points_yaml[role_yaml_id]
+    return points_yaml[role_yaml_id]
+  end
+
+  # Determine how long the user has to wait until their next checkin.
+  # Zero if they can checkin now
+  def self.GetTimeUntilNextCheckin(user_id)
+    last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
+    return 0 if last_timestamp == nil || last_timestamp.first == nil
+
+    last_timestamp = last_timestamp[:checkin_timestamp]
+    last_datetime = Bot::Timezone::GetTimestampInUserLocal(user_id, last_timestamp)
+    today_datetime = Bot::Timezone::GetUserToday(user_id)
+    return 0 if last_datetime < today_datetime
+
+    tomorrow_datetime = today_datetime + 1
+    return tomorrow_datetime.to_time.to_i - Time.now.to_i
+  end
+
+  # Determine how long the user has to wait until their next checkin.
+  # Formats as string as so:
+  # if >1 hour: # of hours
+  # if >1 minute: # of minutes
+  # if >1 second: # of seconds
+  def self.GetTimeUntilNextCheckinString(user_id)
+    seconds = GetTimeUntilNextCheckin(user_id)
+    return "#{seconds / (60*60)} hours" if seconds > 60*60
+    return "#{seconds / 60} minutes" if seconds > 60
+    return "#{seconds} seconds" if seconds > 0
+    return "now"
+  end
+
+  ###########################
+  ##   STANDARD COMMANDS   ##
+  ###########################
+  # set the user's timezone
+  SETTIMEZONE_COMMAND_NAME = "settimezone"
+  SETTIMEZONE_DESCRIPTION = "Set your timezone.\nSee https://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of valid values."
+  SETTIMEZONE_ARGS = [["timezone_name", String]]
+  SETTIMEZONE_REQ_COUNT = 1
+  command :settimezone do |event, *args|
+    # parse args
+    opt_defaults = []
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      SETTIMEZONE_COMMAND_NAME,
+      SETTIMEZONE_DESCRIPTION,
+      SETTIMEZONE_ARGS,
+      SETTIMEZONE_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    timezone_name =  parsed_args["timezone_name"]
+    if Bot::Timezone::SetUserTimezone(event.user.id, timezone_name)
+      event.respond "Timezone set to #{Bot::Timezone::GetUserTimezone(event.user.id)}"
+    else
+      event.respond "Timezone not recognized \"#{timezone_name}\""
+    end
+  end
+
+  # get the name of user's configured timezone
+  command :gettimezone do |event|
+    event.respond "Your current timezone is \"#{Bot::Timezone::GetUserTimezone(event.user.id)}\""
+  end
+
+  # get daily amount
+  command :checkin do |event|
+    # if user already checked in today, ignore
+    user_id = event.user.id
+    last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
+    if last_timestamp != nil
+      last_timestamp = last_timestamp[:checkin_timestamp]
+      
+      last_datetime = Bot::Timezone::GetTimestampInUserLocal(user_id, last_timestamp)
+      today_datetime = Bot::Timezone::GetUserToday(user_id)
+      if last_datetime > today_datetime
+        event.respond "Sorry! You already checked in today!"
+        break
+      end
+    end
+
+    checkin_value = GetUserCheckinValue(event.user.id)
     Deposit(event.user.id, checkin_value)
     if last_timestamp == nil
       USER_CHECKIN_TIME << { user_id: event.user.id, checkin_timestamp: Time.now.to_i }
@@ -229,35 +282,83 @@ module Bot::Economy
       args)
     break unless not parsed_args.nil? 
 
-    user_id = parsed_args["user"].id
-    user_mention = parsed_args["user"].mention
-    CleanupDatabase(user_id)
-    perma_balance = GetPermaBalance(user_id)
-    balance = GetBalance(user_id)
+    user = parsed_args["user"]
+    CleanupDatabase(user.id)
 
-    # build response
-    response = "#{user_mention}" +
-      "\nYour total balance is #{balance} Starbucks" +
-      "\nYou have #{perma_balance} non-expiring Starbucks"
+    # Sends embed containing user bank profile
+    event.send_embed do |embed|
+      embed.author = {
+          name: STRING_BANK_NAME,
+          icon_url: IMAGE_BANK
+      }
 
-    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
-    (0...user_transactions.count).each do |n|
-      transaction = user_transactions[n]
+      embed.thumbnail = {url: user.avatar_url}
+      embed.footer = {text: "Use +checkin once a day to earn #{GetUserCheckinValue(user.id)} Starbucks"}
+      embed.color = COLOR_EMBED
 
-      amount = transaction[:amount]
-      timestamp = transaction[:timestamp]
-      response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
+      # generate centered title
+      title = ""
+      if user.nickname?
+        title = " #{user.nickname} (#{user.full_username}) "
+      else
+        title = " #{user.full_username} "
+      end
+      embed.title = title
+
+      # ROW 1: Balances
+      embed.add_field(
+          name: 'Networth',
+          value: "#{GetBalance(user.id)} Starbucks",
+          inline: true
+      )
+
+      embed.add_field(
+        name: 'At Risk',
+        value: "#{GetAtRiskBalance(user.id)} Starbucks",
+        inline: true
+      )
+
+      perma_balance = GetPermaBalance(user.id)
+      if perma_balance < 0
+        embed.add_field(
+          name: "Outstanding Fines",
+          value: "#{-perma_balance} Starbucks",
+          inline: true
+        )
+      else
+        embed.add_field(
+          name: "Non-Expiring",
+          value: "#{perma_balance} Starbucks",
+          inline: true
+        )
+      end
+
+      # ROW 2: Time until next checkin
+      embed.add_field(
+        name: "Time Until Next Check-in",
+        value: GetTimeUntilNextCheckinString(user.id),
+        inline: false
+      )
+
+      # ROW 3: TODO: Roles, Tags, Commands
     end
-
-    event.respond response
   end
 
   # display leaderboard
+  # TODO: bug, results may differ from profile reporting
+  RICHEST_COUNT = 10
   command :richest do |event|
-    # note: need to filter by valid range, this will likely need to 
-    # be a rough estimate, since it may not be possible to factor in
-    # every user's individual time zones
-    last_valid_timestamp = GetLastValidTimestamp()
+    # note: timestamp filtering is a rough estimate based on the server's
+    # timezone as it would be prohibitively expensive to clean up all entries
+    # for all users prior to the query
+
+    # compute when the last monday as a Unix timestmap
+    past_monday = Date.today
+    wwday = past_monday.cwday - 1
+    past_monday = past_monday - wwday
+
+    # compute last timestamp and query for entries that meet this requirement
+    last_valid_timestamp = (past_monday - (MAX_BALANCE_AGE + 1)).to_time.to_i
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
       "FROM\n" + 
@@ -268,7 +369,8 @@ module Bot::Economy
       "  SELECT user_id, amount FROM econ_user_perma_balances\n" +
       ") s\n" +
       "GROUP BY user_id\n" +
-      "ORDER BY networth DESC;"
+      "ORDER BY networth DESC\n" +
+      "LIMIT #{RICHEST_COUNT};"
 
     richest = DB[sql]
     if richest == nil || richest.first == nil
@@ -276,20 +378,46 @@ module Bot::Economy
       break
     end
 
-    # TODO: Create a nicer looking embed!
-    all_user_stats = richest.all
-    response = "============== Richest ==============\n"
-    count = [5, all_user_stats.count].min
-    (0...count).each do |n|
-      user_stats = all_user_stats[n] 
-      user_id = user_stats[:user_id]
-      user = DiscordUser.new(user_id)
+    top_user_stats = richest.all
+    event.send_embed do |embed|
+      embed.author = {
+          name: "#{STRING_BANK_NAME}: Top 10",
+          icon_url: IMAGE_BANK
+      }
+      embed.thumbnail = {url: IMAGE_RICHEST}
+      embed.color = COLOR_EMBED
+      embed.footer = {text: "Disclaimer: results may differ slightly from profile."}
 
-      networth = user_stats[:networth]
-      response += "#{user.user.username}\t\t\t\t\t\t\t\t#{networth} Starbucks\n"
+      # add top ten uses
+      top_names = ""
+      top_networths = ""
+      (0...top_user_stats.count).each do |n|
+        user_stats = top_user_stats[n] 
+        user_id = user_stats[:user_id]
+        user = DiscordUser.new(user_id)
+        networth = user_stats[:networth]
+
+        if user.nickname?
+          top_names += "#{n + 1}: #{user.nickname} (#{user.full_username})\n"
+        else
+          top_names += "#{n + 1}: #{user.full_username}\n"
+        end
+
+        top_networths += "#{networth} Starbucks\n"
+      end
+
+      embed.add_field(
+            name: "Richest",
+            value: top_names,
+            inline: true
+      )
+
+      embed.add_field(
+            name: "Networth",
+            value: top_networths,
+            inline: true
+      )
     end
-
-    event.respond response
   end
 
   # transfer money to another account
@@ -331,8 +459,8 @@ module Bot::Economy
   command :rentarole do |event, *args|
     CleanupDatabase(event.user.id)
 
-  	puts "rentarole
- " 	#initial
+  	puts "rentarole"
+  	#initial
   	#maintain
   	#override
   end
@@ -545,11 +673,77 @@ module Bot::Economy
     end
   end
 
+  # print out the user's debug profile
+  DEBUGPROFILE_COMMAND_NAME = "debugprofile"
+  DEBUGPROFILE_DESCRIPTION = "Display a debug table of the user's info."
+  DEBUGPROFILE_ARGS = [["user", DiscordUser]]
+  DEBUGPROFILE_REQ_COUNT = 0
+  command :debugprofile do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      DEBUGPROFILE_COMMAND_NAME,
+      DEBUGPROFILE_DESCRIPTION,
+      DEBUGPROFILE_ARGS,
+      DEBUGPROFILE_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil? 
+
+    user = parsed_args["user"]
+    CleanupDatabase(user.id)
+      
+    response = 
+      "**User:** #{user.full_username}\n" +
+      "**Networth:** #{GetBalance(user.id)} Starbucks" +
+      "\n**Non-Expiring:** #{GetPermaBalance(user.id)} Starbucks" +
+      "\n\n**Table of Temp Balances**"
+
+    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user.id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
+    (0...user_transactions.count).each do |n|
+      transaction = user_transactions[n]
+
+      amount = transaction[:amount]
+      timestamp = transaction[:timestamp]
+      response += "\n#{amount} received on #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, timestamp)}"
+    end
+
+    event.respond response
+  end
+
+  # get timestamp of last checkin in the caller's local timezone
+  LASTCHECKIN_COMMAND_NAME = "lastcheckin"
+  LASTCHECKIN_DESCRIPTION = "Get the timestamp for when the specified user last checked in."
+  LASTCHECKIN_ARGS = [["user", DiscordUser]]
+  LASTCHECKIN_REQ_COUNT = 0
+  command :lastcheckin do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      LASTCHECKIN_COMMAND_NAME,
+      LASTCHECKIN_DESCRIPTION,
+      LASTCHECKIN_ARGS,
+      LASTCHECKIN_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?  
+
+    last_timestamp = USER_CHECKIN_TIME[user_id: parsed_args["user"].id]
+    break unless last_timestamp != nil
+
+    last_timestamp = last_timestamp[:checkin_timestamp]
+    event.respond "Last checked in #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, last_timestamp)}"
+  end
+
   # econ dummy command, does nothing lazy cleanup devs only
   command :econdummy do |event|
     break unless Convenience::IsUserDev(event.user.id)
 
     CleanupDatabase(user_id)    
-  	puts "econdummy"
+    puts "econdummy"
   end
 end

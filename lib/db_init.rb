@@ -74,8 +74,14 @@ DB.create_table? :econ_user_perma_balances do
   Integer :amount, null: false                     # Tranasction amount, how much was earned
 end
 
-# Last checkin time
+# Economy last checkin time
 DB.create_table? :econ_user_checkin_time do
   Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
   Integer :checkin_timestamp                       # Last checkin UTC timestamp
+end
+
+# Generic user timezone
+DB.create_table? :user_timezone do
+  Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
+  String  :timezone, null: false                   # User's timezone  
 end
