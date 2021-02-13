@@ -10,7 +10,8 @@ module Bot::Economy
   include Convenience
 
   # The maximum number of days old a temp balance can be before it is dropped.
-  MAX_BALANCE_AGE = 28
+  # Note: Count starts from the past monday.
+  MAX_BALANCE_AGE_DAYS = 28
   
   # Permanent user balances, one entry per user, negative => fines
   # { user_id, amount }
@@ -35,7 +36,12 @@ module Bot::Economy
   ##########################
   # Check for and remove any and all expired points.
   def self.CleanupDatabase(user_id)
-    # todo: remove all expired balances
+    past_monday = Bot::Timezone::GetUserPastMonday(user_id)
+    last_valid_timestamp = (past_monday - MAX_BALANCE_AGE_DAYS).to_time.to_i
+
+    # remove all expired transaction
+    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (timestamp < last_valid_timestamp))}
+    user_transactions.delete
   end
 
   # Gets the user's current balance. Assumes database is clean.
@@ -253,6 +259,10 @@ module Bot::Economy
       end
     end
 
+    # clean up for good measure since this will one of be the most performed action
+    # note: calling this has no impact on the results of checkin
+    CleanupDatabase(event.user.id)
+
     checkin_value = GetUserCheckinValue(event.user.id)
     Deposit(event.user.id, checkin_value)
     if last_timestamp == nil
@@ -282,6 +292,7 @@ module Bot::Economy
       args)
     break unless not parsed_args.nil? 
 
+    # clean before showing profile
     user = parsed_args["user"]
     CleanupDatabase(user.id)
 
@@ -358,7 +369,7 @@ module Bot::Economy
     past_monday = past_monday - wwday
 
     # compute last timestamp and query for entries that meet this requirement
-    last_valid_timestamp = (past_monday - (MAX_BALANCE_AGE + 1)).to_time.to_i
+    last_valid_timestamp = (past_monday - (MAX_BALANCE_AGE_DAYS + 1)).to_time.to_i
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
       "FROM\n" + 
@@ -437,8 +448,6 @@ module Bot::Economy
       args)
     break unless not parsed_args.nil?  
 
-    CleanupDatabase(event.user.id)
-
     from_user_id = event.user.id
     to_user_id = parsed_args["to_user"].id
     amount = parsed_args["amount"]
@@ -447,6 +456,10 @@ module Bot::Economy
       break
     end
 
+    # clean from_user's entries before transfer
+    CleanupDatabase(from_user_id)
+
+    # transfer funds
     if Withdraw(from_user_id, amount)
       Deposit(to_user_id, amount)
       event.respond "#{parsed_args["to_user"].mention}, #{event.user.username} has transfered #{amount} Starbucks to your account!"
@@ -527,6 +540,9 @@ module Bot::Economy
       event.respond "Invalid fine size specified (small, medium, large)."
       break
     end
+
+    # clean before proceeding
+    CleanupDatabase(user_id)
 
     # deduct fine from bank account balance
     balance = GetBalance(user_id)
@@ -743,7 +759,7 @@ module Bot::Economy
   command :econdummy do |event|
     break unless Convenience::IsUserDev(event.user.id)
 
-    CleanupDatabase(user_id)    
-    puts "econdummy"
+    CleanupDatabase(event.user.id)
+    event.respond "Database cleaned for #{event.user.username}##{event.user.discriminator}"
   end
 end

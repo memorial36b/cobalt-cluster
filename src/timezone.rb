@@ -87,4 +87,14 @@ module Bot::Timezone
 
     return today
   end
+
+  # Get the DateTime of the past monday (start of day) in the user's timezone.
+  # @param [Integer] user_id  user id
+  # @return [DateTime] past monday in user's local timezone
+  # Note: Returns today if today is monday. 
+  def GetUserPastMonday(user_id)
+    today = GetUserToday(user_id)
+    wwday = today.cwday - 1
+    return today - wwday
+  end
 end
