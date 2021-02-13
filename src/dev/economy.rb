@@ -282,7 +282,7 @@ module Bot::Economy
     past_monday = past_monday - wwday
 
     # compute last timestamp and query for entries that meet this requirement
-    last_valid_timestamp = (past_monday - (MAX_BALANCE_AGE_DAYS + 1)).to_time.to_i
+    last_valid_timestamp = (past_monday - (Bot::Bank::MAX_BALANCE_AGE_DAYS + 1)).to_time.to_i
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
       "FROM\n" + 
