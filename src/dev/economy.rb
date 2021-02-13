@@ -651,29 +651,51 @@ module Bot::Economy
     end
   end
 
+  # print out the user's debug profile
+  DEBUGPROFILE_COMMAND_NAME = "debugprofile"
+  DEBUGPROFILE_DESCRIPTION = "Display a debug table of the user's info."
+  DEBUGPROFILE_ARGS = [["user", DiscordUser]]
+  DEBUGPROFILE_REQ_COUNT = 0
+  command :debugprofile do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      DEBUGPROFILE_COMMAND_NAME,
+      DEBUGPROFILE_DESCRIPTION,
+      DEBUGPROFILE_ARGS,
+      DEBUGPROFILE_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?  
+
+    user = parsed_args["user"]
+    CleanupDatabase(user.id)
+      
+    response = 
+      "**User:** #{user.full_username}\n" +
+      "**Networth:** #{GetBalance(user.id)} Starbucks" +
+      "\n**Non-Expiring:** #{GetPermaBalance(user.id)} Starbucks" +
+      "\n\n**Table of Temp Balances**"
+
+    user_transactions = USER_BALANCES.where{Sequel.&({user_id: user.id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
+    (0...user_transactions.count).each do |n|
+      transaction = user_transactions[n]
+
+      amount = transaction[:amount]
+      timestamp = transaction[:timestamp]
+      response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
+    end
+
+    event.respond response
+  end
+
   # econ dummy command, does nothing lazy cleanup devs only
   command :econdummy do |event|
     break unless Convenience::IsUserDev(event.user.id)
 
     CleanupDatabase(user_id)    
-  	puts "econdummy"
-  end
-
-  # print out the user's debug profile
-  command :debugprofile do |event, *user|
-    # TODO: uncomment and implement
-    # build response
-    #response = "#{user.mention}" +
-    #  "\nYour total balance is #{balance} Starbucks" +
-    #  "\nYou have #{perma_balance} non-expiring Starbucks"
-
-    #user_transactions = USER_BALANCES.where{Sequel.&({user_id: user.id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
-    #(0...user_transactions.count).each do |n|
-    #  transaction = user_transactions[n]
-
-    #  amount = transaction[:amount]
-    #  timestamp = transaction[:timestamp]
-    #  response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
-    #end
+    puts "econdummy"
   end
 end
