@@ -72,8 +72,9 @@ module Bot
     puts "+ Loaded file #{path[3..-1]}"
   end
   
-  # Loads timezone helper after to prevent load order issues
+  # load helper modules that require db after lib is loaded
   load 'timezone.rb'
+  load 'bank.rb'
 
   puts 'Done.'
 
