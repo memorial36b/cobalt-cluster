@@ -8,6 +8,9 @@ module Bot::Economy
   extend Discordrb::EventContainer
   include Constants
   include Convenience
+
+  # The maximum number of days old a temp balance can be before it is dropped.
+  MAX_BALANCE_AGE = 28
   
   # Permanent user balances, one entry per user, negative => fines
   # { user_id, amount }
@@ -30,21 +33,6 @@ module Bot::Economy
   ##########################
   ##   HELPER FUNCTIONS   ##
   ##########################
-  # Get the last Monday since this date.
-  # If it is Monday, this returns the input.
-  def self.GetLastMonday(date)
-    # use the work week instead of the biblical week
-    wwday = date.cwday - 1
-    return date - wwday
-  end
-
-  # Get the last timestamp that temporary transactions would
-  # be valid on. Anything older should be purched.
-  def self.GetLastValidTimestamp()
-    past_monday = GetLastMonday(Date.today)
-    return ( past_monday - 28 ).to_time.to_i
-  end
-
   # Check for and remove any and all expired points.
   def self.CleanupDatabase(user_id)
     # todo: remove all expired balances
@@ -363,7 +351,14 @@ module Bot::Economy
     # note: timestamp filtering is a rough estimate based on the server's
     # timezone as it would be prohibitively expensive to clean up all entries
     # for all users prior to the query
-    last_valid_timestamp = GetLastValidTimestamp()
+
+    # compute when the last monday as a Unix timestmap
+    past_monday = Date.today
+    wwday = past_monday.cwday - 1
+    past_monday = past_monday - wwday
+
+    # compute last timestamp and query for entries that meet this requirement
+    last_valid_timestamp = (past_monday - (MAX_BALANCE_AGE + 1)).to_time.to_i
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
       "FROM\n" + 
@@ -391,6 +386,7 @@ module Bot::Economy
       }
       embed.thumbnail = {url: IMAGE_RICHEST}
       embed.color = COLOR_EMBED
+      embed.footer = {text: "Disclaimer: results may differ slightly from profile."}
 
       # add top ten uses
       top_names = ""
