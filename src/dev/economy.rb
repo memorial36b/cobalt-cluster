@@ -253,10 +253,11 @@ module Bot::Economy
   end
 
   # display leaderboard
+  RICHEST_COUNT = 10
   command :richest do |event|
-    # note: need to filter by valid range, this will likely need to 
-    # be a rough estimate, since it may not be possible to factor in
-    # every user's individual time zones
+    # note: timestamp filtering is a rough estimate based on the server's
+    # timezone as it would be prohibitively expensive to clean up all entries
+    # for all users prior to the query
     last_valid_timestamp = GetLastValidTimestamp()
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
@@ -268,7 +269,8 @@ module Bot::Economy
       "  SELECT user_id, amount FROM econ_user_perma_balances\n" +
       ") s\n" +
       "GROUP BY user_id\n" +
-      "ORDER BY networth DESC;"
+      "ORDER BY networth DESC\n" +
+      "LIMIT #{RICHEST_COUNT};"
 
     richest = DB[sql]
     if richest == nil || richest.first == nil
@@ -276,20 +278,45 @@ module Bot::Economy
       break
     end
 
-    # TODO: Create a nicer looking embed!
-    all_user_stats = richest.all
-    response = "============== Richest ==============\n"
-    count = [5, all_user_stats.count].min
-    (0...count).each do |n|
-      user_stats = all_user_stats[n] 
-      user_id = user_stats[:user_id]
-      user = DiscordUser.new(user_id)
+    top_user_stats = richest.all
+    event.send_embed do |embed|
+      embed.author = {
+          name: "Bank: Top 10",
+          icon_url: IMAGE_BANK
+      }
+      embed.thumbnail = {url: IMAGE_RICHEST}
+      embed.color = COLOR_EMBED
 
-      networth = user_stats[:networth]
-      response += "#{user.user.username}\t\t\t\t\t\t\t\t#{networth} Starbucks\n"
+      # add top ten uses
+      top_names = ""
+      top_networths = ""
+      (0...top_user_stats.count).each do |n|
+        user_stats = top_user_stats[n] 
+        user_id = user_stats[:user_id]
+        user = DiscordUser.new(user_id)
+        networth = user_stats[:networth]
+
+        if user.nickname != nil && user.nickname != ""
+          top_names += "#{n + 1}: #{user.nickname} (#{user.full_username})\n"
+        else
+          top_names += "#{n + 1}: #{user.full_username}\n"
+        end
+        
+        top_networths += "#{networth} Starbucks\n"
+      end
+
+      embed.add_field(
+            name: "Richest",
+            value: top_names,
+            inline: true
+      )
+
+      embed.add_field(
+            name: "Networth",
+            value: top_networths,
+            inline: true
+      )
     end
-
-    event.respond response
   end
 
   # transfer money to another account

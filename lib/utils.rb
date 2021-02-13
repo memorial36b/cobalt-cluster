@@ -24,6 +24,14 @@ module Constants include IDs
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
 
+  # IDs of all opt-in roles
+  OPT_IN_ROLES = [
+    382433569101971456,
+    310698748680601611,
+    316353444971544577,
+    402051258732773377,
+    454304307425181696
+  ].freeze
 
   # Colors
   COLOR_EMBED = 0xFFD700
@@ -32,9 +40,6 @@ module Constants include IDs
   IMAGE_BANK = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
   IMAGE_STARBUCKS = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
   IMAGE_RICHEST = 'https://pbs.twimg.com/profile_images/780589072733593600/3rG5efnk_400x400.jpg'
-
-  # Strings
-  STRING_BANK_NAME = "Bank"
 end
 
 # Types for convenience
@@ -75,77 +80,21 @@ class DiscordUser
   end
 
   # Get the user's 4 digit discriminator.
-  # @return [String] part of user's identifier after #
+  # @return [String] Part of user's identifier after #.
   def discriminator
     return @user.discriminator
   end
 
   # Get the user's full username combined with their descriminator.
-  # @return [String] user's fully qualitifed username
+  # @return [String] User's fully qualitifed username.
   def full_username
     return @user.username + '#' + @user.discriminator
   end
 
   # Get the user's server nickname.
-  # @return [String] server nickname
+  # @return [String] servernickname
   def nickname
     return @user.nickname
-  end
-
-  # Check if the user has a server nickname.
-  # @return [bool] has nickname? 
-  def nickname?
-    return @user.nickname != nil && @user.nickname != ""
-  end
-
-  # Get a url to the user's avatar.
-  # @return [String] avatar url
-  def avatar_url
-    return @user.avatar_url
-  end
-
-  # Check if the user has the specified role.
-  # @param [Integer] role id
-  # @return [bool] has role?
-  def role?(role_id)
-    return @user.role?(role_id)
-  end 
-
-  # Get the discord user object.
-  # @return [Discordrb::User] user object
-  def user
-    return @user
-  end
-end
-
-# Types for convenience
-# Class for simple Discord User.
-class DiscordUser
-  # Construct a new user.
-  # @param [Integer/String] id user id as string or integer
-  def initialize(id)
-    # get user from server
-    user = nil
-    if id.class == String
-      user = Constants::SERVER.get_user(id)
-    else
-      user = Constants::SERVER.member(id)
-    end
-    
-    raise ArgumentError, "Invalid user id specified!" unless not user.nil?
-    @user = user
-  end
-
-  # Get the user id integer.
-  # @return [Integer] user id
-  def id
-    return @user.id
-  end
-
-  # Get the user mention tag.
-  # @return [String] user mention tag
-  def mention
-    return @user.mention
   end
 
   # Get the discord user object.

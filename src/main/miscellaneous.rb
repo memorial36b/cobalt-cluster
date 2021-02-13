@@ -170,8 +170,18 @@ module Bot::Miscellaneous
                 "**Roles: #{SERVER.roles.size}**" + "\n⠀",
           inline: true
       )
-      embed.footer = {text: "ID: #{event.server.id} • Founded on April 28, 2017"}
-      embed.color = 0xFFD700
+      embed.add_field(
+          name: '⠀',
+          value: "**Channels: #{SERVER.channels.size}**\n" +
+                 "├ Text: **#{SERVER.text_channels.size}**\n" +
+                 "├ Voice: **#{SERVER.voice_channels.size}**\n" +
+                 "└ Categories: **#{SERVER.categories.size}**\n" +
+                 "\n" +
+                 "**Roles: #{SERVER.roles.size}**",
+          inline: true
+      )
+      embed.footer = {text: "ID: 753163835862417480 • Founded on April 28, 2017"}
+      embed.color = COLOR_EMBED
     end
   end
 
@@ -250,7 +260,7 @@ module Bot::Miscellaneous
                      "\n" +
                      "**Filed by:** #{event.user.distinct}",
         thumbnail: {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/103/right-pointing-magnifying-glass_1f50e.png'},
-        color: 0xFFD700
+        color: COLOR_EMBED
       }
     )
     event.respond "• **ID** `#{identifier}`\n" + # confirmation message sent to event channel
@@ -330,8 +340,8 @@ module Bot::Miscellaneous
         end
       end
 
-      embed.color = 0x0047AB
-      embed.description = content + "\n \n[Message Link](#{event.message.link})"
+      embed.color = COLOR_EMBED
+      embed.description = content + "\n[permalink](#{event.message.link})"
       embed.timestamp = event.message.timestamp.getgm
       embed.footer = {text: "##{event.message.channel.name}"}
     end
