@@ -189,18 +189,17 @@ module Bot::Economy
 
   # Determine how long the user has to wait until their next checkin.
   # Zero if they can checkin now
-  # TODO: factor in user's timezone
   def self.GetTimeUntilNextCheckin(user_id)
     last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
     return 0 if last_timestamp == nil || last_timestamp.first == nil
 
     last_timestamp = last_timestamp[:checkin_timestamp]
-    last_time = Time.at(last_timestamp)
-    today_date = Date.today()
-    return 0 if last_time.to_datetime < today_date
+    last_datetime = Bot::Timezone::GetTimestampInUserLocal(user_id, last_timestamp)
+    today_datetime = Bot::Timezone::GetUserToday(user_id)
+    return 0 if last_datetime < today_datetime
 
-    tomorrow_date = today_date + 1
-    return tomorrow_date.to_time.to_i - Time.now.to_i
+    tomorrow_datetime = today_datetime + 1
+    return tomorrow_datetime.to_time.to_i - Time.now.to_i
   end
 
   # Determine how long the user has to wait until their next checkin.
@@ -245,7 +244,7 @@ module Bot::Economy
     end
   end
 
-  # Get the name of your currently set timezone
+  # get the name of user's configured timezone
   command :gettimezone do |event|
     event.respond "Your current timezone is \"#{Bot::Timezone::GetUserTimezone(event.user.id)}\""
   end
@@ -253,13 +252,14 @@ module Bot::Economy
   # get daily amount
   command :checkin do |event|
     # if user already checked in today, ignore
-    # TODO: utlize user's local time zone for today/yesterday comparison
-    last_timestamp = USER_CHECKIN_TIME[user_id: event.user.id]
+    user_id = event.user.id
+    last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
     if last_timestamp != nil
       last_timestamp = last_timestamp[:checkin_timestamp]
-      last_date = Time.at(last_timestamp).to_datetime()
-      today_date = Date.today()
-      if last_date > today_date
+      
+      last_datetime = Bot::Timezone::GetTimestampInUserLocal(user_id, last_timestamp)
+      today_datetime = Bot::Timezone::GetUserToday(user_id)
+      if last_datetime > today_datetime
         event.respond "Sorry! You already checked in today!"
         break
       end
@@ -357,6 +357,7 @@ module Bot::Economy
   end
 
   # display leaderboard
+  # TODO: bug, results may differ from profile reporting
   RICHEST_COUNT = 10
   command :richest do |event|
     # note: timestamp filtering is a rough estimate based on the server's
@@ -462,8 +463,8 @@ module Bot::Economy
   command :rentarole do |event, *args|
     CleanupDatabase(event.user.id)
 
-  	puts "rentarole
- " 	#initial
+  	puts "rentarole"
+  	#initial
   	#maintain
   	#override
   end
@@ -693,7 +694,7 @@ module Bot::Economy
       DEBUGPROFILE_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil? 
 
     user = parsed_args["user"]
     CleanupDatabase(user.id)
@@ -710,10 +711,36 @@ module Bot::Economy
 
       amount = transaction[:amount]
       timestamp = transaction[:timestamp]
-      response += "\n#{amount} received on #{Time.at(timestamp).to_datetime}"
+      response += "\n#{amount} received on #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, timestamp)}"
     end
 
     event.respond response
+  end
+
+  # get timestamp of last checkin in the caller's local timezone
+  LASTCHECKIN_COMMAND_NAME = "lastcheckin"
+  LASTCHECKIN_DESCRIPTION = "Get the timestamp for when the specified user last checked in."
+  LASTCHECKIN_ARGS = [["user", DiscordUser]]
+  LASTCHECKIN_REQ_COUNT = 0
+  command :lastcheckin do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      LASTCHECKIN_COMMAND_NAME,
+      LASTCHECKIN_DESCRIPTION,
+      LASTCHECKIN_ARGS,
+      LASTCHECKIN_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?  
+
+    last_timestamp = USER_CHECKIN_TIME[user_id: parsed_args["user"].id]
+    break unless last_timestamp != nil
+
+    last_timestamp = last_timestamp[:checkin_timestamp]
+    event.respond "Last checked in #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, last_timestamp)}"
   end
 
   # econ dummy command, does nothing lazy cleanup devs only

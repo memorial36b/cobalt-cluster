@@ -35,7 +35,7 @@ module Bot::Timezone
   # @return [bool] Could the timezone be set?
   def SetUserTimezone(user_id, timezone_name)
   	# validate
-	begin
+	  begin
       tz = TZInfo::Timezone.get(timezone_name)
     rescue => e
       return false
@@ -51,5 +51,40 @@ module Bot::Timezone
     end
   	
   	return true  
+  end
+
+  # Get a DateTime representation of the utc timestamp in the user's local timezone.
+  # @param [Integer] user_id   user id
+  # @param [Integer] timestamp Unix timestamp
+  # @return [DateTime] datetime in user's local timezone
+  def GetTimestampInUserLocal(user_id, timestamp)
+    tz = GetUserTimezone(user_id)
+    timestamp = TZInfo::Timestamp.utc(timestamp)
+    return tz.utc_to_local(timestamp).to_datetime
+  end
+
+  # Get the DateTime of now in the user's timezone.
+  # @param [Integer] user_id  user id
+  # @return [DateTime] now in user's local timezone 
+  def GetUserNow(user_id)
+    tz = GetUserTimezone(user_id)
+    return tz.now.to_datetime
+  end
+
+  # Get the DateTime of today (start of day) in the user's timezone.
+  # @param [Integer] user_id  user id
+  # @return [DateTime] today in user's local timezone 
+  def GetUserToday(user_id)
+    today = GetUserNow(user_id)
+
+    # strip hours, minutes, seconds, fractional seconds
+    day_offset = 
+      (today.hour) / 24.0 + 
+      (today.min / (24.0 * 60.0)) +
+      (today.sec / (24.0 * 60.0 * 60.0))
+      (today.second_fraction / (24.0 * 60.0 * 60.0))
+    today -= day_offset
+
+    return today
   end
 end
