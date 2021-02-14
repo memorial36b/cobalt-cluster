@@ -13,6 +13,12 @@ item_type_role_color:     0x1000
 item_type_tag:            0x2000
 item_type_custom_command: 0x3000
 
+# life-time value in days for item types 
+item_type_role_override_lifetime: 7
+item_type_role_color_lifetime: 7
+item_type_tag_lifetime: 1
+item_type_custom_command_lifetime: 28
+
 # item type id to point_values.yml key  map
 # note: convenience for appraising cost
 0x0000: "rentarole_override"
