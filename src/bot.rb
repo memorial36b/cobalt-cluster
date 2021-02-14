@@ -73,7 +73,7 @@ module Bot
   end
   
   # load helper modules that require db after lib is loaded
-  Dir['../helper/*.rb'].each do |path| 
+  Dir['helper/*.rb'].each do |path| 
     load path
     puts "+ Loaded file #{path[3..-1]}"
   end
