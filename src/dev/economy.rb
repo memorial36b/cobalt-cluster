@@ -744,7 +744,7 @@ module Bot::Economy
     items.each do |item|
       response += "#{item.ui_name}\n"
     end
-
+    
     event.respond response
   end
 
