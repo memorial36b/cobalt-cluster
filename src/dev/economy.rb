@@ -952,7 +952,7 @@ module Bot::Economy
     
     items = Bot::Inventory::GetInventory(user.id, item_type)
     value = Bot::Inventory::GetInventoryValue(user.id)
-    response = "#{user.full_username} inventory valued at #{value} Starbucks:\n"
+    response = "#{user.full_username} inventory valued at #{value} Starbucks\n"
     items.each do |item|
       if item.expiration != nil
         days_to_expiration = (item.expiration - Time.now.to_i)/(24.0*60.0*60.0)
