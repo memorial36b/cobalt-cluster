@@ -222,8 +222,11 @@ module Convenience
     parsed_dict = {}
     (0...args.count).each do |n|
       arg_value = args[n]
-      arg_name  = name_types[n][0]
-      arg_type  = name_types[n][1]
+      name_type = name_types[n]
+      next if name_type == nil # too many arguments, ignore them!
+
+      arg_name  = name_type[0]
+      arg_type  = name_type[1]
       begin # try to parse
         parsed_dict[arg_name] = InitType(arg_type, arg_value)
 

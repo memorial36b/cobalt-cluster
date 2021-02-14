@@ -119,8 +119,10 @@ module Bot::Economy
       role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
     when Bot::Inventory::GetItemID('role_override_noble')
       role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_noble')
+    when Bot::Inventory::GetItemID('role_override_monarch')
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
+    when Bot::Inventory::GetItemID('role_override_bearer')
+      role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
     else 
       raise ArgumentError, "Invalid role received from inventory!"
       return nil
@@ -578,7 +580,7 @@ module Bot::Economy
     when "white", "white_white"
       role_item_id = Bot::Inventory::GetItemID('role_color_whitey_white')
       role_id = WHITEY_WHITE_ROLE_ID
-    when "magenta", "marvelous_magenta"
+    when "magenta", "marvelous_magenta", "pink"
       role_item_id = Bot::Inventory::GetItemID('role_color_marvelous_magenta')
       role_id = MARVELOUS_MAGENTA_ROLE_ID
     when "yellow", "shallow_yellow"
@@ -601,9 +603,13 @@ module Bot::Economy
       role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
       required_role_id = MEWMAN_NOBLE_ROLE_ID
     when "monarch", "override_monarch"
-      role_item_id = Bot::Inventory::GetItemID('role_override_noble')
+      role_item_id = Bot::Inventory::GetItemID('role_override_monarch')
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
       required_role_id = MEWMAN_MONARCH_ROLE_ID
+    when "bearer", "bearer_of_the_wand", "override_bearer", "override_bearer_of_the_wand"
+      role_item_id = Bot::Inventory::GetItemID('role_override_bearer')
+      role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
+      required_role_id = BEARER_OF_THE_WAND_POG_ROLE_ID
     else 
       event.respond "Sorry, I couldn't find that role."
       break
