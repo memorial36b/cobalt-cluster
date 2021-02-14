@@ -739,7 +739,8 @@ module Bot::Economy
     item_type = item_type > 0 ? item_type : nil
     
     items = Bot::Inventory::GetInventory(user.id, item_type)
-    response = "#{user.full_username} inventory:\n"
+    value = Bot::Inventory::GetInventoryValue(user.id)
+    response = "#{user.full_username} inventory valued at #{value} Starbucks:\n"
     items.each do |item|
       response += "#{item.ui_name}\n"
     end
