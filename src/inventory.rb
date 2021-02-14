@@ -144,15 +144,40 @@ module Bot::Inventory
     return GetCatalogue()[item_id]
   end
 
+  # Get an item's lifetime from the id. Assumes valid id.
+  # @param [Integer] item_id
+  # @return [Integer] number of days item lasts or nil if it doesn't expire
+  def GetItemLifetime(item_id)
+    item_type = GetItemTypeFromID(item_id)
+    case item_type
+    when GetValueFromCatalogue('item_type_role_override')
+      return GetValueFromCatalogue('item_type_role_override_lifetime')
+    when GetValueFromCatalogue('item_type_role_color')
+      return GetValueFromCatalogue('item_type_role_color_lifetime')
+    when GetValueFromCatalogue('item_type_tag')
+      return GetValueFromCatalogue('item_type_tag_lifetime')
+    when GetValueFromCatalogue('item_type_custom_command')
+      return GetValueFromCatalogue('item_type_custom_command_lifetime')
+    else
+      return nil
+    end
+  end
+
   # Add an item to the user's inventory.
-  # @param [Integer] user_id    user id
-  # @param [Integer]  item_id   item id
-  # @param [Integer] expiration when the item expires
+  # @param [Integer] user_id user id
+  # @param [Integer] item_id item id
   # @return [bool] Success?
-  def AddItem(user_id, item_id, expiration = nil)
+  def AddItem(user_id, item_id)
     owner_user_id = user_id
     timestamp = Time.now.to_i
     value = GetItemValueFromID(item_id)
+    expiration = nil
+
+    # compute expiration if there is one
+    lifetime = GetItemLifetime(item_id)
+    if lifetime != nil
+      expiration = (Time.now.to_datetime + lifetime).to_time.to_i
+    end
 
     # add item
     USER_INVENTORY << { owner_user_id: owner_user_id, item_id: item_id, timestamp: timestamp, expiration: expiration, value: value }
