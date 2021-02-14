@@ -388,10 +388,22 @@ module Convenience
   end
   alias_method(:pl, :plural)
 
+  # Perform an unsigned bitwise not on an integer.
+  # Adds bits to round to the nearest half-byte for readability.
+  # @param [Integer] int the integer to perform not.
+  # @return [Integer] the unsigned bitwise not
+  def unsigned_not(int)
+    bits = int.bit_length
+    bits = (bits / 4.0).ceil.to_i * 4 # round to nearest half-byte
+    mask = (1 << bits) - 1
+    return mask - int
+  end
+  alias_method(:u!, :unsigned_not)
+
   # Check if the specified user is a developer.
   # @param [Integer] user_id user id.
   # @return [bool] Is the user a developer?
-  def self.IsUserDev(user_id)
+  def IsUserDev(user_id)
     return user_id == OWNER_ID || COBALT_DEV_ID.include?(user_id)
   end
 

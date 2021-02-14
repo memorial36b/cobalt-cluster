@@ -6,8 +6,8 @@ require 'date'
 module Bot::Economy
   extend Discordrb::Commands::CommandContainer
   extend Discordrb::EventContainer
+  extend Convenience
   include Constants
-  include Convenience
   
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
@@ -145,43 +145,87 @@ module Bot::Economy
     # check for expired roles for each user
     users = Bot::Inventory::GetUsersWithInventory()
     users.each do |user_id|
-      # skip if user isn't renting a role
-      role_item = GetUserRentedRoleItem(user_id)
-      next if role_item == nil
-      
-      # skip if not expired
-      next unless role_item.expiration != nil && Time.now.to_i >= role_item.expiration
+      inventory = Bot::Inventory::GetInventory(user_id)
+      next if inventory == nil || inventory.count <= 0 # sanity check, shouldn't be possible
 
-      # see if they can afford to renew, remove the role otherwise
-      owner = DiscordUser.new(role_item.owner_user_id)
-      role_maintain_cost = Bot::Bank::AppraiseItem('rentarole_maintain')
-      if Bot::Bank::Withdraw(owner.id, role_maintain_cost)
-        Bot::Inventory::RenewItem(role_item.entry_id)
-      else 
-        role_id = GetRoleForItemID(role_item.item_id)
-        owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role!")
-        Bot::Inventory::RemoveItem(role_item.entry_id)
+      owner = DiscordUser.new(user_id)
+      removed_items = []
+      inventory.each do |item|
+        # skip if the item doesn't or hasn't expired
+        next unless item.expiration != nil && Time.now.to_i >= item.expiration
 
-        # send the user a dm letting them know they lost their role
-        user = DiscordUser.new(role_item.owner_user_id)
-        if user != nil
+        # sanity check: owner id matches queried user id
+        if user_id != item.owner_user_id
+          puts "Item #{item.entry_id} was found during query that stated it was owned by #{user_id} but the item itself had owner #{item.owner_user_id}! This is impossible!"
+          next # continue onto valid items
+        end
 
-          user.user.dm.send_embed do |embed|
-            embed.author = {
-                name: STRING_BANK_NAME,
-                icon_url: IMAGE_BANK
-            }
+        # determine how much it'll cost to renew
+        renewal_cost = Bot::Inventory::GetItemRenewalCost(item.item_id)
+        if renewal_cost == nil
+          puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!" 
+          next # continue onto valid items
+        end
 
-            embed.color = COLOR_EMBED
-            embed.title = "Role Expired"
-            embed.description = "Unforunately, you could not afford to renew your role #{role_item.ui_name}, so it has been removed."
+        # renew if possible, otherwise remove and add to list of removed
+        if Bot::Bank::Withdraw(owner.id, renewal_cost)
+          Bot::Inventory::RenewItem(item.entry_id)
+        else
+          # remove from inventory
+          Bot::Inventory::RemoveItem(item.entry_id)
+          removed_items.push(item)
+
+          # perform necessary cleanup now that they don't own it
+          case item.item_type
+          when Bot::Inventory::GetValueFromCatalogue('item_type_role_override'),
+               Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
+            # remove role if they have it
+              role_id = GetRoleForItemID(item.item_id)
+              owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
+          when Bot::Inventory::GetValueFromCatalogue('item_type_tag')
+            # TODO: Remove tag
+          when Bot::Inventory::GetValueFromCatalogue('item_type_custom_command')
+            # TODO: Remove custom command
+          else
+            puts "Unhandled item type (#{item.item_type}) encountered when removing after failing to renew!"
+            next # continue onto valid items
           end
+        end
+      end
+
+      # send the user a dm letting them know they had subscriptions expire
+      if not removed_items.empty?
+        owner.user.dm.send_embed do |embed|
+          embed.author = {
+              name: STRING_BANK_NAME,
+              icon_url: IMAGE_BANK
+          }
+
+          purchase = pl(removed_items.count, "Purchase")
+          embed.color = COLOR_EMBED
+          embed.title = "#{purchase} Expired"
+          embed.description = "Unfortunately, you could not afford to renew the following so they have been removed!"
+
+          # add a field for each removed item, all inline, it should wrap as necessary
+          removed_items.each do |item|
+            # get names and clense to avoid message sending errors
+            type_ui_name = item.type_ui_name
+            type_ui_name = type_ui_name.nil? ? "TYPE NAME NOT FOUND (#{item.item_type})" : type_ui_name
+
+            item_ui_name = item.ui_name
+            item_ui_name = item_ui_name.nil? ? "ITEM NAME NOT FOUND (#{item.item_id})" : item_ui_name
+
+            embed.add_field(
+              name: type_ui_name,
+              value: item_ui_name,
+              inline: true
+            )
+          end         
         end
       end
     end
 
-    # todo: check for expired tags
-    # todo: check for expired commands
+    # todo: perform any other routine maintenance
   end
 
   ###########################

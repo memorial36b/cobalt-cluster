@@ -4,7 +4,11 @@
 # Optionally items may have: icon (url)
 #
 # Note: Always add new items in a category to the end of the list.
-
+#
+# THINGS THAT NEED TO UPDATE WHEN EDITING: 
+# New item types requires updates to Rufus loop in Bot::Economy
+# Adding new roles requies updates to Bot::Economy::GetRoleForItemID and Bot::Economy::rentarole
+# Adding new items requires relavent command implementations/updates in Bot::Economy
 ---
 # item types: correlates to id offsets
 # note: if there needs to be more than 16 types, just go past 4 digits
@@ -13,18 +17,36 @@ item_type_role_color:     0x1000
 item_type_tag:            0x2000
 item_type_custom_command: 0x3000
 
-# life-time value in days for item types 
-item_type_role_override_lifetime: 7
-item_type_role_color_lifetime: 7
-item_type_tag_lifetime: 1
-item_type_custom_command_lifetime: 28
+# item type id to name key map
+# note: key = item_type
+0x0000: "Role"
+0x1000: "Role"
+0x2000: "Tag"
+0x3000: "Command"
 
-# item type id to point_values.yml key  map
-# note: convenience for appraising cost
-0x0000: "rentarole_override"
-0x1000: "rentarole_color"
-0x2000: "tag_add"
-0x3000: "myconn_set"
+# item type id to point_values.yml key map
+# note: key = unsigned_not(item_type)
+# works because we would need 4096 items of one type to hit this limit
+0xFFFF: "rentarole_override"
+0xEFFF: "rentarole_color"
+0xDFFF: "tag_add"
+0xCFFF: "myconn_set"
+
+# item type id to renewal point_values.yml key map
+# note: key = unsigned_not(item_type) - 1
+# works because we would need 4095 items of one type to hit this limit
+0xFFFE: "rentarole_maintain"  # item_type_role_override
+0xEFFE: "rentarole_maintain"  # item_type_role_color
+0xDFFE: "tag_maintain"        # item_type_tag
+0xCFFE: "myconn_maintain"     # item_type_custom_command
+
+# life-time value in days for item types
+# note: key = unsigned_not(item_type) - 2
+# works because we would need 4094 items of one type to hit this limit
+0xFFFD: 7   # item_type_role_override
+0xEFFD: 7   # item_type_role_color
+0xDFFD: 1   # item_type_tag
+0xCFFD: 28  # item_type_custom_command
 
 # override roles (0x0000)
 #role_override_citizen
