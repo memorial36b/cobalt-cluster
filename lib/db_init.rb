@@ -86,6 +86,7 @@ DB.create_table? :econ_user_inventory do
   Integer     :owner_user_id, null: false   # User ID of the owner
   Integer     :item_id, null: false         # The unique identifier that determines what item it is
   Integer     :timestamp, null: false       # The utc timestamp of when the itme was purchased/received
+  Integer     :expiration, null: true       # Optional expiration timestamp
   Integer     :value, null: false           # The value of the item (in Starbucks) at the time of purchase.
 end
 

@@ -8,6 +8,7 @@ class Item
     @owner_user_id = hash[:owner_user_id]
     @item_id = hash[:item_id]
     @timestamp = hash[:timestamp]
+    @expiration = hash[:expiration]
     @value = hash[:value]
   end
 
@@ -29,6 +30,11 @@ class Item
   # Get timestamp
   def timestamp
     return @timestamp
+  end
+
+  # Get expiration timestamp
+  def expiration
+    return @expiration
   end
 
   # Get value
@@ -54,7 +60,7 @@ module Bot::Inventory
   include Convenience
 
   # User inventory (purchased/received items)
-  # { entry_id, owner_user_id, item_id, timestamp, value }
+  # { entry_id, owner_user_id, item_id, timestamp, expiration, value }
   USER_INVENTORY = DB[:econ_user_inventory]
 
   # Path to economy data folder
@@ -132,10 +138,11 @@ module Bot::Inventory
   end
   
   # Add an item to the user's inventory.
-  # @param [Integer] user_id   user id
-  # @param [String]  item_name name of the item in catalogue.yml
+  # @param [Integer] user_id    user id
+  # @param [String]  item_name  name of the item in catalogue.yml
+  # @param [Integer] expiration when the item expires
   # @return [bool] Success?
-  def AddItem(user_id, item_name)
+  def AddItem(user_id, item_name, expiration = nil)
     # aggregate item information
     item_id = GetItemID(item_name)
     if item_id == nil
@@ -148,7 +155,7 @@ module Bot::Inventory
     value = GetItemValueFromID(item_id)
 
     # add item
-    USER_INVENTORY << { owner_user_id: owner_user_id, item_id: item_id, timestamp: timestamp, value: value }
+    USER_INVENTORY << { owner_user_id: owner_user_id, item_id: item_id, timestamp: timestamp, expiration: expiration, value: value }
     return true
   end
 
@@ -161,10 +168,16 @@ module Bot::Inventory
   end
 
   # Get the user's complete inventory
-  # @param [Integer] user_id user id
+  # @param [Integer] user_id   user id
+  # @param [Integer] item_type optional: item type to filter by
   # @return [Array<Item>] items the user has.
-  def GetInventory(user_id)
-    items = USER_INVENTORY.where(owner_user_id: user_id).all
+  def GetInventory(user_id, item_type = nil)
+    items = USER_INVENTORY.where(owner_user_id: user_id)
+    if item_type != nil
+      items = items.where{Sequel.&((item_id >= item_type), (item_id < item_type + 0x1000))}
+    end
+
+    items = items.all
     inventory = []
     
     items.each do |item|
