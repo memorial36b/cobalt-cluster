@@ -47,6 +47,12 @@ class InventoryItem
     return Bot::Inventory::GetItemTypeFromID(@item_id)
   end
 
+  # Get item type ui name
+  def type_ui_name
+    item_type_id = item_type
+    return Bot::Inventory::GetItemTypeUIName(item_type_id)
+  end
+
   # Get ui name
   def ui_name
     Bot::Inventory::GetItemUINameFromID(@item_id)
@@ -56,8 +62,8 @@ end
 # Helper functions for inventory management
 # Note: Not defined in lib because DB must already be init'ed.
 module Bot::Inventory
+  extend Convenience
   include Constants
-  include Convenience
 
   # User inventory (purchased/received items)
   # { entry_id, owner_user_id, item_id, timestamp, expiration, value }
@@ -105,10 +111,11 @@ module Bot::Inventory
   end
 
   # Get the value of a type of item.
-  # @param [Integer] item_type_id item type identifier.
+  # @param [Integer] item_type item type identifier.
   # @return [Integer] The value of the item type in Starbucks. Returns zero if not found.
   def GetItemTypeValue(item_type)
-    point_value_key = GetCatalogue()[item_type]
+    catalogue_key = u!(item_type)
+    point_value_key = GetCatalogue()[catalogue_key]
     return 0 if point_value_key == nil
     return Bot::Bank::AppraiseItem(point_value_key)
   end
@@ -129,6 +136,13 @@ module Bot::Inventory
     return GetItemTypeValue(item_type)
   end
 
+  # Get an item type's ui name from the type id.
+  # @param [Integer] item_type item type
+  # @return [String] item type ui name or nil if not found
+  def GetItemTypeUIName(item_type)
+    return GetCatalogue()[item_type] 
+  end
+
   # Get an item's ui name from a the id.
   # @param [Integer] item_id item id
   # @return [String] item name or nil if not found 
@@ -144,23 +158,25 @@ module Bot::Inventory
     return GetCatalogue()[item_id]
   end
 
+  # Get the cost to renew an item of the given type.
+  # @param [Integer] item_type item type identifier
+  # @return [Integer] The cost to renew or nil if it doesn't expire.
+  def GetItemRenewalCost(item_id)
+    item_type = GetItemTypeFromID(item_id)
+    catalogue_key = u!(item_type) - 1
+    point_value_key = GetValueFromCatalogue(catalogue_key)
+    return nil if point_value_key == nil
+
+    return Bot::Bank::AppraiseItem(point_value_key)
+  end
+
   # Get an item's lifetime from the id. Assumes valid id.
   # @param [Integer] item_id
   # @return [Integer] number of days item lasts or nil if it doesn't expire
   def GetItemLifetime(item_id)
     item_type = GetItemTypeFromID(item_id)
-    case item_type
-    when GetValueFromCatalogue('item_type_role_override')
-      return GetValueFromCatalogue('item_type_role_override_lifetime')
-    when GetValueFromCatalogue('item_type_role_color')
-      return GetValueFromCatalogue('item_type_role_color_lifetime')
-    when GetValueFromCatalogue('item_type_tag')
-      return GetValueFromCatalogue('item_type_tag_lifetime')
-    when GetValueFromCatalogue('item_type_custom_command')
-      return GetValueFromCatalogue('item_type_custom_command_lifetime')
-    else
-      return nil
-    end
+    key = u!(item_type) - 2
+    return GetValueFromCatalogue(key)
   end
 
   # Add an item to the user's inventory.
