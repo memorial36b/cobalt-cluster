@@ -382,20 +382,162 @@ module Bot::Economy
   end
 
   # rent a new role
+  RENTAROLE_COMMAND_NAME = "rentarole"
+  RENTAROLE_DESCRIPTION = "Rent the specified role."
+  RENTAROLE_ARGS = [["role", String]]
+  RENTAROLE_REQ_COUNT = 1
   command :rentarole do |event, *args|
+    opt_defaults = []
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      RENTAROLE_COMMAND_NAME,
+      RENTAROLE_DESCRIPTION,
+      RENTAROLE_ARGS,
+      RENTAROLE_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?  
+
     Bot::Bank::CleanAccount(event.user.id)
 
-  	puts "rentarole"
-  	#initial
-  	#maintain
-  	#override
+    # Check to see if the user is already renting a role.
+    override_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_override')
+    color_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
+    roles = Bot::Inventory::GetInventory(event.user.id, override_role_type)
+    roles.push(*Bot::Inventory::GetInventory(event.user.id, color_role_type))
+    if not(roles.empty?)
+      event.respond "You already have a rented role!"
+    end
+
+    # parse the user's input
+    role_item_id = nil
+    role_id = nil
+    required_role_id = nil
+    role_name = parsed_args["role"]
+    case role_name.downcase
+    when "orange", "obsolete_orange"
+      role_item_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
+      role_id = OBSOLETE_ORANGE_ROLE_ID
+    when "blue", "breathtaking_blue"
+      role_item_id = Bot::Inventory::GetItemID('role_color_breathtaking_blue')
+      role_id = BREATHTAKING_BLUE_ROLE_ID
+    when "red", "retro_red"
+      role_item_id = Bot::Inventory::GetItemID('role_color_retro_red')
+      role_id = RETRO_RED_ROLE_ID
+    when "lavendar", "lullaby_lavendar", "purple"
+      role_item_id = Bot::Inventory::GetItemID('role_color_lullaby_lavender')
+      role_id = LULLABY_LAVENDER_ROLE_ID
+    when "white", "white_white"
+      role_item_id = Bot::Inventory::GetItemID('role_color_whitey_white')
+      role_id = WHITEY_WHITE_ROLE_ID
+    when "magenta", "marvelous_magenta"
+      role_item_id = Bot::Inventory::GetItemID('role_color_marvelous_magenta')
+      role_id = MARVELOUS_MAGENTA_ROLE_ID
+    when "yellow", "shallow_yellow"
+      role_item_id = Bot::Inventory::GetItemID('role_color_shallow_yellow')
+      role_id = SHALLOW_YELLOW_ROLE_ID
+    when "citizen", "override_citizen"
+      role_item_id = Bot::Inventory::GetItemID('role_override_citizen')
+      role_id = OVERRIDE_MEWMAN_CITIZEN_ROLE_ID
+      required_role_id = MEWMAN_CITIZEN_ROLE_ID
+    when "squire", "override_squire"
+      role_item_id = Bot::Inventory::GetItemID('role_override_squire')
+      role_id = OVERRIDE_MEWMAN_SQUIRE_ROLE_ID
+      required_role_id = MEWMAN_SQUIRE_ROLE_ID
+    when "knight", "override_knight"
+      role_item_id = Bot::Inventory::GetItemID('role_override_knight')
+      role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
+      required_role_id = MEWMAN_KNIGHT_ROLE_ID
+    when "noble", "override_noble"
+      role_item_id = Bot::Inventory::GetItemID('role_override_noble')
+      role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
+      required_role_id = MEWMAN_NOBLE_ROLE_ID
+    when "monarch", "override_monarch"
+      role_item_id = Bot::Inventory::GetItemID('role_override_noble')
+      role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
+      required_role_id = MEWMAN_MONARCH_ROLE_ID
+    else 
+      event.respond "Sorry, I couldn't find that role."
+      break
+    end
+
+    # ensure the user meets the requiremetns
+    user = DiscordUser.new(event.user.id)
+    if required_role_id != nil && not(user.role?(required_role_id))
+      event.respond "Sorry, you do not meet the level requirements for that override."
+      break
+    end
+
+    # attempt to buy role
+    role_cost = Bot::Inventory::GetItemValueFromID(role_item_id)
+    if not Bot::Bank::Withdraw(user.id, role_cost)
+      event.respond "Sorry, you can't afford that role."
+      break
+    end
+
+    # store in inventory TODO: specify expiration
+    Bot::Inventory::AddItem(user.id, role_item_id)
+
+    # assign role and respond
+    user.user.add_role(role_id)
+    role_ui_name = Bot::Inventory::GetItemUINameFromID(role_item_id)
+    event.respond "#{user.mention} you now have the #{role_ui_name} role!"
   end
 
   # remove rented role
   command :unrentarole do |event, *args|
   	Bot::Bank::CleanAccount(event.user.id)
     
-    puts "unrentarole"
+    # check if the user is currently renting a role
+    override_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_override')
+    color_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
+    roles = Bot::Inventory::GetInventory(event.user.id, override_role_type)
+    roles.push(*Bot::Inventory::GetInventory(event.user.id, color_role_type))
+    
+    if roles.empty?
+      event.respond "You aren't currently renting a role!"
+      break
+    end
+
+    # convert role item id to role id 
+    role_id = nil
+    case roles[0].item_id
+    when Bot::Inventory::GetItemID('role_color_obsolete_orange')
+      role_id = OBSOLETE_ORANGE_ROLE_ID
+    when Bot::Inventory::GetItemID('role_color_breathtaking_blue')
+      role_id = BREATHTAKING_BLUE_ROLE_ID
+    when Bot::Inventory::GetItemID('role_color_retro_red')
+      role_id = RETRO_RED_ROLE_ID
+    when Bot::Inventory::GetItemID('role_color_lullaby_lavender')
+      role_id = LULLABY_LAVENDER_ROLE_ID
+    when Bot::Inventory::GetItemID('role_color_whitey_white')
+      role_id = WHITEY_WHITE_ROLE_ID
+    when Bot::Inventory::GetItemID('role_color_marvelous_magenta')
+      role_id = MARVELOUS_MAGENTA_ROLE_ID
+    when Bot::Inventory::GetItemID('role_color_shallow_yellow')
+      role_id = SHALLOW_YELLOW_ROLE_ID
+    when Bot::Inventory::GetItemID('role_override_citizen')
+      role_id = OVERRIDE_MEWMAN_CITIZEN_ROLE_ID
+    when Bot::Inventory::GetItemID('role_override_squire')
+      role_id = OVERRIDE_MEWMAN_SQUIRE_ROLE_ID
+    when Bot::Inventory::GetItemID('role_override_knight')
+      role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
+    when Bot::Inventory::GetItemID('role_override_noble')
+      role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
+    when Bot::Inventory::GetItemID('role_override_noble')
+      role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
+    else 
+      raise ArgumentError, "Invalid role received from inventory!"
+      break
+    end
+    
+    user = DiscordUser.new(event.user.id)
+    if user.role?(role_id)
+      user.user.remove_role(role_id)
+    end
+
+    Bot::Inventory::RemoveItem(roles[0].entry_id)
+    event.respond "#{user.mention}, you no longer have the role #{roles[0].ui_name}!"
   end
 
   # custom tag management
@@ -709,7 +851,7 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     item_name = parsed_args["item"]
-    if Bot::Inventory::AddItem(parsed_args["user"].id, item_name)
+    if Bot::Inventory::AddItemByName(parsed_args["user"].id, item_name)
       event.respond "#{item_name} added!"
     else
       event.repond "Item '#{item_name}' not recognized."
@@ -758,10 +900,10 @@ module Bot::Economy
     opt_defaults = [event.user.id]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
-      GETINVENTORY_COMMAND_NAME,
-      GETINVENTORY_DESCRIPTION,
-      GETINVENTORY_ARGS,
-      GETINVENTORY_REQ_COUNT,
+      CLEARINVENTORY_COMMAND_NAME,
+      CLEARINVENTORY_DESCRIPTION,
+      CLEARINVENTORY_ARGS,
+      CLEARINVENTORY_REQ_COUNT,
       opt_defaults,
       args)
     break unless not parsed_args.nil?
