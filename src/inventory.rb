@@ -232,7 +232,8 @@ module Bot::Inventory
   # @param [Integer] user_id user id
   # @return [Integer] total value
   def GetInventoryValue(user_id)
-    return USER_INVENTORY.where(owner_user_id: user_id).sum(:value)
+    value = USER_INVENTORY.where(owner_user_id: user_id).sum(:value)
+    return value.nil? ? 0 : value
   end
 
   # Get list of users that have an inventory.
