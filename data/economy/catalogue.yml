@@ -1,0 +1,75 @@
+# This file lists all purchasable items.
+# Every item must have: id (must be unique and in hex), name
+# The comment before each item specifies how it should be referred to in code.
+# Optionally items may have: icon (url)
+#
+# Note: Always add new items in a category to the end of the list.
+
+---
+# item types: correlates to id offsets
+# note: if there needs to be more than 16 types, just go past 4 digits
+item_type_role_override:  0x0000
+item_type_role_color:     0x1000
+item_type_tag:            0x2000
+item_type_custom_command: 0x3000
+
+# item type id to point_values.yml key  map
+# note: convenience for appraising cost
+0x0000: "rentarole_override"
+0x1000: "rentarole_color"
+0x2000: "tag_add"
+0x3000: "myconn_set"
+
+# override roles (0x0000)
+#role_override_citizen
+role_override_citizen_id: 0x0001
+0x0001:                   "Override: Mewman Citizen"
+#role_override_squire
+role_override_squire_id:  0x0002
+0x0002:                   "Override: Mewman Squire"
+#role_override_knight
+role_override_knight_id:  0x0004
+0x0004:                   "Override: Mewman Knight"
+#role_override_noble
+role_override_noble_id:   0x0005
+0x0005:                   "Override: Mewman Noble"
+#role_override_monarch
+role_override_monarch_id: 0x0006
+0x0006:                   "Override: Mewman Monarch"
+# there's no bearer override since you'd just not have a role override if you want that
+
+# color roles (0x1000)
+#role_color_ghastly_green
+role_color_ghastly_green_id:     0x1001
+0x1001:                          "Ghastly Green"
+#role_color_obsolete_orange
+role_color_obsolete_orange_id:   0x1002
+0x1002:                          "Obsolete Orange"
+#role_color_breathtaking_blue
+role_color_breathtaking_blue_id: 0x1003
+0x1003:                          "Breathtaking Blue"
+#role_color_retro_red
+role_color_retro_red_id:         0x1004
+0x1004:                          "Retro Red"
+#role_color_lullaby_lavender
+role_color_lullaby_lavender_id:  0x1005
+0x1005:                          "Lullaby Lavender"
+#role_color_whitey_white
+role_color_whitey_white_id:      0x1006
+0x1006:                          "Whitey White"
+#role_color_marvelous_magenta
+role_color_marvelous_magenta_id: 0x1007
+0x1007:                          "Marvelous Magenta"
+#role_color_shallow_yellow
+role_color_shallow_yellow_id:    0x1008
+0x1008:                          "Shallow Yellow"
+
+# tag (0x2000)
+#tag
+tag_id: 0x2001
+0x2001: "Tag"
+
+# custom command (0x3000)
+#custom_command
+custom_command_id: 0x3001
+0x3001:            "Custom Command"

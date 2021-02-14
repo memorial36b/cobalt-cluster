@@ -62,7 +62,7 @@ end
 
 # Economy balances data set
 DB.create_table? :econ_user_balances do
-  primary_key :transaction_id, null: false # unique auto-incrementing transaction id
+  primary_key :transaction_id, null: false # Unique auto-incrementing transaction id
   Integer :user_id, null: false            # User's ID
   Integer :timestamp, null: false          # UTC transaction timestamp
   Integer :amount, null: false             # Tranasction amount, how much was earned
@@ -78,6 +78,15 @@ end
 DB.create_table? :econ_user_checkin_time do
   Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
   Integer :checkin_timestamp                       # Last checkin UTC timestamp
+end
+
+# Economy inventory
+DB.create_table? :econ_user_inventory do
+  primary_key :entry_id, null: false        # Unique auto-incrementing used for identifying this particular item
+  Integer     :owner_user_id, null: false   # User ID of the owner
+  Integer     :item_id, null: false         # The unique identifier that determines what item it is
+  Integer     :timestamp, null: false       # The utc timestamp of when the itme was purchased/received
+  Integer     :value, null: false           # The value of the item (in Starbucks) at the time of purchase.
 end
 
 # Generic user timezone
