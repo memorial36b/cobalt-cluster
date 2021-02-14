@@ -193,4 +193,19 @@ module Bot::Inventory
   def GetInventoryValue(user_id)
     return USER_INVENTORY.where(owner_user_id: user_id).sum(:value)
   end
+
+  # Get list of users that have an inventory.
+  # @return [Array<Integer>] Array of user ids.
+  #
+  # Note: Easy way to iterate over all user's inventories.
+  def GetUsersWithInventory()
+    users = DB["SELECT DISTINCT owner_user_id FROM econ_user_inventory"]
+
+    array = []
+    users.all.each do |user|
+      array.push(user[:owner_user_id])
+    end
+
+    return array
+  end
 end
