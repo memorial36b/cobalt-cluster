@@ -1,7 +1,7 @@
 # Module: Inventory
 
 # Fields should match database
-class Item
+class InventoryItem
   # Construct a new item.
   def initialize(hash)
     @entry_id = hash[:entry_id]
@@ -200,8 +200,23 @@ module Bot::Inventory
     return AddItem(user_id, item_id, expiration)
   end
 
+  # Push back the expiration date on a given item by it's lifetime.
+  # @param [Integer] entry_id the item to renew
+  # @param [bool] Success? Returns false if non-renewable or not found
+  def RenewItem(entry_id)
+    item = USER_INVENTORY.where(entry_id: entry_id)
+    return false if item == nil || item.first == nil || item.first[:expiration] == nil
+
+    lifetime = GetItemLifetime(item.first[:item_id])
+    return false if lifetime == nil
+
+    new_expiration = (Time.at(item.first[:expiration]).to_datetime + lifetime).to_time.to_i
+    item.update(expiration: new_expiration)
+    return true
+  end
+
   # Remove the specified item from inventory.
-  # @param [Integer] remove the specified item.
+  # @param [Integer] entry_id the item to remove
   # @return [bool] Success?
   def RemoveItem(entry_id)
     USER_INVENTORY.where(entry_id: entry_id).delete
@@ -222,7 +237,7 @@ module Bot::Inventory
     inventory = []
     
     items.each do |item|
-      inventory.push(Item.new(item))
+      inventory.push(InventoryItem.new(item))
     end
 
     return inventory

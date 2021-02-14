@@ -155,7 +155,9 @@ module Bot::Economy
       # see if they can afford to renew, remove the role otherwise
       owner = DiscordUser.new(role_item.owner_user_id)
       role_maintain_cost = Bot::Bank::AppraiseItem('rentarole_maintain')
-      if not Bot::Bank::Withdraw(owner.id, role_maintain_cost)
+      if Bot::Bank::Withdraw(owner.id, role_maintain_cost)
+        Bot::Inventory::RenewItem(role_item.entry_id)
+      else 
         role_id = GetRoleForItemID(role_item.item_id)
         owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role!")
         Bot::Inventory::RemoveItem(role_item.entry_id)
