@@ -718,12 +718,12 @@ module Bot::Economy
 
   GETINVENTORY_COMMAND_NAME = "getinventory"
   GETINVENTORY_DESCRIPTION = "Get the user's complete inventory."
-  GETINVENTORY_ARGS = [["user", DiscordUser]]
+  GETINVENTORY_ARGS = [["user", DiscordUser], ["item_type", Integer]]
   GETINVENTORY_REQ_COUNT = 0
   command :getinventory do |event, *args|
     break unless Convenience::IsUserDev(event.user.id)
 
-    opt_defaults = [event.user.id]
+    opt_defaults = [event.user.id, -1]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
       GETINVENTORY_COMMAND_NAME,
@@ -735,7 +735,10 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     user = parsed_args["user"]
-    items = Bot::Inventory::GetInventory(user.id)
+    item_type = parsed_args["item_type"]
+    item_type = item_type > 0 ? item_type : nil
+    
+    items = Bot::Inventory::GetInventory(user.id, item_type)
     response = "#{user.full_username} inventory:\n"
     items.each do |item|
       response += "#{item.ui_name}\n"
