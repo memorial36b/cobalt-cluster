@@ -15,9 +15,9 @@ richest: 0              # see leaderboard: no cost
 #transfermoney: var     # transfer points, variable cost defined by user
 
 # role renting
-rentarole_initial: 300  # initial rent-a-role cost
+rentarole_color: 300    # initial color rent-a-role cost
+rentarole_override: 150 # initial override role rent-a-role cost
 rentarole_maintain: 200 # rent-a-role daily maintenance cost
-rentarole_override: 150 # override role cost ?? not sure what this is
 unrentarole: 0          # remove rented role
 
 # tags, max one at a time

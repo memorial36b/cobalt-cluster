@@ -22,7 +22,7 @@ module Bot::Bank
   # { transaction_id, user_id, timestamp, amount }
   USER_BALANCES = DB[:econ_user_balances]
 
-  # Path to crystal's data folder
+  # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
 
   module_function

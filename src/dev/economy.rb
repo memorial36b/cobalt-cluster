@@ -690,6 +690,87 @@ module Bot::Economy
     event.respond "Last checkin time cleared for #{parsed_args["user"].full_username}"
   end
 
+  ADDITEM_COMMAND_NAME = "additem"
+  ADDITEM_DESCRIPTION = "Give the user the specified item."
+  ADDITEM_ARGS = [["item", String], ["user", DiscordUser]]
+  ADDITEM_REQ_COUNT = 1
+  command :additem do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      ADDITEM_COMMAND_NAME,
+      ADDITEM_DESCRIPTION,
+      ADDITEM_ARGS,
+      ADDITEM_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    item_name = parsed_args["item"]
+    if Bot::Inventory::AddItem(parsed_args["user"].id, item_name)
+      event.respond "#{item_name} added!"
+    else
+      event.repond "Item '#{item_name}' not recognized."
+    end
+  end
+
+  GETINVENTORY_COMMAND_NAME = "getinventory"
+  GETINVENTORY_DESCRIPTION = "Get the user's complete inventory."
+  GETINVENTORY_ARGS = [["user", DiscordUser]]
+  GETINVENTORY_REQ_COUNT = 0
+  command :getinventory do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      GETINVENTORY_COMMAND_NAME,
+      GETINVENTORY_DESCRIPTION,
+      GETINVENTORY_ARGS,
+      GETINVENTORY_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    user = parsed_args["user"]
+    items = Bot::Inventory::GetInventory(user.id)
+    response = "#{user.full_username} inventory:\n"
+    items.each do |item|
+      response += "#{item.ui_name}\n"
+    end
+
+    event.respond response
+  end
+
+  CLEARINVENTORY_COMMAND_NAME = "clearinventory"
+  CLEARINVENTORY_DESCRIPTION = "Get the user's complete inventory."
+  CLEARINVENTORY_ARGS = [["user", DiscordUser]]
+  CLEARINVENTORY_REQ_COUNT = 0
+  command :clearinventory do |event, *args|
+    break unless Convenience::IsUserDev(event.user.id)
+
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      GETINVENTORY_COMMAND_NAME,
+      GETINVENTORY_DESCRIPTION,
+      GETINVENTORY_ARGS,
+      GETINVENTORY_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    user = parsed_args["user"]
+    items = Bot::Inventory::GetInventory(user.id)
+    items.each do |item|
+      Bot::Inventory::RemoveItem(item.entry_id)
+    end
+
+    event.respond "#{user.full_username}'s inventory was cleared"
+  end
+
   # econ dummy command, does nothing lazy cleanup devs only
   command :econdummy do |event|
     break unless Convenience::IsUserDev(event.user.id)

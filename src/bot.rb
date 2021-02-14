@@ -75,6 +75,7 @@ module Bot
   # load helper modules that require db after lib is loaded
   load 'timezone.rb'
   load 'bank.rb'
+  load 'inventory.rb'
 
   puts 'Done.'
 
