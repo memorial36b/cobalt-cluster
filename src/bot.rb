@@ -73,9 +73,10 @@ module Bot
   end
   
   # load helper modules that require db after lib is loaded
-  load 'timezone.rb'
-  load 'bank.rb'
-  load 'inventory.rb'
+  Dir['../helper/*.rb'].each do |path| 
+    load path
+    puts "+ Loaded file #{path[3..-1]}"
+  end
 
   puts 'Done.'
 
