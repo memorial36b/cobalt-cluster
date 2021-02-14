@@ -67,15 +67,32 @@ module Bot::Economy
 
   # Determine how long the user has to wait until their next checkin.
   # Formats as string as so:
-  # if >1 hour: # of hours
+  # if >1 hour: # of hours, #
   # if >1 minute: # of minutes
   # if >1 second: # of seconds
   def self.GetTimeUntilNextCheckinString(user_id)
     seconds = GetTimeUntilNextCheckin(user_id)
-    return "#{seconds / (60*60)} hours" if seconds > 60*60
-    return "#{seconds / 60} minutes" if seconds > 60
-    return "#{seconds} seconds" if seconds > 0
-    return "now"
+    
+    return "now" if seconds <= 0
+
+    msg = ""
+    if seconds > 60*60
+      hours = seconds / (60*60)
+      msg = "#{hours}h, " 
+      seconds -= (hours*60*60)
+    end
+
+    if seconds > 60
+      minutes = seconds / 60
+      msg += "#{minutes}m, "
+      seconds -= (minutes*60)
+    end
+    
+    if seconds > 0  
+      msg += "#{seconds}s, "
+    end
+
+    return msg[0..-3]
   end
 
   ###########################
