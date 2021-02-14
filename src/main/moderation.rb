@@ -1304,6 +1304,9 @@ module Bot::Moderation
 
   # Spam protection; deletes messages if user sends too many too fast
   message do |event|
+    # Breaks unless the event comes from SVTFOD (i.e. a user has joined SVTFOD)
+    next unless event.server == SERVER
+
     # Skips unless the channel is not #bot_games and a user has triggered the spam filter
     next unless (event.channel.id != BOT_GAME_CHANNEL_ID) && SPAM_FILTER_BUCKET.rate_limited?(event.user.id)
 
@@ -1318,6 +1321,9 @@ module Bot::Moderation
 
   # Blacklist; deletes message if it contains a blacklisted word
   message do |event|
+    # Breaks unless the event comes from SVTFOD (i.e. a user has joined SVTFOD)
+    next unless event.server == SERVER
+    
     # Skips if message is in #moderation_channel, user is moderator, user is Owner, or user has COBALT'S MOMMY Role (this exception only exists so it's possible to promote the test server in the future)
     next if event.channel.id == MODERATION_CHANNEL_CHANNEL_ID || event.user.role?(COBALT_MOMMY_ROLE_ID) || event.user.id == OWNER_ID || event.user.role?(COBALT_MOMMY_ROLE_ID)
 

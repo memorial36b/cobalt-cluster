@@ -123,7 +123,7 @@ module Bot::Economy
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
     when Bot::Inventory::GetItemID('role_override_bearer')
       role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
-    else 
+    else
       raise ArgumentError, "Invalid role received from inventory!"
       return nil
     end
@@ -152,6 +152,7 @@ module Bot::Economy
 
       owner = DiscordUser.new(user_id)
       removed_items = []
+      name_override = {} # display a custom item name
       inventory.each do |item|
         # skip if the item doesn't or hasn't expired
         next unless item.expiration != nil && Time.now.to_i >= item.expiration
@@ -179,15 +180,29 @@ module Bot::Economy
 
           # perform necessary cleanup now that they don't own it
           case item.item_type
+          
+          #############################
+          ## Roles
           when Bot::Inventory::GetValueFromCatalogue('item_type_role_override'),
                Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
             # remove role if they have it
-              role_id = GetRoleForItemID(item.item_id)
-              owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
+            role_id = GetRoleForItemID(item.item_id)
+            owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
+          
+          #############################
+          ## Tags
           when Bot::Inventory::GetValueFromCatalogue('item_type_tag')
-            # TODO: Remove tag
+            tag = Bot::Tags::GetTagByItemEntryID(item.entry_id)
+            Bot::Tags::RemoveTagByItemEntryID(item.entry_id) if tag != nil
+            name_override[item.entry_id] = tag.tag_name
+
+          #############################
+          ## Custom Command
           when Bot::Inventory::GetValueFromCatalogue('item_type_custom_command')
             # TODO: Remove custom command
+          
+          #############################
+          ## Error: Unhandled
           else
             puts "Unhandled item type (#{item.item_type}) encountered when removing after failing to renew!"
             next # continue onto valid items
@@ -216,6 +231,10 @@ module Bot::Economy
 
             item_ui_name = item.ui_name
             item_ui_name = item_ui_name.nil? ? "ITEM NAME NOT FOUND (#{item.item_id})" : item_ui_name
+
+            if name_override[item.entry_id] != nil
+              item_ui_name = "#{name_override[item.entry_id]}"
+            end
 
             embed.add_field(
               name: type_ui_name,
@@ -663,13 +682,201 @@ module Bot::Economy
   end
 
   # custom tag management
+  # manual parameter parsing
+  TAG_COMMAND_NAME = "tag"
+  TAG_DESCRIPTION = "Manage custom tags that send a specific message when invoked."
+  TAG_ARGS = [["action", String], ["tag_name", String]]
+  TAG_REQ_COUNT = 1
   command :tag do |event, *args|
-  	Bot::Bank::CleanAccount(event.user.id)
-    
-    puts "tag"
-  	#add
-  	#delete
-  	#edit
+    opt_defaults = [""]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      TAG_COMMAND_NAME,
+      TAG_DESCRIPTION,
+      TAG_ARGS,
+      TAG_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    # assume they're trying to use spacs
+    if args.count > TAG_ARGS.count
+      event.respond "Sorry, tag names don't support spaces!"
+      break
+    end
+
+    # clean account before proceeding
+    Bot::Bank::CleanAccount(event.user.id)
+
+    # actions and tag names always parsed in lower case
+    action = parsed_args['action'].downcase
+    tag_name = parsed_args['tag_name'].downcase
+
+    # shared variables
+    tag_content_max_length = Bot::Tags::GetMaxTagContentLength()
+    tag_config_msg = "What would you like your tag to say? Limited to #{tag_content_max_length} characters."
+    tag_config_timeout = Bot::Tags::GetTagResponseTimeout()
+      
+    case action
+    #############################
+    ## ADD
+    when "add"
+      tag_name_max_length = Bot::Tags::GetMaxTagNameLength()
+      if tag_name.length > tag_name_max_length
+        event.respond "Sorry, the tag name you gave is too long. Names are limited to #{tag_name_max_length} characters."
+        break
+      end
+
+      if Bot::Tags::HasTag(tag_name)
+        event.respond "Sorry, that tag already exists!"
+        break
+      end
+
+      # only charge after they create it
+      tag_cost = Bot::Bank::AppraiseItem('tag_add')
+      if Bot::Bank::GetBalance(event.user.id) < tag_cost
+        event.respond "Sorry, you can't afford a new tag!"
+        break
+      end
+
+      # send a temporary message telling user to check dms
+      event.channel.send_temporary_message(
+        "#{event.user.mention} check you DMs to setup your tag!",
+        30 # seconds
+      )
+
+      # dm the user to setup tag
+      event.user.dm.send_message(tag_config_msg) # internal issue when calling await! on message
+      response = event.user.dm.await!({timeout: tag_config_timeout})
+
+      # check if it timed out
+      if response.message == nil || response.message.content.empty?
+        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new tag has been cancelled. You have not been charged.")
+        break
+      end
+
+      user = response.user
+
+      # validate length
+      tag_content = response.message.content
+      if tag_content.length > tag_content_max_length
+        user.dm.send_message("Sorry, your tag message was too long! Please try something shorter.")
+        break
+      end
+
+      # store tag, charge user
+      tag_item = Bot::Inventory::AddItemByName(user.id, 'tag')
+      if tag_item == nil
+        user.dm.send_message("Sorry, an unknown error occurred and your tag could not be created. Please contact a developer.")
+        break
+      end
+
+      if not Bot::Tags::AddTag(tag_name, tag_item.entry_id, user.id, tag_content)
+        user.dm.send_message("Sorry, a tag named #{tag_name} was created while you were configuring your tag!")
+        Bot::Inventory::RemoveItem(tag_item.entry_id)
+        break
+      end
+
+      # double check if they're trying to pulls some shit by having two devices
+      if not Bot::Bank::Withdraw(user.id, tag_cost)
+        # DM them for being a jerk and remove tag
+        user.dm.send_message("Sorry, you can't afford a new tag!")
+        Bot::Tags::RemoveTagByItemEntryID(tag_item.entry_id)
+        Bot::Inventory::RemoveItem(tag_item.entry_id)
+        break
+      end
+      
+      # all went well!
+      event.respond "#{user.mention}, you have created the tag #{tag_name}!"
+
+    #############################
+    ## EDIT
+    when "edit"
+      if not Bot::Tags::HasTag(tag_name)
+        event.respond "Sorry, I couldn't find that tag!"
+        break
+      end
+
+      # make sure the user owns the tag
+      tag = Bot::Tags::GetTag(tag_name)
+      if tag == nil || tag.owner_user_id != event.user.id
+        event.respone "Sorry, you can only edit tags that you own!"
+        break
+      end
+
+      # only charge after they edit it
+      edit_cost = Bot::Bank::AppraiseItem('tag_edit')
+      if Bot::Bank::GetBalance(event.user.id) < edit_cost
+        event.respond "Sorry, you can't afford to edit a tag right now!"
+        break
+      end
+
+      # send a temporary message telling user to check dms
+      event.channel.send_temporary_message(
+        "#{event.user.mention} check you DMs to setup your tag!",
+        30 # seconds
+      )
+
+      # dm the user to edit tag
+      event.user.dm.send_message(tag_config_msg) # internal issue when calling await! on message
+      response = event.user.dm.await!({timeout: tag_config_timeout})
+
+      # check if it timed out
+      if response.message == nil || response.message.content.empty?
+        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new tag has been cancelled. You have not been charged.")
+        break
+      end
+
+      user = response.user
+
+      # validate length
+      tag_content = response.message.content
+      if tag_content.length > tag_content_max_length
+        user.dm.send_message("Sorry, your tag message was too long! Please try something shorter.")
+        break
+      end
+
+      # double check if they're trying to pulls some shit by having two devices
+      if not Bot::Bank::Withdraw(user.id, edit_cost)
+        # DM them for being a jerk and remove tag
+        user.dm.send_message("Sorry, you can't to edit a tag!")
+        break
+      end
+      
+      # update tag, validate
+      if not Bot::Tags::EditTag(tag_name, user.id, tag_content)
+        user.dm.send_message("Sorry, an error occurred and #{tag_name} could not be edited!")
+        break
+      end
+
+      # all went well!
+      event.respond "#{user.mention}, you have updated the tag #{tag_name}!"
+
+    #############################
+    ## DELETE
+    when "delete"
+      tag = Bot::Tags::GetTag(tag_name)
+      if not Bot::Tags::RemoveTag(tag_name, event.user.id)
+        event.respond "Sorry, I couldn't find that tag or you don't own it!"
+        break
+      end
+
+      Bot::Inventory::RemoveItem(tag.item_entry_id)
+      event.respond "Tag #{tag_name} has been removed!"
+
+    #############################
+    ## DISPLAY TAG
+    else # user is trying to invoke a tag!
+      # find tag
+      user_tag = Bot::Tags::GetTag(action)
+      if user_tag == nil
+        event.respond "Sorry, I didn't recognize the tag #{user_tag}"
+        break
+      end
+
+      # send message
+      event.respond user_tag.tag_content
+    end
   end
 
   # custom command mangement
@@ -973,7 +1180,7 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     item_name = parsed_args["item"]
-    if Bot::Inventory::AddItemByName(parsed_args["user"].id, item_name)
+    if Bot::Inventory::AddItemByName(parsed_args["user"].id, item_name) != nil
       event.respond "#{item_name} added!"
     else
       event.repond "Item '#{item_name}' not recognized."
