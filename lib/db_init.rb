@@ -90,6 +90,14 @@ DB.create_table? :econ_user_inventory do
   Integer     :value, null: false           # The value of the item (in Starbucks) at the time of purchase.
 end
 
+# Economy tags
+DB.create_table? :econ_user_tags do
+  String  :tag_name, null: false, primary_key: true # The name of the tag, must be unique
+  Integer :item_entry_id, null: false, unique: true # Associated item entry in econ_user_inventory
+  Integer :owner_user_id, null: false               # User ID of the owner
+  String  :tag_content, null: false                 # The tag's message content
+end
+
 # Generic user timezone
 DB.create_table? :user_timezone do
   Integer :user_id, null: false, primary_key: true # User's ID, unique primary key

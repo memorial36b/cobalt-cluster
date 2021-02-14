@@ -182,7 +182,7 @@ module Bot::Inventory
   # Add an item to the user's inventory.
   # @param [Integer] user_id user id
   # @param [Integer] item_id item id
-  # @return [bool] Success?
+  # @return [InventoryItem] Added item.
   def AddItem(user_id, item_id)
     owner_user_id = user_id
     timestamp = Time.now.to_i
@@ -196,24 +196,33 @@ module Bot::Inventory
     end
 
     # add item
-    USER_INVENTORY << { owner_user_id: owner_user_id, item_id: item_id, timestamp: timestamp, expiration: expiration, value: value }
-    return true
+    entry_id = USER_INVENTORY.insert(
+      owner_user_id: owner_user_id,
+      item_id: item_id,
+      timestamp: timestamp,
+      expiration: expiration,
+      value: value
+    )
+
+    item = USER_INVENTORY[entry_id: entry_id]
+    return nil if item == nil
+
+    return InventoryItem.new(item)
   end
   
   # Add an item to the user's inventory by name.
   # @param [Integer] user_id    user id
   # @param [String]  item_name  name of the item in catalogue.yml
-  # @param [Integer] expiration when the item expires
-  # @return [bool] Success?
-  def AddItemByName(user_id, item_name, expiration = nil)
+  # @return [InventoryItem] Added item or nil if it could not be added.
+  def AddItemByName(user_id, item_name)
     # aggregate item information
     item_id = GetItemID(item_name)
     if item_id == nil
       raise ArgumentError, "Invalid item name specified #{item_name}!"
-      return false
+      return nil
     end
 
-    return AddItem(user_id, item_id, expiration)
+    return AddItem(user_id, item_id)
   end
 
   # Push back the expiration date on a given item by it's lifetime.
