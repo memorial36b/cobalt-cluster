@@ -74,6 +74,13 @@ module Bot::Inventory
     return YAML.load_data!("#{ECON_DATA_PATH}/catalogue.yml")
   end
 
+  # Get a generic value from the catalogue.
+  # @param [Generic] key
+  # @return [Generic] value or nil if not found.
+  def GetValueFromCatalogue(key)
+    return GetCatalogue()[key]
+  end
+
   # Get the item's unique id from the name.
   # @param [String] item_name Item's name as specified in catalogue.yaml
   # @return [Integer] Item id. Nil if not found.
@@ -136,20 +143,13 @@ module Bot::Inventory
     item_id = GetItemID(item_name)
     return GetCatalogue()[item_id]
   end
-  
+
   # Add an item to the user's inventory.
   # @param [Integer] user_id    user id
-  # @param [String]  item_name  name of the item in catalogue.yml
+  # @param [Integer]  item_id   item id
   # @param [Integer] expiration when the item expires
   # @return [bool] Success?
-  def AddItem(user_id, item_name, expiration = nil)
-    # aggregate item information
-    item_id = GetItemID(item_name)
-    if item_id == nil
-      raise ArgumentError, "Invalid item name specified #{item_name}!"
-      return false
-    end
-
+  def AddItem(user_id, item_id, expiration = nil)
     owner_user_id = user_id
     timestamp = Time.now.to_i
     value = GetItemValueFromID(item_id)
@@ -157,6 +157,22 @@ module Bot::Inventory
     # add item
     USER_INVENTORY << { owner_user_id: owner_user_id, item_id: item_id, timestamp: timestamp, expiration: expiration, value: value }
     return true
+  end
+  
+  # Add an item to the user's inventory by name.
+  # @param [Integer] user_id    user id
+  # @param [String]  item_name  name of the item in catalogue.yml
+  # @param [Integer] expiration when the item expires
+  # @return [bool] Success?
+  def AddItemByName(user_id, item_name, expiration = nil)
+    # aggregate item information
+    item_id = GetItemID(item_name)
+    if item_id == nil
+      raise ArgumentError, "Invalid item name specified #{item_name}!"
+      return false
+    end
+
+    return AddItem(user_id, item_id, expiration)
   end
 
   # Remove the specified item from inventory.
