@@ -454,17 +454,17 @@ module Bot::Economy
         inline: true
       )
 
-      tags = Bot::Tags::GetAllUserTags(user.id)
+      tag_count = Bot::Tags::GetUserTagCount(user.id)
       embed.add_field(
         name: "Tags",
-        value: tags.count,
+        value: tag_count,
         inline: true
       )
 
-      commands = Bot::CustomCommands::GetAllUserCustomCommands(user.id)
+      command_count = Bot::CustomCommands::GetUserCustomCommandCount(user.id)
       embed.add_field(
         name: "Commands",
-        value: commands.count,
+        value: command_count,
         inline: true
       )
     end
