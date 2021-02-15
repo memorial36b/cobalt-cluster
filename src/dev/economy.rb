@@ -909,28 +909,21 @@ module Bot::Economy
         break
       end
 
-      # dm the user a list of their tags
-      # todo: account for more than 25 tags which will overflow max field count (25)
-      event.user.dm.send_embed do |embed|
-        embed.author = {
-            name: STRING_BANK_NAME,
-            icon_url: IMAGE_BANK
-        }
-
-        tag_text = pl(tags.count, "tag")
-        embed.color = COLOR_EMBED
-        embed.title = "You have #{tag_text}"
-        embed.description = "The following are all of your tags and their content."
-
-        # add a field for each tag, all inline, it should wrap as necessary
-        tags.each do |tag|
-          embed.add_field(
-            name: tag.tag_name,
-            value: tag.tag_content,
-            inline: true
-          )
-        end         
-      end
+      # paginate results
+      filtered_data = Bot::Tags::USER_TAGS.where(owner_user_id: event.user.id)
+      Paginator.new(
+        event.user.dm,                                    # channel
+        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
+        "Your Tags",                                      # embed_title
+        "You own #{pl(tags.count, "tag")}",               # embed_description
+        { url: event.user.avatar_url },                   # embed_thumbnail
+        filtered_data,                                    # dataset
+        :tag_name,                                        # query_column
+        true,                                             # force_queries_lowercase 
+        Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
+        # initial query: nil
+        # results_per_page: default
+      ).run()
 
     #############################
     ## LIST TAGS
@@ -942,28 +935,43 @@ module Bot::Economy
         break
       end
 
-      # dm the user a list of every tag
-      event.user.dm.send_embed do |embed|
-        embed.author = {
-            name: STRING_BANK_NAME,
-            icon_url: IMAGE_BANK
-        }
+      # paginate results
+      Paginator.new(
+        event.user.dm,                                    # channel
+        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
+        "Server Tags",                                    # embed_title
+        "The server has #{pl(tags.count, "tag")}.",       # embed_description
+        { url: SERVER.icon_url },                         # embed_thumbnail
+        Bot::Tags::USER_TAGS,                             # dataset
+        :tag_name,                                        # query_column
+        true,                                             # force_queries_lowercase
+        Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
+        # initial query: nil
+        # results_per_page: default
+      ).run()
 
-        tag_text = pl(tags.count, "tag")
-        is_are = tags.count > 1 ? "are" : "is"
-        embed.color = COLOR_EMBED
-        embed.title = "There #{is_are} #{tag_text}"
-        embed.description = "These are all of the tags on the server."
-
-        # add a field for each tag, all inline, it should wrap as necessary
-        tags.each do |tag|
-          embed.add_field(
-            name: tag.tag_name,
-            value: tag.tag_content,
-            inline: true
-          )
-        end         
-      end
+#      # dm the user a list of every tag
+#      event.user.dm.send_embed do |embed|
+#        embed.author = {
+#            name: STRING_BANK_NAME,
+#            icon_url: IMAGE_BANK
+#        }
+#
+#        tag_text = pl(tags.count, "tag")
+#        is_are = tags.count > 1 ? "are" : "is"
+#        embed.color = COLOR_EMBED
+#        embed.title = "There #{is_are} #{tag_text}"
+#        embed.description = "These are all of the tags on the server."
+#
+#        # add a field for each tag, all inline, it should wrap as necessary
+#        tags.each do |tag|
+#          embed.add_field(
+#            name: tag.tag_name,
+#            value: tag.tag_content,
+#            inline: true
+#          )
+#        end         
+#      end
 
     #############################
     ## DISPLAY TAG
@@ -1177,28 +1185,22 @@ module Bot::Economy
         break
       end
 
-      # dm the user a list of their commands
-      # todo: account for more than 25 commands which will overflow max field count (25) 
-      event.user.dm.send_embed do |embed|
-        embed.author = {
-            name: STRING_BANK_NAME,
-            icon_url: IMAGE_BANK
-        }
-
-        command_text = pl(commands.count, "command")
-        embed.color = COLOR_EMBED
-        embed.title = "You have #{command_text}"
-        embed.description = "The following are all of your custom commands and their content."
-
-        # add a field for each command, all inline, it should wrap as necessary
-        commands.each do |command|
-          embed.add_field(
-            name: command.command_name,
-            value: command.command_content,
-            inline: true
-          )
-        end         
-      end
+      # paginate results
+      filtered_data = Bot::CustomCommands::USER_CUSTOM_COMMANDS
+        .where(owner_user_id: event.user.id)
+      Paginator.new(
+        event.user.dm,                                    # channel
+        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
+        "Your Custom Commands",                           # embed_title
+        "You own #{pl(commands.count, "command")}",           # embed_description
+        { url: event.user.avatar_url },                   # embed_thumbnail
+        filtered_data,                                    # dataset
+        :command_name,                                    # query_column
+        true,                                             # force_queries_lowercase 
+        Bot::CustomCommands::COMMAND_HASH_TO_PAGINATOR_FIELD_LAMBDA # row_hash_to_field_Lambda
+        # initial query: nil
+        # results_per_page: default
+      ).run()
     end
   end
 
@@ -1570,5 +1572,53 @@ module Bot::Economy
 
     Bot::Bank::CleanAccount(event.user.id)
     event.respond "Database cleaned for #{event.user.username}##{event.user.discriminator}"
+  end
+
+  command :oodlesoftags do |event|
+    break unless Convenience::IsUserDev(event.user.id)
+    counter = 0
+    (100...110).each do |user_id|
+      # prevent expiration
+      if Bot::Bank::GetBalance(user_id) <= 0
+        Bot::Bank::Deposit(user_id, 10000)
+      end
+
+      # add garbage tags
+      (0...50).each do |count|
+        counter += 1
+        tag_name = (0...10).map { (65 + rand(26)).chr }.join
+        tag_content = "content #{counter}"
+        next if Bot::Tags::HasTag(tag_name)
+        
+        item = Bot::Inventory::AddItemByName(user_id, 'tag')
+        Bot::Tags::AddTag(tag_name, item.entry_id, user_id, tag_content)
+      end
+    end
+
+    return "done"
+  end
+
+  command :oodlesofcommands do |event|
+    break unless Convenience::IsUserDev(event.user.id)
+    counter = 0
+    user_id = event.user.id
+    
+    # prevent expiration
+    if Bot::Bank::GetBalance(user_id) <= 10000000
+      Bot::Bank::Deposit(user_id, 10000000)
+    end
+
+    # add garbage tags
+    (0...500).each do |count|
+      counter += 1
+      command_name = (0...10).map { (65 + rand(26)).chr }.join
+      command_content = "longer command content is long don't you think? #{counter}"
+      next if Bot::CustomCommands::HasCustomCommand(command_name, user_id)
+      
+      item = Bot::Inventory::AddItemByName(user_id, 'custom_command')
+      Bot::CustomCommands::AddCustomCommand(command_name, user_id, item.entry_id, command_content)
+    end
+
+    return "done" 
   end
 end

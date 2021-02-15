@@ -155,6 +155,36 @@ module Convenience
   end
   alias_method(:u!, :unsigned_not)
 
+  # Get the minimum value.
+  # When equal, a is selected.
+  # @param [Comparable] a first value
+  # @param [Comparable] b second value
+  # @return min of a and b 
+  def min_of(a, b)
+    return a <= b ? a : b
+  end
+  alias_method(:min, :min_of)
+
+  # Get the minimum value.
+  # When equal, a is selected.
+  # @param [Comparable] a first value
+  # @param [Comparable] b second value
+  # @return max of a and b
+  def max_of(a, b)
+    return a >= b ? a : b
+  end
+  alias_method(:max, :max_of)
+
+  # Clamp a between b and c.
+  # @param [Comparable] a value to clamp
+  # @param [Comparable] b min value
+  # @param [Comparable] c max value (inclusive)
+  # @return [Comparable] a clamped between b and c 
+  def clamp_of(a, b, c)
+    return max(min(a, c), b)
+  end
+  alias_method(:clamp, :clamp_of)
+
   # Check if the specified user is a developer.
   # @param [Integer] user_id user id.
   # @return [bool] Is the user a developer?
