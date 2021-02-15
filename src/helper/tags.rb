@@ -75,7 +75,7 @@ module Bot::Tags
   # @return [bool] Success? Returns false if tag already exists or name/content is too long.
   # Note: Must link to a created item.
   def AddTag(tag_name, item_entry_id, owner_user_id, tag_content)
-    return false if tag_name.length > GetMaxTagNameLength() or tag_content.length > GetMaxTagContentLength()
+    return false if tag_name.length <= 0 or tag_name.length > GetMaxTagNameLength() or tag_content.length > GetMaxTagContentLength()
     return false if USER_TAGS.where(tag_name: tag_name).count() > 0
 
     # will raise error on invalid content
