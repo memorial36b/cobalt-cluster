@@ -933,6 +933,8 @@ module Bot::Economy
     #############################
     ## DISPLAY TAG
     else # user is trying to invoke a tag!
+      next unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
+      
       # find tag
       user_tag = Bot::Tags::GetTag(action)
       if user_tag == nil
