@@ -50,6 +50,14 @@ class Paginator
   # How long in seconds to wait for a response before assuming query is dead.
   PAGINATOR_TIMEOUT = 3*60
 
+  # Limits the number of commands per second to avoid use getting in
+  # trouble with discord.
+  PAGINATOR_BUCKET = Bot::BOT.bucket(
+      :paginator_bucket,
+      limit:     1, # count per
+      time_span: 2  # seconds
+  )
+
   # Additional Member Variables:
   # [Integer]            @current_page_index   The currently displayed page index, which is used to compute offset.
   # [Integer]            @query_result_count   The total number of results for the current query.
@@ -58,6 +66,7 @@ class Paginator
 
   # Construct a new Paginator.
   # @param [Discordrb::Channel] channel                  The channel to paginate results on.
+  # @param [Integer]            user_id                  The user performing the query.
   # @param [Hash]               embed_author             Results page author.
   # @param [String]             embed_title              Results page title.
   # @param [String]             embed_description        Results page description.
@@ -68,11 +77,12 @@ class Paginator
   # @param [Lambda]             row_hash_to_field_lambda A lambda that converts result table hashes to PaginatorFields.
   # @param [String]             initial_query            The initial query to start with, nil means no filter.
   # @param [Integer]            results_per_page         The number of results to display per page.
-  def initialize(channel, embed_author, embed_title, embed_description, 
+  def initialize(channel, user_id, embed_author, embed_title, embed_description, 
                  embed_thumbnail, dataset, query_column, force_queries_lowercase, 
                  row_hash_to_field_lambda, initial_query = nil, 
                  results_per_page = DEFAULT_RESULTS_PER_PAGE)
     @channel                  = channel
+    @user_id                  = user_id
     @embed_author             = embed_author
     @embed_title              = embed_title
     @embed_description        = embed_description
@@ -111,7 +121,7 @@ class Paginator
   protected
   # Perform current query from current offset and store results.
   # @return [Array<Hash>] The results.
-  def query()    
+  def query()
     # collect query data
     query_data = nil
     if @current_query == nil || @current_query.empty?
@@ -143,6 +153,13 @@ class Paginator
       rescue
         # insufficient permissions
       end
+    end
+
+    # make sure discord isn't about to yell at us
+    if (rate_limit = PAGINATOR_BUCKET.rate_limited?(@user_id))
+      msg = "**Sorry, we need to wait or Discord will get mad!** Wait for #{rate_limit.ceil}s."
+      @channel.send_temporary_message(msg, 5)
+      sleep 2
     end
 
     # send message
