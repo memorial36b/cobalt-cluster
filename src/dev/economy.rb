@@ -901,79 +901,6 @@ module Bot::Economy
       event.respond "Tag #{tag_name} has been removed!"
 
     #############################
-    ## LIST TAGS
-    when "list"
-      tags = Bot::Tags::GetAllUserTags(event.user.id)
-      if tags.count <= 0
-        event.respond "Sorry, you don't own any tags."
-        break
-      end
-
-      # paginate results
-      filtered_data = Bot::Tags::USER_TAGS.where(owner_user_id: event.user.id)
-      Paginator.new(
-        event.user.dm,                                    # channel
-        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
-        "Your Tags",                                      # embed_title
-        "You own #{pl(tags.count, "tag")}",               # embed_description
-        { url: event.user.avatar_url },                   # embed_thumbnail
-        filtered_data,                                    # dataset
-        :tag_name,                                        # query_column
-        true,                                             # force_queries_lowercase 
-        Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
-        # initial query: nil
-        # results_per_page: default
-      ).run()
-
-    #############################
-    ## LIST TAGS
-    when "listall"
-      # todo: account for more than 25 tags which will overflow max field count (25)
-      tags = Bot::Tags::GetAllTags()
-      if tags.count <= 0
-        event.respond "Sorry, there are no tags on the server."
-        break
-      end
-
-      # paginate results
-      Paginator.new(
-        event.user.dm,                                    # channel
-        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
-        "Server Tags",                                    # embed_title
-        "The server has #{pl(tags.count, "tag")}.",       # embed_description
-        { url: SERVER.icon_url },                         # embed_thumbnail
-        Bot::Tags::USER_TAGS,                             # dataset
-        :tag_name,                                        # query_column
-        true,                                             # force_queries_lowercase
-        Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
-        # initial query: nil
-        # results_per_page: default
-      ).run()
-
-#      # dm the user a list of every tag
-#      event.user.dm.send_embed do |embed|
-#        embed.author = {
-#            name: STRING_BANK_NAME,
-#            icon_url: IMAGE_BANK
-#        }
-#
-#        tag_text = pl(tags.count, "tag")
-#        is_are = tags.count > 1 ? "are" : "is"
-#        embed.color = COLOR_EMBED
-#        embed.title = "There #{is_are} #{tag_text}"
-#        embed.description = "These are all of the tags on the server."
-#
-#        # add a field for each tag, all inline, it should wrap as necessary
-#        tags.each do |tag|
-#          embed.add_field(
-#            name: tag.tag_name,
-#            value: tag.tag_content,
-#            inline: true
-#          )
-#        end         
-#      end
-
-    #############################
     ## DISPLAY TAG
     else # user is trying to invoke a tag!
       break unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
@@ -994,6 +921,68 @@ module Bot::Economy
       # send message
       event.respond user_tag.tag_content
     end
+  end
+
+  TAGS_COMMAND_NAME = "tags"
+  TAGS_DESCRIPTION = "Search for tags on the server or owned by a specific user. Specify mine to see yours."
+  TAGS_ARGS = [["owner_user", DiscordUser]]
+  TAGS_REQ_COUNT = 0
+  command :tags do |event, *args|
+    args[0] = event.user.id if args.length > 0 && args[0] == "mine" # special
+    opt_defaults = [event.user.id]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      TAGS_COMMAND_NAME,
+      TAGS_DESCRIPTION,
+      TAGS_ARGS,
+      TAGS_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    user = (args.nil? || args.count <= 0) ? nil : parsed_args['owner_user']
+
+    # get dataset
+    filtered_data = user.nil? ? 
+      Bot::Tags::USER_TAGS :
+      Bot::Tags::USER_TAGS.where(owner_user_id: user.id)
+
+    count = filtered_data.count
+    count = count.nil? ? 0 : count
+    if count <= 0
+      event.respond "Sorry, I couldn't find any tags!"
+      break
+    end
+
+    # generate embed inputs
+    if user.nil?
+      embed_title       = "Server Tags"
+      embed_description = "The server has #{pl(count, "tag")}."
+      embed_thumbnail   = { url: SERVER.icon_url }
+    elsif user.id == event.user.id # self
+      embed_title       = "Your Tags"
+      embed_description = "You have #{pl(count, "tag")}."
+      embed_thumbnail   = { url: user.avatar_url }
+    else
+      embed_title       = "#{user.full_username}'s Tags"
+      embed_description = "This user has #{pl(count, "tag")}."
+      embed_thumbnail   = { url: user.avatar_url }
+    end
+
+    # paginate results
+    Paginator.new(
+      event.user.dm,                                    # channel
+      { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
+      embed_title,                                      # embed_title
+      embed_description,                                # embed_description
+      embed_thumbnail,                                  # embed_thumbnail
+      filtered_data,                                    # dataset
+      :tag_name,                                        # query_column
+      true,                                             # force_queries_lowercase 
+      Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
+      # initial query: nil
+      # results_per_page: default
+    ).run()
   end
 
   # custom command mangement
@@ -1578,6 +1567,7 @@ module Bot::Economy
     break unless Convenience::IsUserDev(event.user.id)
     counter = 0
     (100...110).each do |user_id|
+      user_id = 236130487431593987
       # prevent expiration
       if Bot::Bank::GetBalance(user_id) <= 0
         Bot::Bank::Deposit(user_id, 10000)
