@@ -4,7 +4,7 @@ require 'set'
 
 # This crystal contains the portion of Cobalt's economy features that handle awarding points for activity.
 # Note: This is separate due to the expectation that it will also be extremely large.
-module Bot::EconomyEarning
+module Bot::EconomyPassive
   extend Discordrb::EventContainer
   extend Convenience
   include Constants
