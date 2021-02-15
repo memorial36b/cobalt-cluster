@@ -972,6 +972,7 @@ module Bot::Economy
     # paginate results
     Paginator.new(
       event.user.dm,                                    # channel
+      event.user.id,                                    # user_id
       { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
       embed_title,                                      # embed_title
       embed_description,                                # embed_description
@@ -1179,6 +1180,7 @@ module Bot::Economy
         .where(owner_user_id: event.user.id)
       Paginator.new(
         event.user.dm,                                    # channel
+        event.user.id,                                    # user_id
         { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
         "Your Custom Commands",                           # embed_title
         "You own #{pl(commands.count, "command")}",           # embed_description
