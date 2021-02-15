@@ -46,6 +46,13 @@ module Bot::CustomCommands
   # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
 
+  # Limits the number of custom commands per second
+  CUSTOM_COMMAND_BUCKET = Bot::BOT.bucket(
+      :custom_command_spam_filter,
+      limit:     1, # count per
+      time_span: 2  # seconds
+  )
+
   #################
   ##   EVENTS    ##
   #################
@@ -79,6 +86,12 @@ module Bot::CustomCommands
     command_name = event.message.content[command_prefix.length..-1].downcase
     next if command_name =~ /\s/ # no custom commands can have parameters or spaces
     next unless Bot::BOT.commands[command_name.to_sym] == nil
+
+    # check that user isn't spamming custom commands
+    if (rate_limit = CUSTOM_COMMAND_BUCKET.rate_limited?(event.user.id))
+      event.send_temporary_message("**Custom commands are on cooldown!** Wait for #{rate_limit.round}s.", 5)
+      next # stop processing
+    end
 
     # get and "execute" command
     command = GetCustomCommand(command_name, event.user.id)

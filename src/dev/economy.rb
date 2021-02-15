@@ -19,6 +19,13 @@ module Bot::Economy
   # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
 
+  # Limits the number of tags used per second
+  TAG_BUCKET = Bot::BOT.bucket(
+      :tag_spam_filter,
+      limit:     1, # count per
+      time_span: 2  # seconds
+  )
+
   ##########################
   ##   HELPER FUNCTIONS   ##
   ##########################
@@ -961,8 +968,14 @@ module Bot::Economy
     #############################
     ## DISPLAY TAG
     else # user is trying to invoke a tag!
-      next unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
+      break unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
       
+      # check that user isn't spamming tags
+      if (rate_limit = TAG_BUCKET.rate_limited?(event.user.id))
+        event.send_temporary_message("**Tags are on cooldown!** Wait for #{rate_limit.round}s.", 5)
+        break # stop processing
+      end
+
       # find tag
       user_tag = Bot::Tags::GetTag(action)
       if user_tag == nil
