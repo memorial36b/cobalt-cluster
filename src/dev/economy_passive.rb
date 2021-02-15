@@ -154,6 +154,7 @@ module Bot::EconomyPassive
   ##   HELPER FUNCTIONS   ##
   ##########################
   module_function
+  
   # Get the Starbucks value for the specified action.
   # @param [String] action_name The action's name.
   # @return [Integer] Startbucks earned by the action. 
