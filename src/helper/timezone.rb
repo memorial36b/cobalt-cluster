@@ -98,4 +98,22 @@ module Bot::Timezone
     wwday = today.cwday - 1
     return today - wwday
   end
+
+  # Get today in the specified timezone.
+  # @param [String] timezone_name the timezone name
+  # @return [DateTime] Today at 5:00 PM in the specified timezone.
+  def GetTodayInTimezone(timezone_name)
+    tz = TZInfo::Timezone.get(timezone_name)
+
+    # strip hours, minutes, seconds, fractional seconds
+    today = tz.now.to_datetime
+    day_offset = 
+      (today.hour) / 24.0 + 
+      (today.min / (24.0 * 60.0)) +
+      (today.sec / (24.0 * 60.0 * 60.0))
+      (today.second_fraction / (24.0 * 60.0 * 60.0))
+    today -= day_offset
+
+    return today
+  end
 end

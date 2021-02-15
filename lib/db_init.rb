@@ -107,6 +107,10 @@ DB.create_table? :econ_custom_commands do
   primary_key([:command_name, :owner_user_id])
 end
 
+# Economy raffle, each entry is a ticket
+DB.create_table? :econ_raffle do
+  Integer :user_id, null: false # The user that bought the ticket.
+end
 
 # Generic user timezone
 DB.create_table? :user_timezone do
