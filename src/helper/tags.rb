@@ -43,6 +43,17 @@ module Bot::Tags
 
   # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
+
+  # Converts tag hashes to paginator fields. 
+  TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA = lambda do |hash|
+    field_name  = hash[:tag_name] 
+    field_value = hash[:tag_content]
+
+    field_name = "_ERROR_" if field_name.nil? or field_name.empty?
+    field_value = "_ERROR_" if field_value.nil? or field_value.empty?
+
+    return PaginatorField.new(field_name, field_value)
+  end
   
   module_function
 
@@ -72,11 +83,15 @@ module Bot::Tags
   # @param [Integer] item_entry_id unique identifier of the associated item.
   # @param [Integer] owner_user_id owner user's id
   # @param [String]  tag_content   the message to send when invoked
-  # @return [bool] Success? Returns false if tag already exists or name/content is too long.
+  # @return [bool] Success? Returns false if tag already exists or name is invalid
   # Note: Must link to a created item.
   def AddTag(tag_name, item_entry_id, owner_user_id, tag_content)
     return false if tag_name.length <= 0 or tag_name.length > GetMaxTagNameLength() or tag_content.length > GetMaxTagContentLength()
+    return false if tag_name =~ /\s/ # no spaces allowed
     return false if USER_TAGS.where(tag_name: tag_name).count() > 0
+    
+    #enforce lowercase names
+    tag_name = tag_name.downcase
 
     # will raise error on invalid content
     USER_TAGS << { item_entry_id: item_entry_id, owner_user_id: owner_user_id, tag_name: tag_name, tag_content: tag_content }
@@ -161,6 +176,14 @@ module Bot::Tags
     end
 
     return tags
+  end
+
+  # Get the number of tags owned by the specified user.
+  # @param [Integer] owner_user_id user to filter by
+  # @return [Integer] number of owned tags
+  def GetUserTagCount(owner_user_id)
+    count = USER_TAGS.where(owner_user_id: owner_user_id).order(:tag_name).count
+    return count.nil? ? 0 : count
   end
 
   # Get all of the tags owned by the specified user.
