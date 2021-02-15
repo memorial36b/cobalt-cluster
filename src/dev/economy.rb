@@ -347,6 +347,7 @@ module Bot::Economy
       end
 
       # row: networth and next checkin time
+      # todo: display full networth (+ items value)
       embed.add_field(
           name: 'Networth',
           value: "#{Bot::Bank::GetBalance(user.id)} Starbucks",
@@ -403,6 +404,7 @@ module Bot::Economy
       embed.title = title
 
       # ROW 1: Balances
+      # todo display full networth (+ item values)
       embed.add_field(
           name: 'Networth',
           value: "#{Bot::Bank::GetBalance(user.id)} Starbucks",
@@ -475,6 +477,7 @@ module Bot::Economy
     past_monday = past_monday - wwday
 
     # compute last timestamp and query for entries that meet this requirement
+    # todo: include inventory value in the total networth computation
     last_valid_timestamp = (past_monday - (Bot::Bank::MAX_BALANCE_AGE_DAYS + 1)).to_time.to_i
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
