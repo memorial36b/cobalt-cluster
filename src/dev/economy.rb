@@ -875,6 +875,7 @@ module Bot::Economy
       end
 
       # dm the user a list of their tags
+      # todo: account for more than 25 tags which will overflow max field count (25)
       event.user.dm.send_embed do |embed|
         embed.author = {
             name: STRING_BANK_NAME,
@@ -899,6 +900,7 @@ module Bot::Economy
     #############################
     ## LIST TAGS
     when "listall"
+      # todo: account for more than 25 tags which will overflow max field count (25)
       tags = Bot::Tags::GetAllTags()
       if tags.count <= 0
         event.respond "Sorry, there are no tags on the server."
@@ -1128,6 +1130,7 @@ module Bot::Economy
       end
 
       # dm the user a list of their commands
+      # todo: account for more than 25 commands which will overflow max field count (25) 
       event.user.dm.send_embed do |embed|
         embed.author = {
             name: STRING_BANK_NAME,
