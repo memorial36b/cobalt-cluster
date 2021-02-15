@@ -47,3 +47,7 @@ fine_large: 10000    # fine a user, extreme punishment: -15000
 #gimme: var          # give specified number of points
 #takeit: var         # take specified number of points
 econdummy: 0         # do nothing, perform cleanup
+
+# activity earnings
+activity_voice_chat: 5 # per 2 seconds
+activity_text_chat:  3 # per 2 seconds
