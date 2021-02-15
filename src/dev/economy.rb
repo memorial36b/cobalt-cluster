@@ -1692,7 +1692,6 @@ module Bot::Economy
     break unless Convenience::IsUserDev(event.user.id)
     counter = 0
     (100...110).each do |user_id|
-      user_id = 236130487431593987
       # prevent expiration
       if Bot::Bank::GetBalance(user_id) <= 0
         Bot::Bank::Deposit(user_id, 10000)
