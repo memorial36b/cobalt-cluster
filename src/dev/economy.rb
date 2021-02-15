@@ -437,7 +437,27 @@ module Bot::Economy
         inline: false
       )
 
-      # ROW 3: TODO: Roles, Tags, Commands
+      # ROW 3: Roles, Tags, Commands
+      rented_role = GetUserRentedRoleItem(user.id)
+      embed.add_field(
+        name: rented_role != nil ? rented_role.type_ui_name : "Role",
+        value: rented_role != nil ? rented_role.ui_name : "None",
+        inline: true
+      )
+
+      tags = Bot::Tags::GetAllUserTags(user.id)
+      embed.add_field(
+        name: "Tags",
+        value: tags.count,
+        inline: true
+      )
+
+      commands = Bot::CustomCommands::GetAllUserCustomCommands(user.id)
+      embed.add_field(
+        name: "Commands",
+        value: commands.count,
+        inline: true
+      )
     end
   end
 
@@ -728,6 +748,11 @@ module Bot::Economy
         break
       end
 
+      if tag_name.length <= 0
+        event.respond "You need to specify a tag name!"
+        break
+      end
+
       if Bot::Tags::HasTag(tag_name)
         event.respond "Sorry, that tag already exists!"
         break
@@ -989,6 +1014,11 @@ module Bot::Economy
       command_name_max_length = Bot::CustomCommands::GetMaxCustomCommandNameLength()
       if command_name.length > command_name_max_length
         event.respond "Sorry, the command name you gave is too long. Names are limited to #{command_name_max_length} characters."
+        break
+      end
+
+      if command_name.length <= 0
+        event.respond "You must specify a command name!"
         break
       end
 
@@ -1296,7 +1326,7 @@ module Bot::Economy
     type = parsed_args["type"]
     amount = parsed_args["amount"]
     user_id = parsed_args["user"].id
-    user_mention = parsed_args["user"].mention
+    username = parsed_args["user"].full_username
     Bot::Bank::CleanAccount(user_id)
 
     if type.downcase == "perma"
@@ -1305,7 +1335,7 @@ module Bot::Economy
       Bot::Bank::Deposit(user_id, amount)
     end
 
-    event.respond "#{user_mention} received #{amount} Starbucks"
+    event.respond "#{username} received #{amount} Starbucks"
   end
 
   # takes a specified amount of starbucks, devs only
