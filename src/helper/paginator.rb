@@ -170,7 +170,7 @@ class Paginator
       embed.color       = COLOR_EMBED # from Constants
 
       footer_text  = "Page #{current_page}/#{page_count}"
-      footer_text += " Query: \"#{@current_query}\"" if @current_query != nil
+      footer_text += "\tQuery: \"#{@current_query}\"" if @current_query != nil
       embed.footer = { text: footer_text } 
 
       # generate controls
