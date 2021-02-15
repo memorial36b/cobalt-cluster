@@ -202,7 +202,7 @@ module Bot::CustomCommands
   # Get all of the custom commands owned by the specified user.
   # @return [Array<CustomCommand>] All custom commands owned by the specified user.
   def GetAllUserCustomCommands(owner_user_id)
-    command_hashes = USER_CUSTOM_COMMANDS.where(owner_user_id: owner_user_id).all
+    command_hashes = USER_CUSTOM_COMMANDS.where(owner_user_id: owner_user_id).order(:command_name).all
 
     commands = []
     command_hashes.each do |command|

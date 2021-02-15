@@ -866,6 +866,69 @@ module Bot::Economy
       event.respond "Tag #{tag_name} has been removed!"
 
     #############################
+    ## LIST TAGS
+    when "list"
+      tags = Bot::Tags::GetAllUserTags(event.user.id)
+      if tags.count <= 0
+        event.respond "Sorry, you don't own any tags."
+        break
+      end
+
+      # dm the user a list of their tags
+      event.user.dm.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
+
+        tag_text = pl(tags.count, "tag")
+        embed.color = COLOR_EMBED
+        embed.title = "You have #{tag_text}"
+        embed.description = "The following are all of your tags and their content."
+
+        # add a field for each tag, all inline, it should wrap as necessary
+        tags.each do |tag|
+          embed.add_field(
+            name: tag.tag_name,
+            value: tag.tag_content,
+            inline: true
+          )
+        end         
+      end
+
+    #############################
+    ## LIST TAGS
+    when "listall"
+      tags = Bot::Tags::GetAllTags()
+      if tags.count <= 0
+        event.respond "Sorry, there are no tags on the server."
+        break
+      end
+
+      # dm the user a list of every tag
+      event.user.dm.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
+
+        tag_text = pl(tags.count, "tag")
+        is_are = tags.count > 1 ? "are" : "is"
+        embed.color = COLOR_EMBED
+        embed.title = "There #{is_are} #{tag_text}"
+        embed.description = "These are all of the tags on the server."
+
+        # add a field for each tag, all inline, it should wrap as necessary
+        tags.each do |tag|
+          embed.add_field(
+            name: tag.tag_name,
+            value: tag.tag_content,
+            inline: true
+          )
+        end         
+      end
+
+    #############################
     ## DISPLAY TAG
     else # user is trying to invoke a tag!
       # find tag
@@ -1061,6 +1124,7 @@ module Bot::Economy
       commands = Bot::CustomCommands::GetAllUserCustomCommands(event.user.id)
       if commands.count <= 0
         event.respond "Sorry, you don't own any commands."
+        break
       end
 
       # dm the user a list of their commands
