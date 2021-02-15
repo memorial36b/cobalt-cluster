@@ -227,8 +227,17 @@ module Bot::CustomCommands
     return CustomCommand.new(command)
   end
 
+  # Get the number of commands owned by the specified user.
+  # @param [Integer] owner_user_id the user to filter by
+  # @return [Integer] The number of commands the users owns
+  def GetUserCustomCommandCount(owner_user_id)
+    count = USER_CUSTOM_COMMANDS.where(owner_user_id: owner_user_id).count
+    return count.nil? ? 0 : count
+  end
+
   # Get all of the custom commands owned by the specified user.
-  # @return [Array<CustomCommand>] All custom commands owned by the specified user.
+  # @param [Integer] owner_user_id the user to filter by
+  # @return [Array<CustomCommand>] All custom commands owned by the specified user
   def GetAllUserCustomCommands(owner_user_id)
     command_hashes = USER_CUSTOM_COMMANDS.where(owner_user_id: owner_user_id).order(:command_name).all
 

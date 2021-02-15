@@ -182,11 +182,12 @@ module Bot::Tags
   # @param [Integer] owner_user_id user to filter by
   # @return [Integer] number of owned tags
   def GetUserTagCount(owner_user_id)
-    count = USER_TAGS.where(owner_user_id: owner_user_id).order(:tag_name).count
+    count = USER_TAGS.where(owner_user_id: owner_user_id).count
     return count.nil? ? 0 : count
   end
 
   # Get all of the tags owned by the specified user.
+  # @param [Integer] owner_user_id user to filter by
   # @return [Array<UserTag>] All tags owned by the specified user.
   def GetAllUserTags(owner_user_id)
     tag_hashes = USER_TAGS.where(owner_user_id: owner_user_id).order(:tag_name).all
