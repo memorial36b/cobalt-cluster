@@ -34,8 +34,9 @@ mycom_maintain: 7500 # maintain custom command
 
 # raffles
 raffle_info: 0       # ask for info about the raffle
-raffle_buyticket: ## # buy raffle tickets, unknown cost
-raffle_buyticket: 0  # set up a reminder for the raffle
+raffle_buyticket: 10 # buy raffle tickets (price/ticket)
+raffle_win: 5        # earnings per ticket when a user wins
+raffle_reminder: 0   # set up a reminder for the raffle
 
 # moderator-only
 fine_small: 2500     # fine a user, basic punishment: -1000

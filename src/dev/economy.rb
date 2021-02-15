@@ -16,8 +16,16 @@ module Bot::Economy
   # { user_id, checkin_timestamp }
   USER_CHECKIN_TIME = DB[:econ_user_checkin_time]
 
+  # Each entry represents one raffle ticket for the given user.
+  # { user_id }
+  RAFFLE_ENTRIES = DB[:econ_raffle]
+
   # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
+
+  # How often the raffle occurs.
+  # This is a constant because it needs to be consumed by rufus scheduler...
+  RAFFLE_FREQUENCY = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")['raffle_frequency'] 
 
   # Limits the number of tags used per second
   TAG_BUCKET = Bot::BOT.bucket(
@@ -258,6 +266,45 @@ module Bot::Economy
     # todo: perform any other routine maintenance
   end
 
+  # schedule the raffle ever n days, always at 7:00 PM GMT
+  def self.Get7PMTomorrow(); (Bot::Timezone::GetTodayInTimezone('Etc/GMT') + 1).to_time + 7*60*60; end
+  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => Get7PMTomorrow() do
+    entry_count = RAFFLE_ENTRIES.count
+    entry_count = entry_count.nil? ? 0 : entry_count
+
+    # find bot commands channel
+    channel = SERVER.channels.find{ |c| c.id == BOT_COMMANDS_CHANNEL_ID }
+    next if channel.nil?
+
+    # find raffle role
+    raffle_role = SERVER.roles.find{ |r| r.id == RAFFLE_ROLE_ID }
+
+    if entry_count > 0
+      # get winner and reward them
+      winner_idx = rand(RAFFLE_ENTRIES.count)
+      winner_user_id = RAFFLE_ENTRIES.offset(winner_idx).first[:user_id]
+      winnings_value = entry_count * Bot::Bank::AppraiseItem('raffle_win')
+      RAFFLE_ENTRIES.delete # delete all entries
+      
+      winner = DiscordUser.new(winner_user_id)
+      Bot::Bank::Deposit(winner.id, winnings_value)
+
+      # post results and announce start of next
+      raffle_mention = raffle_role.nil? ? "@Raffle" : raffle_role.mention
+      cost_per_ticket = Bot::Bank::AppraiseItem('raffle_buyticket')
+
+      msg = "#{winner.mention} has won the raffle...\n\n" +
+        "#{raffle_mention} A new one has begun! Use the command " + 
+        "+raffle buyticket [number] (default 1) to purchase raffle " +
+        "tickets. Tickets cost #{cost_per_ticket} Starbucks each."
+
+      channel.send_message(msg)
+
+    else
+      channel.send_message("**No one entered the raffle. Aww...**")
+    end
+  end
+
   ###########################
   ##   STANDARD COMMANDS   ##
   ###########################
@@ -325,7 +372,7 @@ module Bot::Economy
       end
     end
 
-     # Sends embed containing user bank profile
+    # Sends embed containing user bank profile
     event.send_embed do |embed|
       embed.author = {
           name: STRING_BANK_NAME,
@@ -923,6 +970,7 @@ module Bot::Economy
     end
   end
 
+  # tag searching
   TAGS_COMMAND_NAME = "tags"
   TAGS_DESCRIPTION = "Search for tags on the server or owned by a specific user. Specify mine to see yours."
   TAGS_ARGS = [["owner_user", DiscordUser]]
@@ -1192,6 +1240,81 @@ module Bot::Economy
         # initial query: nil
         # results_per_page: default
       ).run()
+    end
+  end
+
+  # raffle management
+  RAFFLE_COMMAND_NAME = "raffle"
+  RAFFLE_DESCRIPTION = "Participate in the raffle."
+  RAFFLE_ARGS = [["action", String], ["number_of_tickets", Integer]]
+  RAFFLE_REQ_COUNT = 0
+  command :raffle do |event, *args|
+    opt_defaults = ["info", 1]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      RAFFLE_COMMAND_NAME,
+      RAFFLE_DESCRIPTION,
+      RAFFLE_ARGS,
+      RAFFLE_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    case parsed_args["action"].downcase
+    when 'buyticket', 'buytickets'
+      tickets_to_buy = parsed_args["number_of_tickets"]
+      if tickets_to_buy <= 0
+        event.respond "You can't buy negative tickets!"
+        break
+      end
+
+      cost_of_tickets = tickets_to_buy * Bot::Bank::AppraiseItem('raffle_buyticket')
+      if not Bot::Bank::Withdraw(event.user.id, cost_of_tickets)
+        event.respond "You can't afford to buy that many tickets!"
+        break
+      end
+
+      # add the appropriate number of tickets
+      (0...tickets_to_buy).each do |ticket|
+        RAFFLE_ENTRIES << { user_id: event.user.id }
+      end
+
+      event.respond "#{event.user.mention}, you bought #{tickets_to_buy} tickets."
+
+    when 'reminder', 'remind'
+      if event.user.role?(RAFFLE_ROLE_ID)
+        event.user.remove_role(RAFFLE_ROLE_ID)
+        event.respond "Raffle reminder cleared."
+      else
+        event.user.add_role(RAFFLE_ROLE_ID)
+        event.respond "Raffle reminder set."
+      end
+
+    when 'info', 'information'
+      raffle_frequency = RAFFLE_FREQUENCY
+      cost_of_ticket = Bot::Bank::AppraiseItem('raffle_buyticket')
+      roi_of_ticket = Bot::Bank::AppraiseItem('raffle_win')
+
+      event.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
+
+        embed.title = "Raffle"
+        embed.description = 
+          "The raffle is an event that occurs once every #{raffle_frequency} " +
+          "days. When it happens, any user that has purchased at least one " +
+          "ticket can win! Your odds of winning are directly proportionate to " +
+          "how many you bought. Each ticket costs #{cost_of_ticket} Starbucks " +
+          "and for every ticket in the pool the winner will receive " +
+          "#{roi_of_ticket} Starbucks. If want a reminder call the command " +
+          "+raffle reminder; call it again to remove the reminder. Enter now " +
+          "to win big! "
+        
+        embed.footer = {text: "Purchase tickets with +raffle buyticket [count] (default 1)"}
+        embed.color = COLOR_EMBED
+      end
     end
   end
 
