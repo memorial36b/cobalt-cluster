@@ -153,7 +153,7 @@ module Bot::Tags
   # Get the full list of all valid tags.
   # @return [Array<UserTag>] All known tags.
   def GetAllTags()
-    tag_hashes = USER_TAGS.all
+    tag_hashes = USER_TAGS.order(:tag_name).all
 
     tags = []
     tag_hashes.each do |tag|
@@ -166,7 +166,7 @@ module Bot::Tags
   # Get all of the tags owned by the specified user.
   # @return [Array<UserTag>] All tags owned by the specified user.
   def GetAllUserTags(owner_user_id)
-    tag_hashes = USER_TAGS.where(owner_user_id: owner_user_id).all
+    tag_hashes = USER_TAGS.where(owner_user_id: owner_user_id).order(:tag_name).all
 
     tags = []
     tag_hashes.each do |tag|
