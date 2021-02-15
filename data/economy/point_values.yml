@@ -27,10 +27,10 @@ tag_edit: 0          # edit purchased tag
 tag_maintain: 15     # tag maintanance cost
 
 # custom commands, usable in every channel
-myconn_set: 15000     # buy a custom command
-myconn_delete: 0      # delete a custom command
-myconn_edit: 0        # edit custom command
-myconn_maintain: 7500 # maintain custom command
+mycom_add: 15000     # buy a custom command
+mycom_delete: 0      # delete a custom command
+mycom_edit: 0        # edit custom command
+mycom_maintain: 7500 # maintain custom command
 
 # raffles
 raffle_info: 0       # ask for info about the raffle

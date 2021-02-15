@@ -20,7 +20,7 @@ class UserTag
     return @item_entry_id
   end
 
-  # Get the item's owner's user id.
+  # Get the tags's owner's user id.
   def owner_user_id
     return @owner_user_id
   end
@@ -153,7 +153,7 @@ module Bot::Tags
   # Get the full list of all valid tags.
   # @return [Array<UserTag>] All known tags.
   def GetAllTags()
-    tag_hashes = USER_TAG.all
+    tag_hashes = USER_TAGS.all
 
     tags = []
     tag_hashes.each do |tag|
@@ -166,7 +166,7 @@ module Bot::Tags
   # Get all of the tags owned by the specified user.
   # @return [Array<UserTag>] All tags owned by the specified user.
   def GetAllUserTags(owner_user_id)
-    tag_hashes = USER_TAG.where(owner_user_id: owner_user_id).all
+    tag_hashes = USER_TAGS.where(owner_user_id: owner_user_id).all
 
     tags = []
     tag_hashes.each do |tag|

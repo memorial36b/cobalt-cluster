@@ -199,7 +199,9 @@ module Bot::Economy
           #############################
           ## Custom Command
           when Bot::Inventory::GetValueFromCatalogue('item_type_custom_command')
-            # TODO: Remove custom command
+            command = Bot::CustomCommands::GetCustomCommandByItemEntryID(item.entry_id)
+            Bot::CustomCommands::RemoveCustomCommandByItemEntryID(item.entry_id) if command != nil
+            name_override[item.entry_id] = command.command_name
           
           #############################
           ## Error: Unhandled
@@ -682,7 +684,6 @@ module Bot::Economy
   end
 
   # custom tag management
-  # manual parameter parsing
   TAG_COMMAND_NAME = "tag"
   TAG_DESCRIPTION = "Manage custom tags that send a specific message when invoked."
   TAG_ARGS = [["action", String], ["tag_name", String]]
@@ -823,7 +824,7 @@ module Bot::Economy
 
       # check if it timed out
       if response.message == nil || response.message.content.empty?
-        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new tag has been cancelled. You have not been charged.")
+        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to edit a tag has been cancelled. You have not been charged.")
         break
       end
 
@@ -880,13 +881,210 @@ module Bot::Economy
   end
 
   # custom command mangement
-  command :myconn do |event, *args|
-  	Bot::Bank::CleanAccount(event.user.id)
+  MYCOM_COMMAND_NAME = "mycom"
+  MYCOM_DESCRIPTION = "Manage custom cuommands that send a specific message when invoked."
+  MYCOM_ARGS = [["action", String], ["command_name", String]]
+  MYCOM_REQ_COUNT = 1
+  command :mycom do |event, *args|
+    opt_defaults = [""]
+    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
+      event,
+      MYCOM_COMMAND_NAME,
+      MYCOM_DESCRIPTION,
+      MYCOM_ARGS,
+      MYCOM_REQ_COUNT,
+      opt_defaults,
+      args)
+    break unless not parsed_args.nil?
+
+    # assume they're trying to use spaces
+    if args.count > MYCOM_ARGS.count
+      event.respond "Sorry, custom command names don't support spaces!"
+      break
+    end
+
+    # clean account before proceeding
+    Bot::Bank::CleanAccount(event.user.id)
+
+    # actions and command names always parsed in lower case
+    action = parsed_args['action'].downcase
+    command_name = parsed_args['command_name'].downcase
+
+    # shared variables
+    command_content_max_length = Bot::CustomCommands::GetMaxCustomCommandContentLength()
+    command_config_msg = "What would you like your command to say? Limited to #{command_content_max_length} characters."
+    command_config_timeout = Bot::CustomCommands::GetCustomCommandResponseTimeout()
     
-    puts "myconn"
-  	#set
-  	#delete
-  	#edit
+    case action
+    #############################
+    ## ADD
+    when "add"
+      command_name_max_length = Bot::CustomCommands::GetMaxCustomCommandNameLength()
+      if command_name.length > command_name_max_length
+        event.respond "Sorry, the command name you gave is too long. Names are limited to #{command_name_max_length} characters."
+        break
+      end
+
+      if Bot::CustomCommands::HasCustomCommand(command_name, event.user.id)
+        event.respond "Sorry, you already have a command with the same name!"
+        break
+      end
+
+      # only charge after they create it
+      command_cost = Bot::Bank::AppraiseItem('mycom_add')
+      if Bot::Bank::GetBalance(event.user.id) < command_cost
+        event.respond "Sorry, you can't afford a new command!"
+        break
+      end
+
+      # send a temporary message telling user to check dms
+      event.channel.send_temporary_message(
+        "#{event.user.mention} check you DMs to setup your command!",
+        30 # seconds
+      )
+
+      # dm the user to setup command
+      event.user.dm.send_message(command_config_msg) # internal issue when calling await! on message
+      response = event.user.dm.await!({timeout: command_config_timeout})
+
+      # check if it timed out
+      if response.message == nil || response.message.content.empty?
+        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new command has been cancelled. You have not been charged.")
+        break
+      end
+
+      user = response.user
+
+      # validate length
+      command_content = response.message.content
+      if command_content.length > command_content_max_length
+        user.dm.send_message("Sorry, your command message was too long! Please try something shorter.")
+        break
+      end
+
+      # store command, charge user
+      command_item = Bot::Inventory::AddItemByName(user.id, 'custom_command')
+      if command_item == nil
+        user.dm.send_message("Sorry, an unknown error occurred and your command could not be created. Please contact a developer.")
+        break
+      end
+
+      if not Bot::CustomCommands::AddCustomCommand(command_name, user.id, command_item.entry_id, command_content)
+        user.dm.send_message("Sorry, you already created a command named #{command_name}!")
+        Bot::Inventory::RemoveItem(command_item.entry_id)
+        break
+      end
+
+      # double check if they're trying to pulls some shit by having two devices
+      if not Bot::Bank::Withdraw(user.id, command_cost)
+        # DM them for being a jerk and remove command
+        user.dm.send_message("Sorry, you can't afford a new command!")
+        Bot::CustomCommands::RemoveCustomCommandByItemEntryID(command_item.entry_id)
+        Bot::Inventory::RemoveItem(command_item.entry_id)
+        break
+      end
+      
+      # all went well!
+      event.respond "#{user.mention}, you have created the command #{command_name}!"
+
+    #############################
+    ## EDIT
+    when "edit"
+      if not Bot::CustomCommands::HasCustomCommand(command_name, event.user.id)
+        event.respond "Sorry, I couldn't find that command!"
+        break
+      end
+
+      # only charge after they edit it
+      edit_cost = Bot::Bank::AppraiseItem('mycom_edit')
+      if Bot::Bank::GetBalance(event.user.id) < edit_cost
+        event.respond "Sorry, you can't afford to edit a command right now!"
+        break
+      end
+
+      # send a temporary message telling user to check dms
+      event.channel.send_temporary_message(
+        "#{event.user.mention} check you DMs to setup your command!",
+        30 # seconds
+      )
+
+      # dm the user to edit command
+      event.user.dm.send_message(command_config_msg) # internal issue when calling await! on message
+      response = event.user.dm.await!({timeout: command_config_timeout})
+
+      # check if it timed out
+      if response.message == nil || response.message.content.empty?
+        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to edit a command has been cancelled. You have not been charged.")
+        break
+      end
+
+      user = response.user
+
+      # validate length
+      command_content = response.message.content
+      if command_content.length > command_content_max_length
+        user.dm.send_message("Sorry, your command message was too long! Please try something shorter.")
+        break
+      end
+
+      # double check if they're trying to pulls some shit by having two devices
+      if not Bot::Bank::Withdraw(user.id, edit_cost)
+        # DM them for being a jerk
+        user.dm.send_message("Sorry, you can't to edit a command!")
+        break
+      end
+      
+      # update command, validate
+      if not Bot::CustomCommands::EditCustomCommand(command_name, user.id, command_content)
+        user.dm.send_message("Sorry, an error occurred and #{command_name} could not be edited!")
+        break
+      end
+
+      # all went well!
+      event.respond "#{user.mention}, you have updated the command #{command_name}!"
+
+    #############################
+    ## DELETE
+    when "delete"
+      command = Bot::CustomCommands::GetCustomCommand(command_name, event.user.id)
+      if not Bot::CustomCommands::RemoveCustomCommand(command_name, event.user.id)
+        event.respond "Sorry, I couldn't find that command!"
+        break
+      end
+
+      Bot::Inventory::RemoveItem(command.item_entry_id)
+      event.respond "Command #{command_name} has been removed!"
+
+    #############################
+    ## LIST COMMANDS
+    when "list"
+      commands = Bot::CustomCommands::GetAllUserCustomCommands(event.user.id)
+      if commands.count <= 0
+        event.respond "Sorry, you don't own any commands."
+      end
+
+      # dm the user a list of their commands
+      event.user.dm.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
+
+        command_text = pl(commands.count, "command")
+        embed.color = COLOR_EMBED
+        embed.title = "You have #{command_text}"
+        embed.description = "The following are all of your custom commands and their content."
+
+        # add a field for each command, all inline, it should wrap as necessary
+        commands.each do |command|
+          embed.add_field(
+            name: command.command_name,
+            value: command.command_content,
+            inline: true
+          )
+        end         
+      end
+    end
   end
 
   ############################
