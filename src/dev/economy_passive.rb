@@ -15,10 +15,10 @@ module Bot::EconomyPassive
   # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
 
-  # thread coordination
+  # Thread coordination
   DATA_LOCK = Mutex.new
 
-  # Most activity is rewarded
+  # Channels that don't earn points
   IGNORED_CHANNELS = [
     READ_ME_FIRST_CHANNEL_ID,
     ADDITIONAL_INFO_CHANNEL_ID,
