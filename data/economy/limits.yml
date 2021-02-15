@@ -1,6 +1,11 @@
 # Special item type-specific limits.
 ---
-tag_name_max_length:    20   # arbitrarily chosen length
-tag_content_max_length: 280  # the length of a tweet, avoid blowing up database
-tag_wait_duration: 3         # how long (in seconds) you have to wait before sending a tag again, avoids spamming
-tag_response_timeout: 300    # how long to wait (in seconds) before timing out on a user's response to a tag message.
+tag_name_max_length:    20             # arbitrarily chosen length
+tag_content_max_length: 280            # the length of a tweet, avoid blowing up database
+tag_response_timeout: 300              # how long to wait (in seconds) before timing out on a user's response to a tag message.
+tag_sleep_duration: 1                  # how long (in seconds) you have to wait before sending a tag again, avoids spamming
+
+custom_command_name_max_length: 20     # arbitrarily chosen length
+custom_command_content_max_length: 280 # the length of a tweet, avoid blowing up database
+custom_command_response_timeout: 300   # how long to wait (in seconds) before timing out on a user's response to a tag message.
+custom_command_sleep_duration: 3       # how long (in seconds) you have to wait before sending a tag again, avoids spamming

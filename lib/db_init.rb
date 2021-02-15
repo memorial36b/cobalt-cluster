@@ -98,6 +98,16 @@ DB.create_table? :econ_user_tags do
   String  :tag_content, null: false                 # The tag's message content
 end
 
+# Economy cutom commands
+DB.create_table? :econ_custom_commands do
+  String  :command_name, null: false                # The name of the command
+  Integer :owner_user_id, null: false               # User ID of the owner
+  Integer :item_entry_id, null: false, unique: true # Associated item entry in econ_user_inventory
+  String  :command_content, null: false             # The command's message content
+  primary_key([:command_name, :owner_user_id])
+end
+
+
 # Generic user timezone
 DB.create_table? :user_timezone do
   Integer :user_id, null: false, primary_key: true # User's ID, unique primary key

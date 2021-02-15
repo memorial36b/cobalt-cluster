@@ -31,7 +31,7 @@ item_type_custom_command: 0x4000
 0xEFFF: "rentarole_override"
 0xDFFF: "rentarole_color"
 0xCFFF: "tag_add"
-0xBFFF: "myconn_set"
+0xBFFF: "mycom_add"
 
 # item type id to renewal point_values.yml key map
 # note: key = unsigned_not(item_type) - 1
@@ -39,7 +39,7 @@ item_type_custom_command: 0x4000
 0xEFFE: "rentarole_maintain"  # item_type_role_override
 0xDFFE: "rentarole_maintain"  # item_type_role_color
 0xCFFE: "tag_maintain"        # item_type_tag
-0xBFFE: "myconn_maintain"     # item_type_custom_command
+0xBFFE: "mycom_maintain"     # item_type_custom_command
 
 # life-time value in days for item types
 # note: key = unsigned_not(item_type) - 2
