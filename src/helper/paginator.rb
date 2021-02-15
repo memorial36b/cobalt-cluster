@@ -44,8 +44,7 @@ class Paginator
   MAX_RESULTS_PER_PAGE = 25
 
   # The default number of results per page.
-  DEFAULT_RESULTS_PER_PAGE = 10
-
+  DEFAULT_RESULTS_PER_PAGE = 12
 
   # How long in seconds to wait for a response before assuming query is dead.
   PAGINATOR_TIMEOUT = 3*60
