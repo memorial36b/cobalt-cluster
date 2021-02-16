@@ -17,6 +17,7 @@ item_type_role_override:  0x1000
 item_type_role_color:     0x2000
 item_type_tag:            0x3000
 item_type_custom_command: 0x4000
+item_type_raffle:         0x5000
 
 # item type id to name key map
 # note: key = item_type
@@ -24,6 +25,7 @@ item_type_custom_command: 0x4000
 0x2000: "Role"
 0x3000: "Tag"
 0x4000: "Command"
+0x5000: "Raffle"
 
 # item type id to point_values.yml key map
 # note: key = unsigned_not(item_type)
@@ -32,6 +34,7 @@ item_type_custom_command: 0x4000
 0xDFFF: "rentarole_color"
 0xCFFF: "tag_add"
 0xBFFF: "mycom_add"
+0xAFFF: "raffle_buyticket"
 
 # item type id to renewal point_values.yml key map
 # note: key = unsigned_not(item_type) - 1
@@ -39,7 +42,8 @@ item_type_custom_command: 0x4000
 0xEFFE: "rentarole_maintain"  # item_type_role_override
 0xDFFE: "rentarole_maintain"  # item_type_role_color
 0xCFFE: "tag_maintain"        # item_type_tag
-0xBFFE: "mycom_maintain"     # item_type_custom_command
+0xBFFE: "mycom_maintain"      # item_type_custom_command
+0xAFFE: nil                   # item_type_raffle
 
 # life-time value in days for item types
 # note: key = unsigned_not(item_type) - 2
@@ -48,6 +52,7 @@ item_type_custom_command: 0x4000
 0xDFFD: 7   # item_type_role_color
 0xCFFD: 1   # item_type_tag
 0xBFFD: 30  # item_type_custom_command
+0xAFFD: nil # item_type_raffle
 
 # override roles (0x1000)
 #role_override_citizen
@@ -57,17 +62,17 @@ role_override_citizen_id: 0x1001
 role_override_squire_id:  0x1002
 0x1002:                   "Override: Mewman Squire"
 #role_override_knight
-role_override_knight_id:  0x1004
-0x1004:                   "Override: Mewman Knight"
+role_override_knight_id:  0x1003
+0x1003:                   "Override: Mewman Knight"
 #role_override_noble
-role_override_noble_id:   0x1005
-0x1005:                   "Override: Mewman Noble"
+role_override_noble_id:   0x1004
+0x1004:                   "Override: Mewman Noble"
 #role_override_monarch
-role_override_monarch_id: 0x1006
-0x1006:                   "Override: Mewman Monarch"
+role_override_monarch_id: 0x1005
+0x1005:                   "Override: Mewman Monarch"
 #role_override_bearer
-role_override_bearer_id:  0x1007
-0x1007:                   "Override: Bearer of the Wand"
+role_override_bearer_id:  0x1006
+0x1006:                   "Override: Bearer of the Wand"
 
 # color roles (0x2000)
 #role_color_ghastly_green
@@ -103,4 +108,9 @@ tag_id: 0x3001
 # custom command (0x4000)
 #custom_command
 custom_command_id: 0x4001
-0x4001:            "Custom Command"
+0x4001: "Custom Command"
+
+# raffle ticket (0x5000)
+#raffle_ticket
+raffle_ticket_id: 0x5001
+0x5001: "Raffle Ticket"
