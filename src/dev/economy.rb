@@ -367,7 +367,12 @@ module Bot::Economy
       }
 
       embed.title = "Cobalt's Shop"
-      embed.description = "Here is everything currently available in the shop:\n"
+      embed.description = "Hey there, here is where you can find " +
+        "information about my shop. You can earn Starbucks to spend here " +
+        "by being active on the server and using the checkin command " +
+        "once a day. In addition, if you're feeling courageous you can " +
+        "try your luck in the raffle.\n\n" +
+        "Here is everything currently available in the shop:\n"
 
       printed_types = Set[]
       types.each do |type_id, type_name|
