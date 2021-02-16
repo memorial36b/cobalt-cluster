@@ -170,18 +170,8 @@ module Bot::Miscellaneous
                 "**Roles: #{SERVER.roles.size}**" + "\n⠀",
           inline: true
       )
-      embed.add_field(
-          name: '⠀',
-          value: "**Channels: #{SERVER.channels.size}**\n" +
-                 "├ Text: **#{SERVER.text_channels.size}**\n" +
-                 "├ Voice: **#{SERVER.voice_channels.size}**\n" +
-                 "└ Categories: **#{SERVER.categories.size}**\n" +
-                 "\n" +
-                 "**Roles: #{SERVER.roles.size}**",
-          inline: true
-      )
-      embed.footer = {text: "ID: 753163835862417480 • Founded on April 28, 2017"}
-      embed.color = COLOR_EMBED
+      embed.footer = {text: "ID: #{event.server.id} • Founded on April 28, 2017"}
+      embed.color = 0xFFD700
     end
   end
 
