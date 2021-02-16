@@ -720,7 +720,7 @@ module Bot::Help
                     
           embed.add_field(
             name: "+points",
-            value: "Did you mess up? (you did) Use this command to check how many points you have and when a point you recieved will decay. For information of points and point decay please read the punishments section in <##{ADDITIONAL_INFO_CHANNEL_ID}>"
+            value: "Did you mess up? (you did) Use this command to check how many points you have and when a point you recieved will decay. For information on points and point decay please read the punishments section in <##{ADDITIONAL_INFO_CHANNEL_ID}>"
           )
                                         
           embed.add_field(
