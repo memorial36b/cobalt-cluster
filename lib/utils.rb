@@ -162,6 +162,8 @@ module Constants
   ROLE_COLOR_TEST_3_ROLE_ID = 753163835862417481
   # 🔷 Cobalt's Squire role ID
   COBALT_SQUIRE_ROLE_ID = 755020794706264215
+  # SPECIAL CODE ONLY: INVALID ROLE ID
+  INVALID_ROLE_ID = -1
   
   # Channel IDs
 
@@ -275,12 +277,105 @@ module Constants
     402051258732773377,
     454304307425181696
   ].freeze
+
+  # Colors
+  COLOR_EMBED = 0xFFD700
+
+  # Images (TODO: Replace temp images)
+  IMAGE_BANK = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
+  IMAGE_STARBUCKS = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
+  IMAGE_RICHEST = 'https://pbs.twimg.com/profile_images/780589072733593600/3rG5efnk_400x400.jpg'
+
+  # Strings
+  STRING_BANK_NAME = "Bank"
+end
+
+# Types for convenience
+# Class for simple Discord User.
+class DiscordUser
+  # Construct a new user.
+  # @param [Integer/String] id user id as string or integer
+  def initialize(id)
+    # get user from server
+    user = nil
+    if id.class == String
+      user = Constants::SERVER.get_user(id)
+    else
+      user = Constants::SERVER.member(id)
+    end
+    
+    # TODO: check what happens if they leave the server!
+    raise ArgumentError, "Invalid user id specified!" unless not user.nil?
+    @user = user
+  end
+
+  # Get the user id integer.
+  # @return [Integer] user id
+  def id
+    return @user.id
+  end
+
+  # Get the user mention tag.
+  # @return [String] user mention tag
+  def mention
+    return @user.mention
+  end
+
+  # Get the user's username.
+  # @return [String] username
+  def username
+    return @user.username
+  end
+
+  # Get the user's 4 digit discriminator.
+  # @return [String] part of user's identifier after #
+  def discriminator
+    return @user.discriminator
+  end
+
+  # Get the user's full username combined with their descriminator.
+  # @return [String] user's fully qualitifed username
+  def full_username
+    return @user.username + '#' + @user.discriminator
+  end
+
+  # Get the user's server nickname.
+  # @return [String] server nickname
+  def nickname
+    return @user.nickname
+  end
+
+  # Check if the user has a server nickname.
+  # @return [bool] has nickname? 
+  def nickname?
+    return @user.nickname != nil && @user.nickname != ""
+  end
+
+  # Get a url to the user's avatar.
+  # @return [String] avatar url
+  def avatar_url
+    return @user.avatar_url
+  end
+
+  # Check if the user has the specified role.
+  # @param [Integer] role id
+  # @return [bool] has role?
+  def role?(role_id)
+    return @user.role?(role_id)
+  end 
+
+  # Get the discord user object.
+  # @return [Discordrb::User] user object
+  def user
+    return @user
+  end
 end
 
 # Methods for convenience:
 
 # Module containing convenience methods (and companion variables/constants) that aren't instance/class methods
 module Convenience
+  include Constants
   module_function
 
   # Rudimentary pluralize; returns pluralized str with added 's' only if the given int is not 1
@@ -292,6 +387,196 @@ module Convenience
     "#{int} #{str}"
   end
   alias_method(:pl, :plural)
+
+  # Perform an unsigned bitwise not on an integer.
+  # Adds bits to round to the nearest half-byte for readability.
+  # @param [Integer] int the integer to perform not.
+  # @return [Integer] the unsigned bitwise not
+  def unsigned_not(int)
+    bits = int.bit_length
+    bits = (bits / 4.0).ceil.to_i * 4 # round to nearest half-byte
+    mask = (1 << bits) - 1
+    return mask - int
+  end
+  alias_method(:u!, :unsigned_not)
+
+  # Get the minimum value.
+  # When equal, a is selected.
+  # @param [Comparable] a first value
+  # @param [Comparable] b second value
+  # @return min of a and b 
+  def min_of(a, b)
+    return a <= b ? a : b
+  end
+  alias_method(:min, :min_of)
+
+  # Get the minimum value.
+  # When equal, a is selected.
+  # @param [Comparable] a first value
+  # @param [Comparable] b second value
+  # @return max of a and b
+  def max_of(a, b)
+    return a >= b ? a : b
+  end
+  alias_method(:max, :max_of)
+
+  # Clamp a between b and c.
+  # @param [Comparable] a value to clamp
+  # @param [Comparable] b min value
+  # @param [Comparable] c max value (inclusive)
+  # @return [Comparable] a clamped between b and c 
+  def clamp_of(a, b, c)
+    return max(min(a, c), b)
+  end
+  alias_method(:clamp, :clamp_of)
+
+  # Check if the specified user is a developer.
+  # @param [Integer] user_id user id.
+  # @return [bool] Is the user a developer?
+  def IsUserDev(user_id)
+    return user_id == OWNER_ID || COBALT_DEV_ID.include?(user_id)
+  end
+
+  # Initialize a value of the specified type with the argument.
+  # @param [String]  command_name the command's name
+  # @param [String]  description  brief command description
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @return [String] The help message.
+  def InitType(type, arg)
+    if type == Integer
+      return Integer(arg)
+    elsif type == Float
+      return Float(arg)
+    else
+      return type.new(arg)
+    end
+  end
+
+  # Generate help message for a given command
+  # @param [String]  command_name the command's name
+  # @param [String]  description  brief command description
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @return [String] The help message.
+  def GenerateHelp(command_name, description, name_types, req_count)
+    raise ArgumentError, "Required count is larger than number of arguments" unless name_types.count >= req_count
+
+    message = command_name
+    (0...name_types.count).each do |n|
+      argname = name_types[n][0]
+      argtype = name_types[n][1].name
+      if n < req_count
+        message += " <" + argname + ": " + argtype + ">"
+      else
+        message += " [optional " + argname + ": " + argtype + "]"
+      end
+    end
+    message += "\n" + description
+    return message
+  end
+
+  # Parse an array of arguments into a dictionary of key/value pairs.
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @param [Integer] req_count    number of arguments that are required
+  # @param [Array]   opt_defaults optional parameter default values
+  # @param [Array]   args         arguments to parse
+  # @return [Hash]   {"arg_name" => arg_value, ...} or nil on failure
+  #
+  # Note: If there's an overflow of arguments the extra ones will be ignored.
+  def ParseArgs(name_types, req_count, opt_defaults, args)
+    # these are developer errors, crash command
+    raise ArgumentError, "No argument names/types were provided." unless name_types.count > 0
+    raise ArgumentError, "Required count is larger than number of arguments" unless name_types.count >= req_count
+    raise ArgumentError, "Incorrect number of default values provided!" unless name_types.count - req_count == opt_defaults.count
+
+    # these are user errors
+    if args.count < req_count
+      return nil # too few arguments
+    end
+
+    # parse arguments
+    parsed_dict = {}
+    (0...args.count).each do |n|
+      arg_value = args[n]
+      name_type = name_types[n]
+      next if name_type == nil # too many arguments, ignore them!
+
+      arg_name  = name_type[0]
+      arg_type  = name_type[1]
+      begin # try to parse
+        parsed_dict[arg_name] = InitType(arg_type, arg_value)
+
+        # fail if it couldn't be created
+        if parsed_dict[arg_name].nil?
+          puts "failed to create " + arg_name
+          return nil
+        end
+      rescue # failure
+          puts "failed to create (rescue) " + arg_name
+        return nil
+      end
+    end
+
+    # fill unspecified optional parameters with defaults
+    total_arg_count = name_types.count
+    (args.count...total_arg_count).each do |n|
+      default_idx = n - req_count
+      
+      def_value = opt_defaults[default_idx]
+      arg_name  = name_types[n][0]
+      arg_type  = name_types[n][1]
+      
+      # developer error if not valid, not directly assigned to catch errors
+      parsed_dict[arg_name] = InitType(arg_type, def_value)
+      raise ArgumentError, "Invalid default provided for: '" + arg_name + "'" unless not(parsed_dict[arg_name].nil?)
+    end
+
+    return parsed_dict
+  end
+
+  # Parse an array of arguments into a dictionary of key/value pairs. Automatically notify user if input is invalid.
+  # @param [Event]   event        discord command event
+  # @param [String]  command_name the command's name
+  # @param [String]  description  brief command description
+  # @param [Array]   name_types   array of couplets [arg_name, arg_type]
+  # @param [Integer] req_count    number of arguments that are required
+  # @param [Array]   opt_defaults optional parameter default values
+  # @param [Array]   args         arguments to parse
+  # @return [Hash]   {"arg_name" => arg_value, ...} or nil on failure
+  #
+  # Note: If there's an overflow of arguments the extra ones will be ignored.
+  def ParseArgsAndRespondIfInvalid(event, command_name, description, name_types, req_count, opt_defaults, args)
+    parsed_dict = ParseArgs(name_types, req_count, opt_defaults, args)
+    if parsed_dict.nil?
+      message = "Sorry, I didn't quite get that. Try taking a look at this:\n"
+      message += GenerateHelp(command_name, description, name_types, req_count)
+      event.respond message
+    end
+    return parsed_dict
+  end
+
+  # Get the highest leveled rank role of a given user.
+  # @param [Discordrb::User/DiscordUser] The discord user.
+  # @returns The highest ranked role.
+  # Note: This is only the roles assigned as a result of leveling up.
+  def GetHighestLevelRoleId(user)
+    if user.role?(BEARER_OF_THE_WAND_POG_ROLE_ID)
+      return BEARER_OF_THE_WAND_POG_ROLE_ID
+    elsif user.role?(MEWMAN_MONARCH_ROLE_ID)
+      return MEWMAN_MONARCH_ROLE_ID
+    elsif user.role?(MEWMAN_NOBLE_ROLE_ID)
+      return MEWMAN_NOBLE_ROLE_ID
+    elsif user.role?(MEWMAN_KNIGHT_ROLE_ID)
+      return MEWMAN_KNIGHT_ROLE_ID
+    elsif user.role?(MEWMAN_SQUIRE_ROLE_ID)
+      return MEWMAN_SQUIRE_ROLE_ID
+    elsif user.role?(MEWMAN_SQUIRE_ROLE_ID)
+      return MEWMAN_CITIZEN_ROLE_ID
+    elsif user.role?(VERIFIED_ROLE_ID)
+      return VERIFIED_ROLE_ID
+    else
+      return INVALID_ROLE_ID
+    end
+  end
 end
 
 # YAML module from base Ruby

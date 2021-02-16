@@ -581,6 +581,11 @@ module Bot::Help
               value: "If you set your birthday, Cobalt will give you a special role for the occassion. You can also check who's birthday is next. As a moderator you can also check, modify, delete, or add birthdays for other users"
           )
 
+          embed.add_field(
+            name: "+fine [@username] {small, medium, large}",
+            value: "Fine a user for bad behavior."
+          )
+
           embed.footer = {
               text: "Missing Commands? Try running +help in the relavent channel",
               icon_url: "https://cdn.discordapp.com/attachments/753163837057794176/805998319251882034/467450365055336448.png"
@@ -637,6 +642,26 @@ module Bot::Help
               value: "Cobalt's kill switch. Only use in case of emergencies (i.e. a moderator account is compromised)"
           )
 
+          embed.add_field(
+              name: "+debugprofile [optional @username]",
+              value: "Display more in depth debug information about a user's economy profile."
+          )
+
+          embed.add_field(
+              name: "+lastcheckin [optional @username]",
+              value: "Check when the specified user last checked in."
+          )
+
+          embed.add_field(
+              name: "+inventory [optional @username]",
+              value: "Display all of the items in a user's inventory."
+          )
+
+          embed.add_field(
+              name: "+econdummy",
+              value: "Force a database cleaning of your banking profile. Note: This doesn't delete your account; it removes expired temp balances."
+          )
+
           embed.footer = {
               text: "Missing Commands? Try running +help in the relavent channel",
               icon_url: "https://cdn.discordapp.com/attachments/753163837057794176/805998319251882034/467450365055336448.png"
@@ -661,6 +686,11 @@ module Bot::Help
           embed.add_field(
               name: "+help",
               value: "Provde a list of commands relavent to the channel you run it in (i.e. music commands in <##{MUSIC_VC_CHANNEL_ID}>)"
+          )
+
+          embed.add_field(
+              name: "+helpshop",
+              value: "Provide a list of commands relavent to Cobalt's Shop. These commands can only be used here."
           )
           
           embed.add_field(
@@ -694,8 +724,8 @@ module Bot::Help
           )
                                         
           embed.add_field(
-              name: "+bean",
-              value: '¯\_(ツ)_/¯'
+            name: "+bean",
+            value: '¯\_(ツ)_/¯'
           )
           
           embed.footer = {
@@ -958,6 +988,97 @@ module Bot::Help
             icon_url: "https://cdn.discordapp.com/attachments/753163837057794176/805998319251882034/467450365055336448.png"
         }
       end
+    end
+  end
+
+  # Economy Help Command
+  command(:helpshop) do |event|
+    break unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
+    event.send_embed do |embed|    
+      embed.color = 0x0047AB
+      embed.author = {
+          name: "Cobalt's Shop Commands - #bot_commands",
+          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ?autoplay=1",
+          icon_url: 'https://cdn.discordapp.com/icons/297550039125983233/d656bcf8febb57a73df83c1df951ed9e.png?size=2048'
+      }
+      embed.thumbnail = {
+          url: "https://cdn.discordapp.com/app-icons/753190745426362368/992d8132d9d263ab83a39d272e871f29.png?size=2048"
+      }
+
+      embed.add_field(
+          name: "+helpshop",
+          value: "Provide a list of commands relavent to Cobalt's Shop. These commands can only be used here."
+      )
+
+      embed.add_field(
+        name: "+settimezone [timezone name]",
+        value: "Set the timezone you live in."
+      )
+
+      embed.add_field(
+        name: "+gettimezone",
+        value: "Check what timezone Cobalt thinks you live in."
+      )
+
+      embed.add_field(
+        name: "+shop",
+        value: "See all of the items currently available in Cobalt's Shop."
+      )
+
+      embed.add_field(
+        name: "+profile [optional @username]",
+        value: "Check your or someone else's Shop profile. See how much money they have and what they've bought."
+      )
+
+      embed.add_field(
+        name: "+checkin",
+        value: "Get your daily free Starbucks."
+      )
+
+      embed.add_field(
+        name: "+richest",
+        value: "See a list of the richest users."
+      )
+
+      embed.add_field(
+        name: "+transfermoney [@username]",
+        value: "Send Starbucks to another user."
+      )
+
+      embed.add_field(
+        name: "+rentarole [role name]",
+        value: "Rent a role that changes the color of your username."
+      )
+
+      embed.add_field(
+        name: "+unrentarole",
+        value: "Remove your rented role."
+      )
+
+      embed.add_field(
+        name: "+tag {add, edit, delete} [tag name]",
+        value: "Buy or manage tags that send a custom message."
+      )
+
+      embed.add_field(
+        name: "+tags [optional @username]",
+        value: "Search through all of the tags on the server or all of the ones belonging to a particular user."
+      )
+
+      embed.add_field(
+        name: "+mycom {add, edit, delete, list} [command name]",
+        value: "Buy or manage your custom commands."
+      )
+
+      embed.add_field(
+        name: "+raffle {buyticket, reminder}",
+        value: "Buy raffle tickets and get reminders about when new raffles start."
+      )
+
+      embed.footer = {
+          text: "Missing Commands? Try running +help in the relavent channel",
+          icon_url: "https://cdn.discordapp.com/attachments/753163837057794176/805998319251882034/467450365055336448.png"
+      }
     end
   end
 end

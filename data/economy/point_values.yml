@@ -1,43 +1,54 @@
 # This is the file that defines how many points each action is worth.
 
 ---
-checkin_member: 50      # checkin (as member): +50 bucks
-checkin_citizen: 75     # checkin (as citizen): +75
-checkin_noble: 100      # checkin (as noble): +100
-checkin_monarch: 125    # checkin (as monarch): +125
-checkin_alpha: 150      # checkin (as alpha): +150
+# standard commands
+checkin_new: 25         # checkin (as a new member)
+checkin_verified: 50    # checkin (as verified)
+checkin_citizen: 100    # checkin (as citizen)
+checkin_squire: 150     # checkin (as squire)
+checkin_knight: 200     # checkin (as knight)
+checkin_noble: 300      # checkin (as noble)
+checkin_monarch: 400    # checkin (as monarch)
+checkin_bearer: 500     # checkin (as bearer of the wand)
 profile: 0              # see profile: no cost
 richest: 0              # see leaderboard: no cost
 #transfermoney: var     # transfer points, variable cost defined by user
 
 # role renting
-rentarole_initial: 300  # initial rent-a-role cost
-rentarole_maintain: 200 # rent-a-role daily maintenance cost
-rentarole_override: 150 # override role cost ?? not sure what this is
+rentarole_color: 300    # initial color rent-a-role cost
+rentarole_override: 150 # initial override role rent-a-role cost
+rentarole_maintain: 200 # rent-a-role maintenance cost
 unrentarole: 0          # remove rented role
 
-#tags, max one at a time
+# tags, max one at a time
 tag_add: 30          # add a customized tag
 tag_delete: 0        # remove purchased tag
 tag_edit: 0          # edit purchased tag
+tag_maintain: 15     # tag maintanance cost
 
 # custom commands, usable in every channel
-myconn_set: 15000    # buy a custom command
-myconn_delete: 0     # delete a custom command
-myconn_edit: 0       # edit custom command
+mycom_add: 15000     # buy a custom command
+mycom_delete: 0      # delete a custom command
+mycom_edit: 0        # edit custom command
+mycom_maintain: 7500 # maintain custom command
 
 # raffles
 raffle_info: 0       # ask for info about the raffle
-raffle_buyticket: ## # buy raffle tickets, unknown cost
-raffle_buyticket: 0  # set up a reminder for the raffle
+raffle_buyticket: 10 # buy raffle tickets (price/ticket)
+raffle_win: 5        # earnings per ticket when a user wins
+raffle_reminder: 0   # set up a reminder for the raffle
 
 # moderator-only
-fine_basic: 1000     # fine a user, basic punishment: -1000
-fine_moderate: 5000  # fine a user, moderate punishment: -5000
-fine_extreme: 15000  # fine a user, extreme punishment: -15000
+fine_small: 2500     # fine a user, basic punishment: -1000
+fine_medium: 5000    # fine a user, moderate punishment: -5000
+fine_large: 10000    # fine a user, extreme punishment: -15000
 
 # dev-only
 #shutupandtakemymoney: all # displays gif, clears balance
 #gimme: var          # give specified number of points
 #takeit: var         # take specified number of points
 econdummy: 0         # do nothing, perform cleanup
+
+# activity earnings
+activity_voice_chat: 5 # per 2 seconds
+activity_text_chat:  3 # per 2 seconds

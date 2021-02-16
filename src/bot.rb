@@ -72,6 +72,12 @@ module Bot
     puts "+ Loaded file #{path[3..-1]}"
   end
   
+  # load helper modules that require db after lib is loaded
+  Dir['helper/*.rb'].each do |path| 
+    load path
+    puts "+ Loaded file #{path[3..-1]}"
+  end
+
   puts 'Done.'
 
   # Loads a crystal from the given file and includes the module into the bot's container.
