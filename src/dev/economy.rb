@@ -339,6 +339,58 @@ module Bot::Economy
     event.respond "Your current timezone is \"#{Bot::Timezone::GetUserTimezone(event.user.id)}\""
   end
 
+  # display all of the available items for purchase
+  command :shop do |event| 
+    # enumerate types
+    types = { }
+    items_of_type = { }
+    cur_type = 0x1000
+    while (type_name = Bot::Inventory::GetValueFromCatalogue(cur_type)) != nil
+      types[cur_type] = type_name
+      items_of_type[type_name] = []
+      cur_type += 0x1000
+    end
+
+    # enumerate items for each type
+    types.each do |type_id, type_name|
+      item_id = type_id + 1
+      while (item_name = Bot::Inventory::GetValueFromCatalogue(item_id)) != nil
+        items_of_type[type_name].push(item_name)
+        item_id += 1
+      end
+    end
+
+    event.send_embed do |embed|
+      embed.author = {
+          name: STRING_BANK_NAME,
+          icon_url: IMAGE_BANK
+      }
+
+      embed.title = "Cobalt's Shop"
+      embed.description = "Here is everything currently available in the shop:\n"
+
+      printed_types = Set[]
+      types.each do |type_id, type_name|
+        # avoid double printing types with shared names
+        next if printed_types.include?(type_name)
+        printed_types.add(type_name)
+
+        # if there are sub-items display the full list
+        if not items_of_type[type_name].count == 1
+          embed.description += "**#{type_name}**\n"
+          
+          items_of_type[type_name].each do |item_name|
+            embed.description += " - #{item_name}\n"
+          end
+        else # display the one and only item
+          embed.description += "**#{items_of_type[type_name][0]}**\n"
+        end
+      end
+
+      embed.color = COLOR_EMBED
+    end
+  end
+
   # get daily amount
   command :checkin do |event|
     user = DiscordUser.new(event.user.id)
@@ -667,7 +719,7 @@ module Bot::Economy
           "#{color_role_cost} Starbucks and override roles cost " +
           "#{override_role_cost} Starbucks. Every #{pl(renew_frequency, "day")} " +
           "you must pay #{renewal_cost} Starbucks to renew your role. If you " +
-          "cannot afford it, you will loose your role! It's recommended that " +
+          "cannot afford it, you will loose your it! It's recommended that " +
           "you keep an excess of Starbucks around.\n\n" +
           "You can use +unrentarole to remove a rented role. There is no refund " +
           "for removing a purchased role.\n\n" +
@@ -828,7 +880,7 @@ module Bot::Economy
           "you can edit tags you own using +tag edit [name] and remove them " +
           "using +tag delete [name].\n\n" +
           "Tags cost #{tag_cost} Starbucks upfront and #{tag_renewal_cost} " +
-          "Starbucks every #{pl(tag_lifetime, "day")} to keep. If you can not " +
+          "Starbucks every #{pl(tag_lifetime, "day")} to keep. If you cannot " +
           "afford to pay, they will be deleted!\n\n" +
           "If you want to search all of the available tags use the +tags " +
           "command. You can optionally specify a user (including yourself) " +
@@ -1132,7 +1184,7 @@ module Bot::Economy
           "+mycom edit [name] and remove them using +mycom delete [name].\n\n" +
           "Custom commands cost #{command_cost} Starbucks upfront and " +
           "#{command_renewal_cost} Starbucks every #{pl(command_lifetime, "day")} " +
-          "to keep. If you can not afford to pay, they will be deleted!\n\n" +
+          "to keep. If you cannot afford to pay, they will be deleted!\n\n" +
           "If you want to see all of your commands use the +mycom list."
         
         embed.footer = {text: "Create a command with +mycom add [name]"}
