@@ -47,7 +47,7 @@ item_type_custom_command: 0x4000
 0xEFFD: 7   # item_type_role_override
 0xDFFD: 7   # item_type_role_color
 0xCFFD: 1   # item_type_tag
-0xBFFD: 28  # item_type_custom_command
+0xBFFD: 30  # item_type_custom_command
 
 # override roles (0x1000)
 #role_override_citizen

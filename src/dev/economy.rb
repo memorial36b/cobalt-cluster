@@ -638,16 +638,49 @@ module Bot::Economy
   RENTAROLE_REQ_COUNT = 1
   command :rentarole do |event, *args|
     opt_defaults = []
-    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
-      event,
-      RENTAROLE_COMMAND_NAME,
-      RENTAROLE_DESCRIPTION,
+    parsed_args = Convenience::ParseArgs(
       RENTAROLE_ARGS,
       RENTAROLE_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    
+    # special rent-a-role info page
+    if parsed_args.nil?
+      rand_color_role_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
+      color_role_cost = Bot::Bank::AppraiseItem('rentarole_color')
+      override_role_cost = Bot::Bank::AppraiseItem('rentarole_override')
+      renew_frequency = Bot::Inventory::GetItemLifetime(rand_color_role_id)
+      renewal_cost = Bot::Bank::AppraiseItem('rentarole_maintain')
+      
+      event.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
 
+        embed.title = "Rent-A-Role"
+        embed.description = 
+          "You can rent any of the available roles here. You can only " +
+          "rent one at a time. You can rent either a color or an override " +
+          "role. You can only rent override roles that you meet the level " +
+          "requirement for (e.g. Mewman Citizen). Color roles cost " +
+          "#{color_role_cost} Starbucks and override roles cost " +
+          "#{override_role_cost} Starbucks. Every #{pl(renew_frequency, "day")} " +
+          "you must pay #{renewal_cost} Starbucks to renew your role. If you " +
+          "cannot afford it, you will loose your role! It's recommended that " +
+          "you keep an excess of Starbucks around.\n\n" +
+          "You can use +unrentarole to remove a rented role. There is no refund " +
+          "for removing a purchased role.\n\n" +
+          "The available roles are as follows:\n" +
+          "Color: orange, blue, red, lavendar, white, magenta, yellow\n" +
+          "Override: citizen, squire, knight, noble, monarch, bearer"
+        
+        embed.footer = {text: "Purchase a role with +rentarole [name]"}
+        embed.color = COLOR_EMBED
+      end
+      break # stop processing
+    end
+    
     Bot::Bank::CleanAccount(event.user.id)
 
     # Check to see if the user is already renting a role.
@@ -767,15 +800,45 @@ module Bot::Economy
   TAG_REQ_COUNT = 1
   command :tag do |event, *args|
     opt_defaults = [""]
-    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
-      event,
-      TAG_COMMAND_NAME,
-      TAG_DESCRIPTION,
+    parsed_args = Convenience::ParseArgs(
       TAG_ARGS,
       TAG_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?
+
+    if parsed_args.nil?
+      event.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
+
+        tag_id = Bot::Inventory::GetItemID('tag')
+        tag_cost = Bot::Bank::AppraiseItem('tag_add')
+        tag_renewal_cost = Bot::Bank::AppraiseItem('tag_maintain')
+        tag_lifetime = Bot::Inventory::GetItemLifetime(tag_id)
+
+        embed.title = "Tag"
+        embed.description = 
+          "You can buy tags here. Tags are auto-responses that will be sent " +
+          "whenenver a tag is invoked by +tag [name]. Anyone can use any tag " +
+          "on the server! However, they can only be used in the #bot_commands " +
+          "channel. You can create a new tag using +tag add [name]. Your " +
+          "tag name can be anything, but cannot contain spaces. If you want, " +
+          "you can edit tags you own using +tag edit [name] and remove them " +
+          "using +tag delete [name].\n\n" +
+          "Tags cost #{tag_cost} Starbucks upfront and #{tag_renewal_cost} " +
+          "Starbucks every #{pl(tag_lifetime, "day")} to keep. If you can not " +
+          "afford to pay, they will be deleted!\n\n" +
+          "If you want to search all of the available tags use the +tags " +
+          "command. You can optionally specify a user (including yourself) " +
+          "if you want to look at tags created by someone in particular."
+        
+        embed.footer = {text: "Create a tag with +tag add [name]"}
+        embed.color = COLOR_EMBED
+      end
+      break # stop processing
+    end
 
     # assume they're trying to use spacs
     if args.count > TAG_ARGS.count
@@ -1041,15 +1104,43 @@ module Bot::Economy
   MYCOM_REQ_COUNT = 1
   command :mycom do |event, *args|
     opt_defaults = [""]
-    parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
-      event,
-      MYCOM_COMMAND_NAME,
-      MYCOM_DESCRIPTION,
+    parsed_args = Convenience::ParseArgs(
       MYCOM_ARGS,
       MYCOM_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?
+
+    if parsed_args.nil?
+      event.send_embed do |embed|
+        embed.author = {
+            name: STRING_BANK_NAME,
+            icon_url: IMAGE_BANK
+        }
+
+        command_id = Bot::Inventory::GetItemID('custom_command')
+        command_cost = Bot::Bank::AppraiseItem('mycom_add')
+        command_renewal_cost = Bot::Bank::AppraiseItem('mycom_maintain')
+        command_lifetime = Bot::Inventory::GetItemLifetime(command_id)
+
+        embed.title = "Custom Command"
+        embed.description = 
+          "You can buy custom commands here. Custom Commands generate auto-responses " +
+          "when they are invoked by +command_name. Only you can use your custom " +
+          "commands and they can be used anywhere on the server! You can create a " +
+          "new command using +mycom add [name]. Your command name can be anything, " +
+          "but cannot contain spaces. If you want, you can edit your commands using " +
+          "+mycom edit [name] and remove them using +mycom delete [name].\n\n" +
+          "Custom commands cost #{command_cost} Starbucks upfront and " +
+          "#{command_renewal_cost} Starbucks every #{pl(command_lifetime, "day")} " +
+          "to keep. If you can not afford to pay, they will be deleted!\n\n" +
+          "If you want to see all of your commands use the +mycom list."
+        
+        embed.footer = {text: "Create a command with +mycom add [name]"}
+        embed.color = COLOR_EMBED
+      end
+
+      break # stop processing
+    end
 
     # assume they're trying to use spaces
     if args.count > MYCOM_ARGS.count
@@ -1270,7 +1361,7 @@ module Bot::Economy
 
       cost_of_tickets = tickets_to_buy * Bot::Bank::AppraiseItem('raffle_buyticket')
       if not Bot::Bank::Withdraw(event.user.id, cost_of_tickets)
-        event.respond "You can't afford to buy that many tickets!"
+        event.respond "You can't afford to buy that many!"
         break
       end
 
@@ -1279,7 +1370,7 @@ module Bot::Economy
         RAFFLE_ENTRIES << { user_id: event.user.id }
       end
 
-      event.respond "#{event.user.mention}, you bought #{tickets_to_buy} tickets."
+      event.respond "#{event.user.mention}, you bought #{pl(tickets_to_buy, "ticket")}."
 
     when 'reminder', 'remind'
       if event.user.role?(RAFFLE_ROLE_ID)
@@ -1308,7 +1399,7 @@ module Bot::Economy
           "ticket can win! Your odds of winning are directly proportionate to " +
           "how many you bought. Each ticket costs #{cost_of_ticket} Starbucks " +
           "and for every ticket in the pool the winner will receive " +
-          "#{roi_of_ticket} Starbucks. If want a reminder call the command " +
+          "#{roi_of_ticket} Starbucks. If you want a reminder call the command " +
           "+raffle reminder; call it again to remove the reminder. Enter now " +
           "to win big! "
         
