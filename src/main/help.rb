@@ -689,8 +689,8 @@ module Bot::Help
           )
 
           embed.add_field(
-              name: "+helpeconomy",
-              value: "Provide a list of commands relavent to Cobalt's Shop. These commands are only valid here."
+              name: "+helpshop",
+              value: "Provide a list of commands relavent to Cobalt's Shop. These commands can only be used here."
           )
           
           embed.add_field(
@@ -992,12 +992,12 @@ module Bot::Help
   end
 
   # Economy Help Command
-  command(:helpeconomy) do |event|
+  command(:helpshop) do |event|
     break unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
     event.send_embed do |embed|    
       embed.color = 0x0047AB
       embed.author = {
-          name: "Economy Commands - #bot_commands",
+          name: "Cobalt's Shop Commands - #bot_commands",
           url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ?autoplay=1",
           icon_url: 'https://cdn.discordapp.com/icons/297550039125983233/d656bcf8febb57a73df83c1df951ed9e.png?size=2048'
       }
@@ -1006,18 +1006,18 @@ module Bot::Help
       }
 
       embed.add_field(
-          name: "+helpeconomy",
-          value: "Provide a list of commands relavent to Cobalt's Shop. These commands are only valid here."
+          name: "+helpshop",
+          value: "Provide a list of commands relavent to Cobalt's Shop. These commands can only be used here."
       )
 
       embed.add_field(
         name: "+settimezone [timezone name]",
-        value: "Set the timezone you live in so events and banking management is synced correctly for you."
+        value: "Set the timezone you live in."
       )
 
       embed.add_field(
         name: "+gettimezone",
-        value: "Check what timezone you currently have yourself configured as."
+        value: "Check what timezone Cobalt thinks you live in."
       )
 
       embed.add_field(
@@ -1027,7 +1027,7 @@ module Bot::Help
 
       embed.add_field(
         name: "+profile [optional @username]",
-        value: "Check your or someone else's banking profile. See how much money they have and what swag they've bought."
+        value: "Check your or someone else's Shop profile. See how much money they have and what they've bought."
       )
 
       embed.add_field(
@@ -1037,17 +1037,17 @@ module Bot::Help
 
       embed.add_field(
         name: "+richest",
-        value: "See a list of the richest users on the server."
+        value: "See a list of the richest users."
       )
 
       embed.add_field(
         name: "+transfermoney [@username]",
-        value: "Send money from your account to the specified user."
+        value: "Send Starbucks to another user."
       )
 
       embed.add_field(
         name: "+rentarole [role name]",
-        value: "Rent a role from the store that will change the color your username is displayed in."
+        value: "Rent a role that changes the color of your username."
       )
 
       embed.add_field(
@@ -1057,12 +1057,12 @@ module Bot::Help
 
       embed.add_field(
         name: "+tag {add, edit, delete} [tag name]",
-        value: "Buy a new auto-response tag or manage your existing ones."
+        value: "Buy or manage tags that send a custom message."
       )
 
       embed.add_field(
         name: "+tags [optional @username]",
-        value: "Search through all of the tags on the server or those belonging to a specific user."
+        value: "Search through all of the tags on the server or all of the ones belonging to a particular user."
       )
 
       embed.add_field(
@@ -1072,7 +1072,7 @@ module Bot::Help
 
       embed.add_field(
         name: "+raffle {buyticket, reminder}",
-        value: "Buy raffle tickets and subscribe to receive notifications when they happen."
+        value: "Buy raffle tickets and get reminders about when new raffles start."
       )
 
       embed.footer = {

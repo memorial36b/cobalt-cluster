@@ -715,11 +715,11 @@ module Bot::Economy
           "You can rent any of the available roles here. You can only " +
           "rent one at a time. You can rent either a color or an override " +
           "role. You can only rent override roles that you meet the level " +
-          "requirement for (e.g. Mewman Citizen). Color roles cost " +
-          "#{color_role_cost} Starbucks and override roles cost " +
+          "requirement for (e.g. Mewman Citizen).\n\n" +
+          "Color roles cost #{color_role_cost} Starbucks and override roles cost " +
           "#{override_role_cost} Starbucks. Every #{pl(renew_frequency, "day")} " +
           "you must pay #{renewal_cost} Starbucks to renew your role. If you " +
-          "cannot afford it, you will loose your it! It's recommended that " +
+          "cannot afford it, you will lose it! It's recommended that " +
           "you keep an excess of Starbucks around.\n\n" +
           "You can use +unrentarole to remove a rented role. There is no refund " +
           "for removing a purchased role.\n\n" +
@@ -870,13 +870,14 @@ module Bot::Economy
         tag_renewal_cost = Bot::Bank::AppraiseItem('tag_maintain')
         tag_lifetime = Bot::Inventory::GetItemLifetime(tag_id)
 
-        embed.title = "Tag"
+        embed.title = "Tags"
         embed.description = 
-          "You can buy tags here. Tags are auto-responses that will be sent " +
-          "whenenver a tag is invoked by +tag [name]. Anyone can use any tag " +
+          "You can buy tags here. Tags are custom messages that are sent " +
+          "whenever +tag [name] is called. Anyone can use any tag " +
           "on the server! However, they can only be used in the #bot_commands " +
-          "channel. You can create a new tag using +tag add [name]. Your " +
-          "tag name can be anything, but cannot contain spaces. If you want, " +
+          "channel.\n\n" +
+          "You can create a new tag using +tag add [name]. Your " +
+          "tag name can be anything, but it cannot contain spaces. If you want, " +
           "you can edit tags you own using +tag edit [name] and remove them " +
           "using +tag delete [name].\n\n" +
           "Tags cost #{tag_cost} Starbucks upfront and #{tag_renewal_cost} " +
@@ -884,7 +885,7 @@ module Bot::Economy
           "afford to pay, they will be deleted!\n\n" +
           "If you want to search all of the available tags use the +tags " +
           "command. You can optionally specify a user (including yourself) " +
-          "if you want to look at tags created by someone in particular."
+          "to look at tags created by someone in particular."
         
         embed.footer = {text: "Create a tag with +tag add [name]"}
         embed.color = COLOR_EMBED
@@ -1176,12 +1177,13 @@ module Bot::Economy
 
         embed.title = "Custom Command"
         embed.description = 
-          "You can buy custom commands here. Custom Commands generate auto-responses " +
-          "when they are invoked by +command_name. Only you can use your custom " +
-          "commands and they can be used anywhere on the server! You can create a " +
-          "new command using +mycom add [name]. Your command name can be anything, " +
-          "but cannot contain spaces. If you want, you can edit your commands using " +
-          "+mycom edit [name] and remove them using +mycom delete [name].\n\n" +
+          "You can buy custom commands here. Custom commands send custom messages " +
+          "when they are called using +command_name. Only you can use your custom " +
+          "commands, but they can be used anywhere on the server!\n\n" +
+          "You can create a new command using +mycom add [name]. Your command " +
+          "name can be anything, but it cannot contain spaces. If you want, you " +
+          "can edit your commands using +mycom edit [name] and remove them " +
+          "using +mycom delete [name].\n\n" +
           "Custom commands cost #{command_cost} Starbucks upfront and " +
           "#{command_renewal_cost} Starbucks every #{pl(command_lifetime, "day")} " +
           "to keep. If you cannot afford to pay, they will be deleted!\n\n" +
