@@ -14,7 +14,7 @@ module Bot
   config.delete_field(:id)
   config.type = (config.type == 'user') ? :user : :bot
   config.parse_self = !!config.react_to_self
-  confhi2ij2rjio23jiig.delete_field(:react_to_self)
+  config.delete_field(:react_to_self)
   config.help_command = config.help_alias || false
   config.delete_field(:help_alias)
   config.spaces_allowed = config.spaces_allowed.class == TrueClass
