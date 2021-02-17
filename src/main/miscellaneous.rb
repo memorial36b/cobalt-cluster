@@ -134,43 +134,40 @@ module Bot::Miscellaneous
   command(:serverinfo, channels: %w(#bot_commands #moderation_channel)) do |event|
     # Sends embed containing server info
     event.send_embed do |embed|
+      
       embed.author = {
           name: "SERVER: #{SERVER.name}",
           icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
       }
-      embed.thumbnail = {url: SERVER.icon_url}
+      embed.thumbnail = {
+          url: SERVER.icon_url
+      }
       embed.add_field(
           name: 'Owner',
-          value: SERVER.owner.distinct + "\n⠀",
+          value: "<@!#{SERVER.owner.id}>" + "\n⠀" +
+                "\n" +
+                "**Members: #{SERVER.member_count}**\n" +
+                "├ Mewmans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
+                "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
+                "└ Online: **#{SERVER.online_members.size}**\n" +
+                "\n" +
+                "**Emotes: #{SERVER.emoji.length}**" + "\n⠀",
           inline: true
       )
       embed.add_field(
           name: 'Region',
-          value: SERVER.region_id + "\n⠀",
+          value: SERVER.region_id + "\n⠀" +
+                "\n" +
+                "**Channels: #{SERVER.channels.size}**\n" +
+                "├ Text: **#{SERVER.text_channels.size}**\n" +
+                "├ Voice: **#{SERVER.voice_channels.size}**\n" +
+                "└ Categories: **#{SERVER.categories.size}**\n" +
+                "\n" +
+                "**Roles: #{SERVER.roles.size}**" + "\n⠀",
           inline: true
       )
-      embed.add_field(
-          name: 'Numerics',
-          value: "**Members: #{SERVER.member_count}**\n" +
-                 "├ Mewmans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
-                 "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
-                 "└ Online: **#{SERVER.online_members.size}**\n" +
-                 "\n" +
-                 "**Emotes: #{SERVER.emoji.length}**",
-          inline: true
-      )
-      embed.add_field(
-          name: '⠀',
-          value: "**Channels: #{SERVER.channels.size}**\n" +
-                 "├ Text: **#{SERVER.text_channels.size}**\n" +
-                 "├ Voice: **#{SERVER.voice_channels.size}**\n" +
-                 "└ Categories: **#{SERVER.categories.size}**\n" +
-                 "\n" +
-                 "**Roles: #{SERVER.roles.size}**",
-          inline: true
-      )
-      embed.footer = {text: "ID: 753163835862417480 • Founded on April 28, 2017"}
-      embed.color = COLOR_EMBED
+      embed.footer = {text: "ID: #{event.server.id} • Founded on April 28, 2017"}
+      embed.color = 0xFFD700
     end
   end
 
@@ -212,7 +209,7 @@ module Bot::Miscellaneous
           inline: true
       ) if user.joined_at
       embed.add_field(
-          name: 'Role Info',
+          name: '⠀',
           value: "**Roles: #{user.roles.size}**\n" +
                  "├ Highest: **#{user.highest_role ? user.highest_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**\n" +
                  "├ Color: **#{user.color_role ? user.color_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**\n" +
@@ -249,7 +246,7 @@ module Bot::Miscellaneous
                      "\n" +
                      "**Filed by:** #{event.user.distinct}",
         thumbnail: {url: 'https://emojipedia-us.s3.amazonaws.com/thumbs/120/twitter/103/right-pointing-magnifying-glass_1f50e.png'},
-        color: COLOR_EMBED
+        color: 0xFFD700
       }
     )
     event.respond "• **ID** `#{identifier}`\n" + # confirmation message sent to event channel
@@ -329,8 +326,10 @@ module Bot::Miscellaneous
         end
       end
 
-      embed.color = COLOR_EMBED
+      embed.color = 0x0047AB
       embed.description = content + "\n \n[Message Link](#{event.message.link})"
+      embed.timestamp = event.message.timestamp.getgm
+      embed.footer = {text: "##{event.message.channel.name}"}
     end
 
     # Sets recent quote tracker to true, and schedules it to be set back to false in 5 minutes
