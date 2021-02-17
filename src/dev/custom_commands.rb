@@ -145,13 +145,12 @@ module Bot::CustomCommands
   # @return [bool] Success? Returns false if command already exists or name/content is too long.
   # Note: Must link to a created item.
   def AddCustomCommand(command_name, owner_user_id, item_entry_id, command_content)
+    command_name = command_name.downcase # enforce lowercase command naems
     return false if command_name.length <= 0 or command_name.length > GetMaxCustomCommandNameLength() or command_content.length > GetMaxCustomCommandContentLength()
     return false if command_name =~ /\s/ # no spaces allowed
     return false if USER_CUSTOM_COMMANDS.where{Sequel.&({command_name: command_name}, {owner_user_id: owner_user_id})}.count() > 0
 
-    # enforce lowercase command naems
-    command_name = command_name.downcase
-
+    
     # will raise error on invalid content
     USER_CUSTOM_COMMANDS << { command_name: command_name, owner_user_id: owner_user_id, item_entry_id: item_entry_id, command_content: command_content }
     return true
