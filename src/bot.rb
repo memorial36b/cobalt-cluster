@@ -8,6 +8,7 @@ require 'yaml'
 # All individual crystals will be submodules of this; this gives them access to the main 
 # bot object through a constant, as well as a constant containing the path to the data folder
 module Bot
+  breakme
   # Loads config file into struct and parses info into a format readable by CommandBot constructor
   config = OpenStruct.new(YAML.load_file '../config.yml')
   config.client_id = config.id
