@@ -38,6 +38,33 @@ namespace :run do
       system("ruby bot.rb main dev")
     end
   end
+
+  desc 'Do a dry run of the bot with the main crystals'
+  task :dryrunmain => ['dependencies'] do |event|
+    # Changes director to src
+    Dir.chdir('src') do
+      # Runs the main bot script with main and dev argument
+      system("ruby bot.rb main dryrun")
+    end
+  end
+
+  desc 'Do a dry run of the bot with the dev crystals'
+  task :dryrundev => ['dependencies'] do |event|
+    # Changes director to src
+    Dir.chdir('src') do
+      # Runs the main bot script with main and dev argument
+      system("ruby bot.rb main dev dryrun")
+    end
+  end
+
+  desc 'Do a dry run of the bot with all of the crystals (main and dev)'
+  task :dryrunall => ['dependencies'] do |event|
+    # Changes director to src
+    Dir.chdir('src') do
+      # Runs the main bot script with main and dev argument
+      system("ruby bot.rb main dev dryrun")
+    end
+  end
 end
 
 desc 'Remove git repository files'

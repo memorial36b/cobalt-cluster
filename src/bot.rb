@@ -106,6 +106,10 @@ module Bot
   puts "Starting bot with logging mode #{config.log_mode.to_s}..."
   BOT.ready { puts 'Bot started!' }
 
-  # After loading all desired crystals, runs the bot
-  BOT.run
+  unless ARGV.include? 'dryrun' # we don't actually run in dry run mode
+    # After loading all desired crystals, runs the bot
+    BOT.run
+  else
+    puts 'dryrun complete'
+  end
 end
