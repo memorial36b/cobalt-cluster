@@ -1,13 +1,70 @@
 require 'erb'
 require 'fileutils'
 
+# handles running commands
+class CommandRunner
+  # create a new command runner
+  def initializer()
+    @cur_cmd_pid = nil
+    ObjectSpace.define_finalizer(self, method(:finalize))
+  end
+
+  # kill zombie processes
+  def finalize(object_id)
+    kill_cmd()
+  end
+
+  # run a new command
+  def run_cmd(command)
+    @cur_cmd_pid = Process.spawn(command)
+    _, status = Process.wait2(@cur_cmd_pid)
+    raise RuntimeError, "Cmd failed to terminate (pid: #{@cur_cmd_pid})" unless status.exited?
+    @cur_cmd_pid = nil # it ded fam
+
+    # mimic system() return value
+    return status.exited?
+  end
+
+  # kill the currently executing command
+  def kill_cmd()
+    pid = @cur_cmd_pid # avoid multi-threaded shenanies
+    unless pid.nil?
+      begin
+        Process.kill('INT', pid)
+      rescue Errno::ESRCH, RangeError
+        puts "WARNING: Could find cmd (pid #{pid}) to kill it"
+      rescue Errno::EPERM
+        puts "ERROR: Insufficient permissions to kill (pid #{pid})"
+      end
+
+      begin
+        # wait on pid, raise error if failed
+        _, status = Process.wait2(pid)
+      rescue SystemCallError
+        # no child process with pid found, report
+        puts "WARNING: There are no child processes (tried pid: #{pid})"
+      end
+    end
+  end
+end
+
+# global command manager
+CMD_RUNNER = CommandRunner.new()
+
+# catches sigint (CTRL+C), kills current and bail
+Signal.trap('INT') do
+  print "INFO: Rake SIGINT terminated, exiting...\n"
+  CMD_RUNNER.kill_cmd()
+  exit -1
+end
+
 task :default => ['run:main']
 
 desc 'Install dependencies with bundle install command'
 task :dependencies do
-  unless system('bundle check')
+  unless CMD_RUNNER.run_cmd('bundle check')
     puts "(Don't worry, cluster will handle this right now)"
-    system("bundle install")
+    CMD_RUNNER.run_cmd("bundle install")
   end
 end
 
@@ -17,7 +74,7 @@ namespace :run do
     # Changes directory to src
     Dir.chdir('src') do
       # Runs the main bot script with main argument
-      system("ruby bot.rb main")
+      CMD_RUNNER.run_cmd("ruby bot.rb main")
     end
   end
 
@@ -26,7 +83,7 @@ namespace :run do
     # Changes directory to src
     Dir.chdir('src') do
       # Runs the main bot script with dev argument
-      system("ruby bot.rb dev")
+      CMD_RUNNER.run_cmd("ruby bot.rb dev")
     end
   end
 
@@ -35,7 +92,7 @@ namespace :run do
     # Changes directory to src
     Dir.chdir('src') do
       # Runs the main bot script with main and dev argument
-      system("ruby bot.rb main dev")
+      CMD_RUNNER.run_cmd("ruby bot.rb main dev")
     end
   end
 
@@ -44,7 +101,7 @@ namespace :run do
     # Changes director to src
     Dir.chdir('src') do
       # Runs the main bot script with main and dev argument
-      system("ruby bot.rb main dryrun")
+      CMD_RUNNER.run_cmd("ruby bot.rb main dryrun")
     end
   end
 
@@ -53,7 +110,7 @@ namespace :run do
     # Changes director to src
     Dir.chdir('src') do
       # Runs the main bot script with main and dev argument
-      system("ruby bot.rb main dev dryrun")
+      CMD_RUNNER.run_cmd("ruby bot.rb main dev dryrun")
     end
   end
 
@@ -62,7 +119,7 @@ namespace :run do
     # Changes director to src
     Dir.chdir('src') do
       # Runs the main bot script with main and dev argument
-      system("ruby bot.rb main dev dryrun")
+      CMD_RUNNER.run_cmd("ruby bot.rb main dev dryrun")
     end
   end
 end
