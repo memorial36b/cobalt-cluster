@@ -84,7 +84,7 @@ module Bot::Miscellaneous
   reaction_add do |event|
     # Skips unless the message ID is equal to the role button message's ID and user has Member role
     next unless event.message.id == ROLE_MESSAGE_ID &&
-                event.user.role?(MEMBER_ID)
+                event.user.role?(MEMBER_ROLE_ID)
 
     # Cases reaction emoji and gives user correct role accordingly
     case event.emoji.name
@@ -98,7 +98,9 @@ module Bot::Miscellaneous
       event.user.add_role(BOT_GAMES_ROLE_ID)
     when '💭'
       event.user.add_role(VENT_ROLE_ID)
-    when '🗣'
+    when '🗣' # discord has changed the emoji, keep the old ones around for safety
+      event.user.add_role(DEBATE_ROLE_ID)
+    when '🗣️'
       event.user.add_role(DEBATE_ROLE_ID)
     when '🎲'
       event.user.add_role(SANDBOX_ROLE_ID)
@@ -114,19 +116,21 @@ module Bot::Miscellaneous
     # Cases reaction emoji and removes correct role from user accordingly
     case event.emoji.name
     when '🔔'
-      event.user.remove_role(UPDATES_ID)
+      event.user.remove_role(UPDATE_ROLE_ID)
     when '🌟'
-      event.user.remove_role(SVTFOE_NEWS_ID)
+      event.user.remove_role(SVTFOE_NEWS_ROLE_ID)
     when '🚰'
-      event.user.remove_role(SVTFOE_LEAKS_ID)
+      event.user.remove_role(SVTFOE_LEAKS_ROLE_ID)
     when '🎮'
-      event.user.remove_role(BOT_GAMES_ID)
+      event.user.remove_role(BOT_GAMES_ROLE_ID)
     when '💭'
-      event.user.remove_role(VENT_ID)
-    when '🗣'
-      event.user.remove_role(DEBATE_ID)
+      event.user.remove_role(VENT_ROLE_ID)
+    when '🗣' # discord has changed the emoji, keep the old ones around for safety
+      event.user.remove_role(DEBATE_ROLE_ID)
+    when '🗣️'
+      event.user.remove_role(DEBATE_ROLE_ID)      
     when '🎲'
-      event.user.remove_role(SANDBOX_ID)
+      event.user.remove_role(SANDBOX_ROLE_ID)
     end
   end
 
@@ -294,7 +298,7 @@ module Bot::Miscellaneous
 
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
-    next if camera_reaction.count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 4) ||
+    next if camera_reaction.count < (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 4) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
             QUOTED_MESSAGES[id: event.message.id] ||
             qb_recent

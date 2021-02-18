@@ -313,6 +313,7 @@ module Bot::Economy
   SETTIMEZONE_DESCRIPTION = "Set your timezone.\nSee https://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of valid values."
   SETTIMEZONE_ARGS = [["timezone_name", String]]
   SETTIMEZONE_REQ_COUNT = 1
+  # TODO: make this accept spaces by using arg=''
   command :settimezone do |event, *args|
     # parse args
     opt_defaults = []
