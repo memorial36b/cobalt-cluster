@@ -1,0 +1,17 @@
+# Exclude RubyMine workspace files
+.idea/
+
+# Exclude config file
+config.yml
+
+# Exclude legacy folder (contains old Cobalt code on my local machine)
+legacy/
+
+# Exclude file used for miscellaneous code testing
+testspace.rb
+
+# Exclude database
+data/data.db
+
+# Exclude Gemfile.lock
+Gemfile.lock

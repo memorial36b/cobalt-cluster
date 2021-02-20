@@ -1,0 +1,43 @@
+# This is the file that defines how many points each action is worth.
+
+---
+checkin_member: 50      # checkin (as member): +50 bucks
+checkin_citizen: 75     # checkin (as citizen): +75
+checkin_noble: 100      # checkin (as noble): +100
+checkin_monarch: 125    # checkin (as monarch): +125
+checkin_alpha: 150      # checkin (as alpha): +150
+profile: 0              # see profile: no cost
+richest: 0              # see leaderboard: no cost
+#transfermoney: var     # transfer points, variable cost defined by user
+
+# role renting
+rentarole_initial: 300  # initial rent-a-role cost
+rentarole_maintain: 200 # rent-a-role daily maintenance cost
+rentarole_override: 150 # override role cost ?? not sure what this is
+unrentarole: 0          # remove rented role
+
+#tags, max one at a time
+tag_add: 30          # add a customized tag
+tag_delete: 0        # remove purchased tag
+tag_edit: 0          # edit purchased tag
+
+# custom commands, usable in every channel
+myconn_set: 15000    # buy a custom command
+myconn_delete: 0     # delete a custom command
+myconn_edit: 0       # edit custom command
+
+# raffles
+raffle_info: 0       # ask for info about the raffle
+raffle_buyticket: ## # buy raffle tickets, unknown cost
+raffle_buyticket: 0  # set up a reminder for the raffle
+
+# moderator-only
+fine_basic: 1000     # fine a user, basic punishment: -1000
+fine_moderate: 5000  # fine a user, moderate punishment: -5000
+fine_extreme: 15000  # fine a user, extreme punishment: -15000
+
+# dev-only
+#shutupandtakemymoney: all # displays gif, clears balance
+#gimme: var          # give specified number of points
+#takeit: var         # take specified number of points
+econdummy: 0         # do nothing, perform cleanup
