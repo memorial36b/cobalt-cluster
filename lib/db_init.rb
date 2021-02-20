@@ -60,9 +60,60 @@ DB.create_table? :boops do
   Integer :count     # Count of how many times booping user has booped this user
 end
 
-# Couples dataset
-DB.create_table? :couples do
-  Integer :spouse1 # ID of the first spouse
-  Integer :spouse2 # ID of the second spouse
-  Integer :karma   # Marriage karma
+# Economy balances data set
+DB.create_table? :econ_user_balances do
+  primary_key :transaction_id, null: false # Unique auto-incrementing transaction id
+  Integer :user_id, null: false            # User's ID
+  Integer :timestamp, null: false          # UTC transaction timestamp
+  Integer :amount, null: false             # Tranasction amount, how much was earned
+end
+
+# Ecnomony permanent balances data set
+DB.create_table? :econ_user_perma_balances do
+  Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
+  Integer :amount, null: false                     # Tranasction amount, how much was earned
+end
+
+# Economy last checkin time
+DB.create_table? :econ_user_checkin_time do
+  Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
+  Integer :checkin_timestamp                       # Last checkin UTC timestamp
+end
+
+# Economy inventory
+DB.create_table? :econ_user_inventory do
+  primary_key :entry_id, null: false        # Unique auto-incrementing used for identifying this particular item
+  Integer     :owner_user_id, null: false   # User ID of the owner
+  Integer     :item_id, null: false         # The unique identifier that determines what item it is
+  Integer     :timestamp, null: false       # The utc timestamp of when the itme was purchased/received
+  Integer     :expiration, null: true       # Optional expiration timestamp
+  Integer     :value, null: false           # The value of the item (in Starbucks) at the time of purchase.
+end
+
+# Economy tags
+DB.create_table? :econ_user_tags do
+  String  :tag_name, null: false, primary_key: true # The name of the tag, must be unique
+  Integer :item_entry_id, null: false, unique: true # Associated item entry in econ_user_inventory
+  Integer :owner_user_id, null: false               # User ID of the owner
+  String  :tag_content, null: false                 # The tag's message content
+end
+
+# Economy cutom commands
+DB.create_table? :econ_custom_commands do
+  String  :command_name, null: false                # The name of the command
+  Integer :owner_user_id, null: false               # User ID of the owner
+  Integer :item_entry_id, null: false, unique: true # Associated item entry in econ_user_inventory
+  String  :command_content, null: false             # The command's message content
+  primary_key([:command_name, :owner_user_id])
+end
+
+# Economy raffle, each entry is a ticket
+DB.create_table? :econ_raffle do
+  Integer :user_id, null: false # The user that bought the ticket.
+end
+
+# Generic user timezone
+DB.create_table? :user_timezone do
+  Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
+  String  :timezone, null: false                   # User's timezone  
 end

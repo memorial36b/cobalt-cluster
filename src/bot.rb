@@ -72,6 +72,12 @@ module Bot
     puts "+ Loaded file #{path[3..-1]}"
   end
   
+  # load helper modules that require db after lib is loaded
+  Dir['helper/*.rb'].each do |path| 
+    load path
+    puts "+ Loaded file #{path[3..-1]}"
+  end
+
   puts 'Done.'
 
   # Loads a crystal from the given file and includes the module into the bot's container.
@@ -106,6 +112,10 @@ module Bot
   puts "Starting bot with logging mode #{config.log_mode.to_s}..."
   BOT.ready { puts 'Bot started!' }
 
-  # After loading all desired crystals, runs the bot
-  BOT.run
+  unless ARGV.include? 'dryrun' # we don't actually run in dry run mode
+    # After loading all desired crystals, runs the bot
+    BOT.run
+  else
+    puts 'dryrun complete'
+  end
 end

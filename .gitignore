@@ -9,3 +9,9 @@ legacy/
 
 # Exclude file used for miscellaneous code testing
 testspace.rb
+
+# Exclude database
+data/data.db
+
+# Exclude Gemfile.lock
+Gemfile.lock

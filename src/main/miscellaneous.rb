@@ -11,52 +11,7 @@ module Bot::Miscellaneous
   QUOTED_MESSAGES = DB[:quoted_messages]
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous".freeze
-  # Bounce Lounge's ID
-  BOUNCE_LOUNGE_ID = 309018929584537602
-  # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
-  VOICE_TEXT_CHANNELS = {
-      387802285733969920 => 307778254431977482, # General
-      378857349705760779 => 378857881782583296, # Generally
-      307763283677544448 => 307763370486923264, # Music
-      307882913708376065 => 307884092513583124, # Gaming
-      307747884823085056 => 307879429009309696  # Watchalongs
-  }.freeze
-  # Role button message ID
-  ROLE_MESSAGE_ID = 439778623965233152
-  # Updates role ID
-  UPDATES_ID = 386083829699575809
-  # SVTFOE News role ID
-  SVTFOE_NEWS_ID = 411199894850764811
-  # SVTFOE Leaks role ID
-  SVTFOE_LEAKS_ID = 418824910597521419
-  # Bot Games role ID
-  BOT_GAMES_ID = 402051258732773377
-  # Vent role ID
-  VENT_ID = 382433569101971456
-  # Debate role ID
-  DEBATE_ID = 316353444971544577
-  # Sandbox role ID
-  SANDBOX_ID = 454304307425181696
-  # #cobalt_reports ID
-  COBALT_REPORTS_ID = 307755696198385666
-  # #quoteboard ID
-  QUOTEBOARD_ID = 348001214698487809
-  # IDs of channels blacklisted from #quoteboard
-  QUOTEBOARD_BLACKLIST = [
-      307726630061735936, # #news
-      360720349421109258, # #svtfoe_news
-      382469794848440330, # #vent_space
-      418819468412715008  # #svtfoe_leaks
-  ].freeze
-  # Head Creator role ID
-  HEAD_CREATOR_ID = 338673551445852162
-  # Content Creator role IDs
-  CREATOR_ROLE_IDS = {
-    art: 383960705365311488,
-    multimedia: 383961150905122828,
-    writing: 383961249899216898
-  }.freeze
-
+  
   # Tracker for whether a message has been quoted to #quoteboard recently
   qb_recent = false
   
@@ -97,7 +52,7 @@ module Bot::Miscellaneous
     extra_text = args[1..-1].empty? ? '.' : " for #{args[1..-1].join(' ')}."
 
     # If the mentioned user is valid and user is a moderator, correctly beans user
-    if SERVER.get_user(args[0]) && event.user.role?(MODERATOR_ID)
+    if SERVER.get_user(args[0]) && event.user.role?(MODERATOR_ROLE_ID)
       "#{SERVER.get_user(args[0]).mention} has been **beaned** from the server#{extra_text}"
 
     # Otherwise, turns on the event user and beans them
@@ -108,8 +63,8 @@ module Bot::Miscellaneous
 
   # Makes bot say something
   command :say do |event|
-    # Breaks unless user is me (ethane) or SkeletonOcelot
-    break unless event.user.id == MY_ID || event.user.id == 354504581176098816
+    # Breaks unless user is Owner, Cobalt's Dev, Cobalt's Artist, or Administrator 
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.id == COBALT_ART_ID || event.user.role?(ADMINISTRATOR_ROLE_ID)
 
     # Deletes event message and responds with the content of it, deleting the command call
     event.message.delete
@@ -119,7 +74,7 @@ module Bot::Miscellaneous
   # Sends 'quality svtfoe discussion' gif in the #svtfoe_discussion channel
   command :quality, channels: %w(#svtfoe_discussion) do |event|
     # Breaks unless user is moderator
-    break unless event.user.role?(MODERATOR_ID)
+    break unless event.user.role?(MODERATOR_ROLE_ID) || event.user.role?(COBALT_MOMMY_ROLE_ID) || COBALT_DEV_ID.include?(event.user.id)
 
     # Sends gif
     event.channel.send_file(File.open("#{MISC_DATA_PATH}/quality.gif"))
@@ -129,24 +84,26 @@ module Bot::Miscellaneous
   reaction_add do |event|
     # Skips unless the message ID is equal to the role button message's ID and user has Member role
     next unless event.message.id == ROLE_MESSAGE_ID &&
-                event.user.role?(MEMBER_ID)
+                event.user.role?(MEMBER_ROLE_ID)
 
     # Cases reaction emoji and gives user correct role accordingly
     case event.emoji.name
     when '🔔'
-      event.user.add_role(UPDATES_ID)
+      event.user.add_role(UPDATE_ROLE_ID)
     when '🌟'
-      event.user.add_role(SVTFOE_NEWS_ID)
+      event.user.add_role(SVTFOE_NEWS_ROLE_ID)
     when '🚰'
-      event.user.add_role(SVTFOE_LEAKS_ID)
+      event.user.add_role(SVTFOE_LEAKS_ROLE_ID)
     when '🎮'
-      event.user.add_role(BOT_GAMES_ID)
+      event.user.add_role(BOT_GAMES_ROLE_ID)
     when '💭'
-      event.user.add_role(VENT_ID)
-    when '🗣'
-      event.user.add_role(DEBATE_ID)
+      event.user.add_role(VENT_ROLE_ID)
+    when '🗣' # discord has changed the emoji, keep the old ones around for safety
+      event.user.add_role(DEBATE_ROLE_ID)
+    when '🗣️'
+      event.user.add_role(DEBATE_ROLE_ID)
     when '🎲'
-      event.user.add_role(SANDBOX_ID)
+      event.user.add_role(SANDBOX_ROLE_ID)
     end
   end
 
@@ -154,24 +111,26 @@ module Bot::Miscellaneous
   reaction_remove do |event|
     # Skips unless the message ID is equal to the role button message's ID and user has Member role
     next unless event.message.id == ROLE_MESSAGE_ID &&
-        event.user.role?(MEMBER_ID)
+        event.user.role?(MEMBER_ROLE_ID)
 
     # Cases reaction emoji and removes correct role from user accordingly
     case event.emoji.name
     when '🔔'
-      event.user.remove_role(UPDATES_ID)
+      event.user.remove_role(UPDATE_ROLE_ID)
     when '🌟'
-      event.user.remove_role(SVTFOE_NEWS_ID)
+      event.user.remove_role(SVTFOE_NEWS_ROLE_ID)
     when '🚰'
-      event.user.remove_role(SVTFOE_LEAKS_ID)
+      event.user.remove_role(SVTFOE_LEAKS_ROLE_ID)
     when '🎮'
-      event.user.remove_role(BOT_GAMES_ID)
+      event.user.remove_role(BOT_GAMES_ROLE_ID)
     when '💭'
-      event.user.remove_role(VENT_ID)
-    when '🗣'
-      event.user.remove_role(DEBATE_ID)
+      event.user.remove_role(VENT_ROLE_ID)
+    when '🗣' # discord has changed the emoji, keep the old ones around for safety
+      event.user.remove_role(DEBATE_ROLE_ID)
+    when '🗣️'
+      event.user.remove_role(DEBATE_ROLE_ID)      
     when '🎲'
-      event.user.remove_role(SANDBOX_ID)
+      event.user.remove_role(SANDBOX_ROLE_ID)
     end
   end
 
@@ -179,42 +138,39 @@ module Bot::Miscellaneous
   command(:serverinfo, channels: %w(#bot_commands #moderation_channel)) do |event|
     # Sends embed containing server info
     event.send_embed do |embed|
+      
       embed.author = {
           name: "SERVER: #{SERVER.name}",
           icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
       }
-      embed.thumbnail = {url: SERVER.icon_url}
+      embed.thumbnail = {
+          url: SERVER.icon_url
+      }
       embed.add_field(
           name: 'Owner',
-          value: SERVER.owner.distinct + "\n⠀",
+          value: "<@!#{SERVER.owner.id}>" + "\n⠀" +
+                "\n" +
+                "**Members: #{SERVER.member_count}**\n" +
+                "├ Mewmans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
+                "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
+                "└ Online: **#{SERVER.online_members.size}**\n" +
+                "\n" +
+                "**Emotes: #{SERVER.emoji.length}**" + "\n⠀",
           inline: true
       )
       embed.add_field(
           name: 'Region',
-          value: SERVER.region_id + "\n⠀",
+          value: SERVER.region_id + "\n⠀" +
+                "\n" +
+                "**Channels: #{SERVER.channels.size}**\n" +
+                "├ Text: **#{SERVER.text_channels.size}**\n" +
+                "├ Voice: **#{SERVER.voice_channels.size}**\n" +
+                "└ Categories: **#{SERVER.categories.size}**\n" +
+                "\n" +
+                "**Roles: #{SERVER.roles.size}**" + "\n⠀",
           inline: true
       )
-      embed.add_field(
-          name: 'Numerics',
-          value: "**Members: #{SERVER.member_count}**\n" +
-                 "├ Humans: **#{SERVER.members.count { |u| !u.bot_account? }}**\n" +
-                 "├ Bots: **#{SERVER.members.count { |u| u.bot_account? }}**\n" +
-                 "└ Online: **#{SERVER.online_members.size}**\n" +
-                 "\n" +
-                 "**Emotes: #{SERVER.emoji.length}**",
-          inline: true
-      )
-      embed.add_field(
-          name: '⠀',
-          value: "**Channels: #{SERVER.channels.size}**\n" +
-                 "├ Text: **#{SERVER.text_channels.size}**\n" +
-                 "├ Voice: **#{SERVER.voice_channels.size}**\n" +
-                 "└ Categories: **#{SERVER.categories.size}**\n" +
-                 "\n" +
-                 "**Roles: #{SERVER.roles.size}**",
-          inline: true
-      )
-      embed.footer = {text: "ID: 297550039125983233 • Founded on April 28, 2017"}
+      embed.footer = {text: "ID: #{event.server.id} • Founded on April 28, 2017"}
       embed.color = 0xFFD700
     end
   end
@@ -257,7 +213,7 @@ module Bot::Miscellaneous
           inline: true
       ) if user.joined_at
       embed.add_field(
-          name: 'Role Info',
+          name: '⠀',
           value: "**Roles: #{user.roles.size}**\n" +
                  "├ Highest: **#{user.highest_role ? user.highest_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**\n" +
                  "├ Color: **#{user.color_role ? user.color_role.name.encode(Encoding.find('ASCII'), replace: '').strip : 'None'}**\n" +
@@ -281,7 +237,7 @@ module Bot::Miscellaneous
 
     # Sends report and confirmation message
     Bot::BOT.send_message( # report message sent to #cobalt_reports
-      COBALT_REPORTS_ID,
+    COBALT_REPORT_CHANNEL_ID,
       "@here **ID:** `#{identifier}`",
       false, # tts
       {
@@ -305,7 +261,7 @@ module Bot::Miscellaneous
   # Allows mods to ping a role without needing to deal with mentionable permissions
   command :roleping do |event, arg = ''|
     # Break unless user is moderator
-    break unless event.user.role?(MODERATOR_ID)
+    break unless event.user.role?(MODERATOR_ROLE_ID)
 
     # Delete event message
     event.message.delete
@@ -313,11 +269,11 @@ module Bot::Miscellaneous
     # Cases argument and defines role variable accordingly (or breaks if invalid argument)
     case arg.downcase
     when 'updates'
-      role = SERVER.role(UPDATES_ID)
+      role = SERVER.role(UPDATE_ROLE_ID)
     when 'svtfoe', 'svtfoenews', 'starnews'
-      role = SERVER.role(SVTFOE_NEWS_ID)
+      role = SERVER.role(SVTFOE_NEWS_ROLE_ID)
     when 'leaks', 'svtfoeleaks', 'starleaks'
-      role = SERVER.role(SVTFOE_LEAKS_ID)
+      role = SERVER.role(SVTFOE_LEAKS_ROLE_ID)
     else
       break
     end
@@ -332,33 +288,50 @@ module Bot::Miscellaneous
 
   # Sends a message to #quoteboard when it gets enough cams
   reaction_add(emoji: '📷') do |event|
+    camera_reaction = event.message.reactions.select { |react| react.name.casecmp('📷') == 0 }
+    if camera_reaction.nil? || camera_reaction.length <= 0
+      next
+    end
+
+    # first and only item in the array is the camera reaction
+    camera_reaction = camera_reaction[0]
+
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
-    next if event.message.reactions['📷'].count != (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 7) ||
+    next if camera_reaction.count < (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 4) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
-            QUOTED_CHANNELS[id: event.message.id] ||
+            QUOTED_MESSAGES[id: event.message.id] ||
             qb_recent
 
     # Adds the message's ID to the database
     QUOTED_MESSAGES << {id: event.message.id}
 
-    # Deletes all message reactions
-    event.message.delete_all_reactions
-
     # Sends embed to #quoteboard displaying message
-    Bot::BOT.channel(QUOTEBOARD_ID).send_embed do |embed|
+    Bot::BOT.channel(QUOTEBOARD_CHANNEL_ID).send_embed do |embed|
       embed.author = {
           name: "#{event.message.author.display_name} (#{event.message.author.distinct})",
           icon_url: event.message.author.avatar_url
       }
-      embed.color = 0xFFD700
-      embed.description = event.message.content
-
-      # Add embed image only if original message contains an image
+      
+      content = event.message.content.nil? ? "" : event.message.content
+      
+      # Add embedded attachment if original contains one
       unless event.message.attachments == []
-        embed.image = Discordrb::Webhooks::EmbedImage.new(url: event.message.attachments[0].url)
+        # we can only use the first attachment
+        attachment = event.message.attachments[0]
+
+        isimage = ( attachment.url =~ /.*(.png|.gif|.jpg|.jpeg|.webp)/ ) 
+        embed.url = attachment.url
+        if isimage # custom method because attachment.image? returns true on videos!
+          embed.image = Discordrb::Webhooks::EmbedImage.new(url: attachment.url)
+        else
+          # webhooks doesn't support attachment format, inject link into content
+          content += "\n#{attachment.url}\n"
+        end
       end
 
+      embed.color = 0x0047AB
+      embed.description = content + "\n \n[Message Link](#{event.message.link})"
       embed.timestamp = event.message.timestamp.getgm
       embed.footer = {text: "##{event.message.channel.name}"}
     end
@@ -370,7 +343,7 @@ module Bot::Miscellaneous
   end
 
   # Randomly chooses from given options
-  command(:spinner, channels: %w(#bot_commands #moderation_channel)) do |event, *args|
+  command :spinner, channels: [BOT_COMMANDS_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID] do |event, *args|
     # Breaks unless at least one option is given and arguments do not contain @here or @everyone pings
     break unless args[0] &&
                  %w(@here @everyone).none? { |s| event.message.content.include? s }
@@ -382,11 +355,11 @@ module Bot::Miscellaneous
   end
 
   # Gives/removes Content Creator role to/from users
-  command(:creator, channels: %w(#head_creator_hq)) do |event, *args|
+  command :creator, channels: [HEAD_CREATOR_HQ_CHANNEL_ID, MODERATION_CHANNEL_CHANNEL_ID] do |event, *args|
     # Breaks unless user is moderator or Head Creator, give/remove, content creator role and user are given, and both
     # content creator role and user are valid
-    break unless (event.user.role?(MODERATOR_ID) ||
-                  event.user.role?(HEAD_CREATOR_ID)) &&
+    break unless (event.user.role?(MODERATOR_ROLE_ID) ||
+                  event.user.role?(HEAD_CREATOR_ROLE_ID)) &&
                   args.size >= 3 &&
                   %w(art multimedia writing).include?(args[1].downcase) &&
                   SERVER.get_user(args[2..-1].join(' '))
@@ -405,8 +378,8 @@ module Bot::Miscellaneous
 
   # Evaluates Ruby code
   command :eval do |event|
-    # Breaks unless user is me (ethane)
-    break unless event.user.id == MY_ID
+    # Breaks unless user is Owner or Dev
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID_EVAL.include?(event.user.id) 
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
     rescue => e
