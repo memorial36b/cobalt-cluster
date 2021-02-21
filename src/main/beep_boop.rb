@@ -149,9 +149,8 @@ module Bot::BeepBoop
       # If user wants to delete a birthday, user is a moderator,
       # given user is valid and has an entry in the database delete the birthday
     elsif args[0].downcase == 'delete' &&
-        event.user.role?(753163836042903604) &&
-        (user = SERVER.get_user(args[1..-1].join(' '))) &&
-        BIRTHDAYS[id: user.id]
+        (event.user.role?(MODERATOR_ROLE_ID) || BIRTHDAYS[id: user.id]) &&
+        (user = SERVER.get_user(args[1..-1].join(' ')))
       BIRTHDAYS.where(id: user.id).delete
       "This user's birthday has been deleted." # confirmation message sent to event channel
     end
