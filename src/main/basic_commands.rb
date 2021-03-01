@@ -10,7 +10,7 @@ module Bot::BasicCommands
   command :ping do |event|
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.role?(COBALT_MOMMY_ROLE_ID) || event.user.role?(MODERATOR_ROLE_ID)
     ping = event.respond '**P** **O** **N** **G**'
-    ping.edit "**P** **O** **N** **G** **|** **#{(Time.now - event.timestamp)*1000}ms**"
+    ping.edit "**P** **O** **N** **G** **|** **#{(Time.now - event.timestamp)}ms**"
     sleep 10
     ping.delete
   end
