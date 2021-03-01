@@ -113,6 +113,8 @@ module Bot::Economy
   # Get the role id for the given role item id.
   def self.get_role_for_item_id(role_item_id)
     case role_item_id
+    when Bot::Inventory::GetItemID('role_color_ghastly_green')
+      role_id = GHASTLY_GREEN_ROLE_ID
     when Bot::Inventory::GetItemID('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
     when Bot::Inventory::GetItemID('role_color_breathtaking_blue')
@@ -744,7 +746,7 @@ module Bot::Economy
           "You can use +unrentarole to remove a rented role. There is no refund " +
           "for removing a purchased role.\n\n" +
           "The available roles are as follows:\n" +
-          "Color: orange, blue, red, lavendar, white, magenta, yellow\n" +
+          "Color: green, orange, blue, red, lavender, white, magenta, yellow\n" +
           "Override: citizen, squire, knight, noble, monarch, bearer"
         
         embed.footer = {text: "Purchase a role with +rentarole [name]"}
@@ -768,6 +770,9 @@ module Bot::Economy
     required_role_id = nil
     role_name = parsed_args["role"]
     case role_name.downcase
+    when "green", "ghastly_green"
+      role_item_id = Bot::Inventory::GetItemID('role_color_ghastly_green')
+      role_id = GHASTLY_GREEN_ROLE_ID
     when "orange", "obsolete_orange"
       role_item_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
@@ -777,7 +782,7 @@ module Bot::Economy
     when "red", "retro_red"
       role_item_id = Bot::Inventory::GetItemID('role_color_retro_red')
       role_id = RETRO_RED_ROLE_ID
-    when "lavendar", "lullaby_lavendar", "purple"
+    when "lavender", "lavendar", "lullaby_lavender", "lullaby_lavendar", "purple"
       role_item_id = Bot::Inventory::GetItemID('role_color_lullaby_lavender')
       role_id = LULLABY_LAVENDER_ROLE_ID
     when "white", "white_white"
