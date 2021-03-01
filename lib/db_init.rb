@@ -115,5 +115,13 @@ end
 # Generic user timezone
 DB.create_table? :user_timezone do
   Integer :user_id, null: false, primary_key: true # User's ID, unique primary key
-  String  :timezone, null: false                   # User's timezone  
+  String  :timezone, null: false                   # User's timezone
+  Integer :last_changed, null: false               # Last changed timestamp
+end
+
+# User Timezones: Add last changed column
+unless DB[:user_timezone].columns.include?(:last_changed)
+  DB.alter_table(:user_timezone) do
+    add_column :last_changed, Integer, null: false, default: 0 # Add last_changed column
+  end
 end
