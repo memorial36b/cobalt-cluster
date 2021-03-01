@@ -1609,12 +1609,12 @@ module Bot::Economy
   # gives a specified amount of starbucks, devs only
   GIMME_COMMAND_NAME = "gimme"
   GIMME_DESCRIPTION = "Give Starbucks to self or specified user."
-  GIMME_ARGS = [["amount", Integer], ["type", String], ["user", DiscordUser]]
+  GIMME_ARGS = [["amount", Integer], ["user", DiscordUser], ["type", String]]
   GIMME_REQ_COUNT = 1
   command :gimme do |event, *args|
     break unless Convenience::IsUserDev(event.user.id)
 
-    opt_defaults = ["temp", event.user.id]
+    opt_defaults = [event.user.id, "temp"]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
       GIMME_COMMAND_NAME,
@@ -1631,12 +1631,12 @@ module Bot::Economy
     username = parsed_args["user"].full_username
     Bot::Bank::CleanAccount(user_id)
 
-    if type.downcase == "perma"
+    case type.downcase
+    when "perma", "perm", "permanent"
       Bot::Bank::DepositPerma(user_id, amount)
     else
       Bot::Bank::Deposit(user_id, amount)
     end
-
     event.respond "#{username} received #{amount} Starbucks"
   end
 
