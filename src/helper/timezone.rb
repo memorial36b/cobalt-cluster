@@ -11,13 +11,16 @@ module Bot::Timezone
   module_function
   
   # User timezones dataset
-  # { user_id, timezone }
+  # { user_id, timezone, last_changed }
   USER_TIMEZONE = DB[:user_timezone]
+
+  # How long a user must wait before swapping timezones (in days)
+  TIMEZONE_CHANGE_TIMEOUT = 7
 
   # Get the user's timezone.
   # @param [Integer] user_id user id
   # @return [TZInfo::Timezone] timezone, default: UTC-0
-  def GetUserTimezone(user_id)
+  def get_user_timezone(user_id)
     user_timezone = USER_TIMEZONE[user_id: user_id]
     return TZInfo::Timezone.get('Etc/UTC') if user_timezone == nil
 
@@ -26,7 +29,7 @@ module Bot::Timezone
       user_timezone = user_timezone.nil? ? "NULL" : user_timezone
       return TZInfo::Timezone.get(user_timezone)
     rescue => e
-      return TzInfo::Timezone.get('Etc/UTC') if tz == nil
+      return TzInfo::Timezone.get('Etc/UTC')
     end
   end
 
@@ -34,7 +37,7 @@ module Bot::Timezone
   # @param [Integer] user_id       user id
   # @param [String]  timezone_name time zone identifier
   # @return [bool] Could the timezone be set?
-  def SetUserTimezone(user_id, timezone_name)
+  def set_user_timezone(user_id, timezone_name)
   	# validate
 	  begin
       tz = TZInfo::Timezone.get(timezone_name)
@@ -44,14 +47,37 @@ module Bot::Timezone
 
     # store in database
     user_timezone = USER_TIMEZONE[user_id: user_id]
-  	if user_timezone == nil
-      USER_TIMEZONE << { user_id: user_id, timezone: timezone_name }
+  	if user_timezone.nil?
+      USER_TIMEZONE << {
+        user_id: user_id, 
+        timezone: timezone_name, 
+        last_changed: utc_now.to_time.to_i
+      }
     else
+      # make sure they're not trying to play the system
+      now = user_now(user_id)
+      next_change =  get_next_time_can_change_timezone(user_id)
+      return false if now < next_change
+
       user_timezone = USER_TIMEZONE.where(user_id: user_id)
       user_timezone.update(timezone: timezone_name)
+      user_timezone.update(last_changed: utc_now.to_time.to_i)
     end
   	
   	return true  
+  end
+
+  # Get the next datetime the user can change their timezone. 
+  # @param [Integer] user_id   user id
+  # @return [DateTime] The next time they can modify their timezone.
+  def get_next_time_can_change_timezone(user_id)
+    user_timezone = USER_TIMEZONE[user_id: user_id]
+    return utc_now() if user_timezone.nil? # no info, can change now
+    
+    last_time = user_timezone[:last_changed]
+    last_time = timestamp_to_user(user_id, last_time)
+    next_time = last_time + TIMEZONE_CHANGE_TIMEOUT
+    return trim_to_start_of_day(next_time)
   end
 
   # Get a DateTime representation of the utc timestamp in the user's local timezone.
@@ -59,7 +85,7 @@ module Bot::Timezone
   # @param [Integer] timestamp Unix timestamp
   # @return [DateTime] datetime in user's local timezone
   def timestamp_to_user(user_id, timestamp)
-    tz = GetUserTimezone(user_id)
+    tz = get_user_timezone(user_id)
     timestamp = TZInfo::Timestamp.utc(timestamp)
     return tz.utc_to_local(timestamp).to_datetime
   end
@@ -68,7 +94,7 @@ module Bot::Timezone
   # @param [DateTime] datetime DateTime in a specified timezone
   # @return [DateTime] utc+0 DateTime
   def user_to_utc(user_id, datetime)
-    tz = GetUserTimezone(user_id)
+    tz = get_user_timezone(user_id)
     return tz.local_to_utc(datetime)
   end
 
@@ -76,7 +102,7 @@ module Bot::Timezone
   # @param [Integer] user_id  user id
   # @return [DateTime] now in user's local timezone 
   def user_now(user_id)
-    tz = GetUserTimezone(user_id)
+    tz = get_user_timezone(user_id)
     return tz.now.to_datetime
   end
 
@@ -92,15 +118,7 @@ module Bot::Timezone
   # @return [DateTime] today in user's local timezone 
   def user_today(user_id)
     today = user_now(user_id)
-
-    # strip hours, minutes, seconds, fractional seconds
-    day_offset = 
-      (today.hour) / 24.0 + 
-      (today.min / (24.0 * 60.0)) +
-      (today.sec / (24.0 * 60.0 * 60.0))
-      (today.second_fraction / (24.0 * 60.0 * 60.0))
-    today -= day_offset
-
+    today = trim_to_start_of_day(today)
     return today
   end
 
@@ -137,5 +155,18 @@ module Bot::Timezone
     today -= day_offset
 
     return today
+  end
+
+  # Push the datetime up to the start of the day.
+  # @param [DateTime] datetime The datetime to trim.
+  # @param [DateTime] The start of the day.
+  def trim_to_start_of_day(datetime)
+    # strip hours, minutes, seconds, fractional seconds
+    day_offset = 
+      (datetime.hour) / 24.0 + 
+      (datetime.min / (24.0 * 60.0)) +
+      (datetime.sec / (24.0 * 60.0 * 60.0))
+      (datetime.second_fraction / (24.0 * 60.0 * 60.0))
+    return datetime - day_offset
   end
 end

@@ -328,9 +328,16 @@ module Bot::Economy
       args)
     break unless not parsed_args.nil?
 
+    next_time_allowed = Bot::Timezone::get_next_time_can_change_timezone(event.user.id)
+    if Bot::Timezone::user_now(event.user.id) < next_time_allowed
+      event.respond "Sorry, you can't update your timezone until " + 
+        "#{next_time_allowed.strftime('%A, %B %d')}."
+      break
+    end
+
     timezone_name =  parsed_args["timezone_name"]
-    if Bot::Timezone::SetUserTimezone(event.user.id, timezone_name)
-      event.respond "Timezone set to #{Bot::Timezone::GetUserTimezone(event.user.id)}"
+    if Bot::Timezone::set_user_timezone(event.user.id, timezone_name)
+      event.respond "Timezone set to #{Bot::Timezone::get_user_timezone(event.user.id)}"
     else
       event.respond "Timezone not recognized \"#{timezone_name}\""
     end
@@ -338,7 +345,7 @@ module Bot::Economy
 
   # get the name of user's configured timezone
   command :gettimezone do |event|
-    event.respond "Your current timezone is \"#{Bot::Timezone::GetUserTimezone(event.user.id)}\""
+    event.respond "Your current timezone is \"#{Bot::Timezone::get_user_timezone(event.user.id)}\""
   end
 
   # display all of the available items for purchase
