@@ -58,25 +58,40 @@ module Bot::Timezone
   # @param [Integer] user_id   user id
   # @param [Integer] timestamp Unix timestamp
   # @return [DateTime] datetime in user's local timezone
-  def GetTimestampInUserLocal(user_id, timestamp)
+  def timestamp_to_user(user_id, timestamp)
     tz = GetUserTimezone(user_id)
     timestamp = TZInfo::Timestamp.utc(timestamp)
     return tz.utc_to_local(timestamp).to_datetime
   end
 
+  # Get a utc+0 for the given datetime for a user's timezone.
+  # @param [DateTime] datetime DateTime in a specified timezone
+  # @return [DateTime] utc+0 DateTime
+  def user_to_utc(user_id, datetime)
+    tz = GetUserTimezone(user_id)
+    return tz.local_to_utc(datetime)
+  end
+
   # Get the DateTime of now in the user's timezone.
   # @param [Integer] user_id  user id
   # @return [DateTime] now in user's local timezone 
-  def GetUserNow(user_id)
+  def user_now(user_id)
     tz = GetUserTimezone(user_id)
     return tz.now.to_datetime
+  end
+
+  # Get the DateTime of now in the utc+0 time zone.
+  # @return [DateTime] now in utc+0
+  def utc_now()
+    tz = TZInfo::Timezone.get('Etc/UTC')
+    tz.now.to_datetime
   end
 
   # Get the DateTime of today (start of day) in the user's timezone.
   # @param [Integer] user_id  user id
   # @return [DateTime] today in user's local timezone 
-  def GetUserToday(user_id)
-    today = GetUserNow(user_id)
+  def user_today(user_id)
+    today = user_now(user_id)
 
     # strip hours, minutes, seconds, fractional seconds
     day_offset = 
@@ -89,12 +104,19 @@ module Bot::Timezone
     return today
   end
 
+  # Get the DateTime of tomorrow (start of day) in the user's timezone.
+  # @param [Integer] user_id  user id
+  # @return [DateTime] tomorrow in user's local timezone 
+  def user_tomorrow(user_id)
+    return user_today(user_id) + 1
+  end
+
   # Get the DateTime of the past monday (start of day) in the user's timezone.
   # @param [Integer] user_id  user id
   # @return [DateTime] past monday in user's local timezone
   # Note: Returns today if today is monday. 
   def GetUserPastMonday(user_id)
-    today = GetUserToday(user_id)
+    today = user_today(user_id)
     wwday = today.cwday - 1
     return today - wwday
   end
