@@ -314,7 +314,6 @@ module Bot::Economy
   SETTIMEZONE_DESCRIPTION = "Set your timezone.\nSee https://en.wikipedia.org/wiki/List_of_tz_database_time_zones for a list of valid values."
   SETTIMEZONE_ARGS = [["timezone_name", String]]
   SETTIMEZONE_REQ_COUNT = 1
-  # TODO: make this accept spaces by using arg=''
   command :settimezone do |event, *args|
     # parse args
     opt_defaults = []
@@ -327,6 +326,11 @@ module Bot::Economy
       opt_defaults,
       args)
     break unless not parsed_args.nil?
+
+    # hack: parsed correctly, include spaces for user friendliness
+    cmd_len = SETTIMEZONE_COMMAND_NAME.length
+    parsed_args["timezone_name"] = event.message.content[cmd_len + 1..-1].strip()
+    parsed_args["timezone_name"].tr_s!(' ', '_')
 
     next_time_allowed = Bot::Timezone::get_next_time_can_change_timezone(event.user.id)
     if Bot::Timezone::user_now(event.user.id) < next_time_allowed
