@@ -71,16 +71,17 @@ module Bot::Economy
   # Determine how long the user has to wait until their next checkin.
   # Zero if they can checkin now
   def self.get_time_until_next_checkin(user_id)
-    last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
-    return 0 if last_timestamp == nil || last_timestamp.first == nil
+    last_checkin = USER_CHECKIN_TIME[user_id: user_id]
+    return 0 if last_checkin == nil || last_checkin.first == nil
 
-    last_timestamp = last_timestamp[:checkin_timestamp]
-    last_datetime = Bot::Timezone::GetTimestampInUserLocal(user_id, last_timestamp)
-    today_datetime = Bot::Timezone::GetUserToday(user_id)
-    return 0 if last_datetime < today_datetime
+    last_checkin = last_checkin[:checkin_timestamp]
+    last_checkin = Bot::Timezone::timestamp_to_user(user_id, last_checkin)
+    today = Bot::Timezone::user_today(user_id)
+    return 0 if last_checkin < today
 
-    tomorrow_datetime = today_datetime + 1
-    return tomorrow_datetime.to_time.to_i - Time.now.to_i
+    now = Bot::Timezone::user_now(user_id)
+    tomorrow = today + 1
+    return tomorrow.to_time.to_i - now.to_time.to_i
   end
 
   # Determine how long the user has to wait until their next checkin.
@@ -403,14 +404,11 @@ module Bot::Economy
 
     # determine if the user can checkin
     can_checkin = false
-    last_timestamp = USER_CHECKIN_TIME[user_id: user.id]
-    if last_timestamp != nil
-      last_timestamp = last_timestamp[:checkin_timestamp]
-      
-      last_datetime = Bot::Timezone::GetTimestampInUserLocal(user.id, last_timestamp)
-      today_datetime = Bot::Timezone::GetUserToday(user.id)
-      can_checkin = last_datetime < today_datetime
-    else
+    today = Bot::Timezone::user_today(user.id)
+    today = Bot::Timezone::user_to_utc(user.id, today).to_time.to_i
+    last_checkin_entry = USER_CHECKIN_TIME[user_id: user.id]
+    if last_checkin_entry.nil? or 
+       last_checkin_entry[:checkin_timestamp] < today
       can_checkin = true
     end
 
@@ -422,11 +420,16 @@ module Bot::Economy
     checkin_value = get_user_checkin_value(user.id)
     if can_checkin
       Bot::Bank::Deposit(user.id, checkin_value)
-      if last_timestamp == nil
-        USER_CHECKIN_TIME << { user_id: user.id, checkin_timestamp: Time.now.to_i }
+
+      now = Bot::Timezone::utc_now().to_time.to_i
+      if last_checkin_entry == nil
+        USER_CHECKIN_TIME << {
+          user_id: user.id, 
+          checkin_timestamp: now
+        }
       else
-        last_timestamp = USER_CHECKIN_TIME.where(user_id: user.id)
-        last_timestamp.update(checkin_timestamp: Time.now.to_i)
+        last_checkin_entry = USER_CHECKIN_TIME.where(user_id: user.id)
+        last_checkin_entry.update(checkin_timestamp: now)
       end
     end
 
@@ -1686,15 +1689,15 @@ module Bot::Economy
 
       amount = transaction[:amount]
       timestamp = transaction[:timestamp]
-      response += "\n#{amount} received on #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, timestamp)}"
+      response += "\n#{amount} received on #{Bot::Timezone::timestamp_to_user(event.user.id, timestamp)}"
     end
 
     event.respond response
   end
 
-  # get timestamp of last checkin in the caller's local timezone
+  # get timestamp of the last time the user checked-in in the caller's local timezone
   LASTCHECKIN_COMMAND_NAME = "lastcheckin"
-  LASTCHECKIN_DESCRIPTION = "Get the timestamp for when the specified user last checked in."
+  LASTCHECKIN_DESCRIPTION = "Get the timestamp for when the specified user can last checked in."
   LASTCHECKIN_ARGS = [["user", DiscordUser]]
   LASTCHECKIN_REQ_COUNT = 0
   command :lastcheckin do |event, *args|
@@ -1711,28 +1714,32 @@ module Bot::Economy
       args)
     break unless not parsed_args.nil?  
 
-    last_timestamp = USER_CHECKIN_TIME[user_id: parsed_args["user"].id]
-    break unless last_timestamp != nil
+    last_checkin = USER_CHECKIN_TIME[user_id: parsed_args["user"].id]
+    if last_checkin.nil?
+      event.respond "User hasn't checked in yet"
+      break
+    end
 
-    last_timestamp = last_timestamp[:checkin_timestamp]
-    event.respond "Last checked in #{Bot::Timezone::GetTimestampInUserLocal(event.user.id, last_timestamp)}"
+    last_checkin = last_checkin[:checkin_timestamp]
+    last_checkin = Bot::Timezone::timestamp_to_user(event.user.id, last_checkin)
+    event.respond "Last checked in at #{last_checkin}"
   end
 
   # clear last checkin timestamp
-  CLEARLASTCHECKIN_COMMAND_NAME = "clearlastcheckin"
-  CLEARLASTCHECKIN_DESCRIPTION = "Clear out the last checkin time."
-  CLEARLASTCHECKIN_ARGS = [["user", DiscordUser]]
-  CLEARLASTCHECKIN_REQ_COUNT = 0
-  command :clearlastcheckin do |event, *args|
+  CLEARCHECKIN_COMMAND_NAME = "clearcheckin"
+  CLEARCHECKIN_DESCRIPTION = "Clear checkin time."
+  CLEARCHECKIN_ARGS = [["user", DiscordUser]]
+  CLEARCHECKIN_REQ_COUNT = 0
+  command :clearcheckin do |event, *args|
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
-      LASTCHECKIN_COMMAND_NAME,
-      LASTCHECKIN_DESCRIPTION,
-      LASTCHECKIN_ARGS,
-      LASTCHECKIN_REQ_COUNT,
+      CLEARCHECKIN_COMMAND_NAME,
+      CLEARCHECKIN_DESCRIPTION,
+      CLEARCHECKIN_ARGS,
+      CLEARCHECKIN_REQ_COUNT,
       opt_defaults,
       args)
     break unless not parsed_args.nil?  
