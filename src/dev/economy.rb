@@ -39,7 +39,7 @@ module Bot::Economy
   ##########################
 
   # Determine how many Starbucks the user gets for checking in.
-  def self.GetUserCheckinValue(user_id)
+  def self.get_user_checkin_value(user_id)
     user = DiscordUser.new(user_id)
     role_yaml_id = nil
     case Convenience::GetHighestLevelRoleId(user)
@@ -70,7 +70,7 @@ module Bot::Economy
 
   # Determine how long the user has to wait until their next checkin.
   # Zero if they can checkin now
-  def self.GetTimeUntilNextCheckin(user_id)
+  def self.get_time_until_next_checkin(user_id)
     last_timestamp = USER_CHECKIN_TIME[user_id: user_id]
     return 0 if last_timestamp == nil || last_timestamp.first == nil
 
@@ -84,8 +84,8 @@ module Bot::Economy
   end
 
   # Determine how long the user has to wait until their next checkin.
-  def self.GetTimeUntilNextCheckinString(user_id)
-    seconds = GetTimeUntilNextCheckin(user_id)
+  def self.get_time_until_next_checkin_string(user_id)
+    seconds = get_time_until_next_checkin(user_id)
     
     return "now" if seconds <= 0
 
@@ -106,11 +106,11 @@ module Bot::Economy
       msg += "#{seconds}s, "
     end
 
-    return msg[0..-3]
+    return msg[0..-3] # remove trailing ", "
   end
 
   # Get the role id for the given role item id.
-  def self.GetRoleForItemID(role_item_id)
+  def self.get_role_for_item_id(role_item_id)
     case role_item_id
     when Bot::Inventory::GetItemID('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
@@ -147,7 +147,7 @@ module Bot::Economy
   end
 
   # Get the user's rented role or nil if they don't have one.
-  def self.GetUserRentedRoleItem(user_id)
+  def self.get_user_rented_role_item(user_id)
     override_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_override')
     color_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
     roles = Bot::Inventory::GetInventory(user_id, override_role_type)
@@ -201,7 +201,7 @@ module Bot::Economy
           when Bot::Inventory::GetValueFromCatalogue('item_type_role_override'),
                Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
             # remove role if they have it
-            role_id = GetRoleForItemID(item.item_id)
+            role_id = get_role_for_item_id(item.item_id)
             owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
           
           #############################
@@ -267,8 +267,8 @@ module Bot::Economy
   end
 
   # schedule the raffle ever n days, always at 7:00 PM GMT
-  def self.Get7PMTomorrow(); (Bot::Timezone::GetTodayInTimezone('Etc/GMT') + 1).to_time + 7*60*60; end
-  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => Get7PMTomorrow() do
+  def self.get_7pm_tomorrow(); (Bot::Timezone::GetTodayInTimezone('Etc/GMT') + 1).to_time + 7*60*60; end
+  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => get_7pm_tomorrow() do
     entry_count = RAFFLE_ENTRIES.count
     entry_count = entry_count.nil? ? 0 : entry_count
 
@@ -419,7 +419,7 @@ module Bot::Economy
     Bot::Bank::CleanAccount(user.id)
 
     # checkin if they can do that today
-    checkin_value = GetUserCheckinValue(user.id)
+    checkin_value = get_user_checkin_value(user.id)
     if can_checkin
       Bot::Bank::Deposit(user.id, checkin_value)
       if last_timestamp == nil
@@ -468,7 +468,7 @@ module Bot::Economy
 
       embed.add_field(
         name: "Time Until Next Check-in",
-        value: GetTimeUntilNextCheckinString(user.id),
+        value: get_time_until_next_checkin_string(user.id),
         inline: true
       )
     end
@@ -504,7 +504,7 @@ module Bot::Economy
       }
 
       embed.thumbnail = {url: user.avatar_url}
-      embed.footer = {text: "Use +checkin once a day to earn #{GetUserCheckinValue(user.id)} Starbucks"}
+      embed.footer = {text: "Use +checkin once a day to earn #{get_user_checkin_value(user.id)} Starbucks"}
       embed.color = COLOR_EMBED
 
       title = ""
@@ -547,12 +547,12 @@ module Bot::Economy
       # ROW 2: Time until next checkin
       embed.add_field(
         name: "Time Until Next Check-in",
-        value: GetTimeUntilNextCheckinString(user.id),
+        value: get_time_until_next_checkin_string(user.id),
         inline: false
       )
 
       # ROW 3: Roles, Tags, Commands
-      rented_role = GetUserRentedRoleItem(user.id)
+      rented_role = get_user_rented_role_item(user.id)
       embed.add_field(
         name: rented_role != nil ? rented_role.type_ui_name : "Role",
         value: rented_role != nil ? rented_role.ui_name : "None",
@@ -742,7 +742,7 @@ module Bot::Economy
     Bot::Bank::CleanAccount(event.user.id)
 
     # Check to see if the user is already renting a role.
-    rented_role = GetUserRentedRoleItem(event.user.id)
+    rented_role = get_user_rented_role_item(event.user.id)
     if rented_role != nil
       event.respond "You already have a rented role!"
       break
@@ -835,13 +835,13 @@ module Bot::Economy
   	Bot::Bank::CleanAccount(event.user.id)
     
     # check if the user is currently renting a role
-    rented_role = GetUserRentedRoleItem(event.user.id)
+    rented_role = get_user_rented_role_item(event.user.id)
     if rented_role == nil
       event.respond "You aren't currently renting a role!"
       break
     end
 
-    role_id = GetRoleForItemID(rented_role.item_id)
+    role_id = get_role_for_item_id(rented_role.item_id)
     user = DiscordUser.new(event.user.id)
     if user.role?(role_id)
       user.user.remove_role(role_id)
