@@ -951,6 +951,12 @@ module Bot::Economy
         break
       end
 
+      case  tag_name
+      when "add", "delete", "edit"
+        event.respond "Sorry, you can't use one of the actions as your tag name!"
+        break
+      end
+
       if Bot::Tags::HasTag(tag_name)
         event.respond "Sorry, that tag already exists!"
         break
@@ -1251,6 +1257,11 @@ module Bot::Economy
 
       if command_name.length <= 0
         event.respond "You must specify a command name!"
+        break
+      end
+
+      unless Bot::BOT.commands[command_name.to_sym] == nil
+        event.respond "Sorry, you can't name your custom command after an existing command."
         break
       end
 
