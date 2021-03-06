@@ -158,11 +158,10 @@ module Bot::Inventory
     return GetCatalogue()[item_id]
   end
 
-  # Get the cost to renew an item of the given type.
-  # @param [Integer] item_type item type identifier
+  # Get the cost to renew an item type.
+  # @param [Integer] item_type item type
   # @return [Integer] The cost to renew or nil if it doesn't expire.
-  def GetItemRenewalCost(item_id)
-    item_type = GetItemTypeFromID(item_id)
+  def GetItemTypeRenewalCost(item_type)
     catalogue_key = u!(item_type) - 1
     point_value_key = GetValueFromCatalogue(catalogue_key)
     return nil if point_value_key == nil
@@ -170,13 +169,28 @@ module Bot::Inventory
     return Bot::Bank::AppraiseItem(point_value_key)
   end
 
+  # Get the cost to renew an item with the given id.
+  # @param [Integer] item_id item id identifier
+  # @return [Integer] The cost to renew or nil if it doesn't expire.
+  def GetItemRenewalCost(item_id)
+    item_type = GetItemTypeFromID(item_id)
+    return GetItemTypeRenewalCost(item_type)
+  end
+
+  # Get an item types's lifetime from the id. Assumes valid id.
+  # @param [Integer] item_type The item type.
+  # @return [Integer] number of days item lasts or nil if it doesn't expire
+  def GetItemTypeLifetime(item_type)
+    key = u!(item_type) - 2
+    return GetValueFromCatalogue(key)
+  end
+
   # Get an item's lifetime from the id. Assumes valid id.
-  # @param [Integer] item_id
+  # @param [Integer] item_id The item id.
   # @return [Integer] number of days item lasts or nil if it doesn't expire
   def GetItemLifetime(item_id)
     item_type = GetItemTypeFromID(item_id)
-    key = u!(item_type) - 2
-    return GetValueFromCatalogue(key)
+    return GetItemTypeLifetime(item_type)
   end
 
   # Add an item to the user's inventory.

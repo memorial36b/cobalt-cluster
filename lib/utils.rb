@@ -135,6 +135,17 @@ module Convenience
   end
   alias_method(:pl, :plural)
 
+  # Rudimentary pluralize; returns pluralized str with added 's' only if the given int is not 1
+  # strips out number if 1
+  # @param  [Integer] int the integer to test
+  # @param  [String]  str the string to pluralize
+  # @return [String]  singular form (i.e. squid) if int is 1, plural form (8 squids) otherwise
+  def plural_every(int, str)
+    return "#{int} #{str}s" unless int == 1
+    "#{str}"
+  end
+  alias_method(:ple, :plural_every)
+
   # Perform an unsigned bitwise not on an integer.
   # Adds bits to round to the nearest half-byte for readability.
   # @param [Integer] int the integer to perform not.
