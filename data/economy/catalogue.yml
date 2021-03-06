@@ -21,10 +21,10 @@ item_type_raffle:         0x5000
 
 # item type id to name key map
 # note: key = item_type
-0x1000: "Role"
-0x2000: "Role"
+0x1000: "Override Role"
+0x2000: "Color Role"
 0x3000: "Tag"
-0x4000: "Command"
+0x4000: "Custom Command"
 0x5000: "Raffle"
 
 # item type id to point_values.yml key map
@@ -106,7 +106,7 @@ tag_id: 0x3001
 0x3001: "Tag"
 
 # custom command (0x4000)
-#custom_command
+# custom_command
 custom_command_id: 0x4001
 0x4001: "Custom Command"
 

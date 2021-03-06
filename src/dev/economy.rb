@@ -184,7 +184,7 @@ module Bot::Economy
         # determine how much it'll cost to renew
         renewal_cost = Bot::Inventory::GetItemRenewalCost(item.item_id)
         if renewal_cost == nil
-          puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!" 
+          puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!"
           next # continue onto valid items
         end
 
@@ -394,16 +394,25 @@ module Bot::Economy
         # avoid double printing types with shared names
         next if printed_types.include?(type_name)
         printed_types.add(type_name)
+        type_cost = Bot::Inventory::GetItemTypeValue(type_id)
+        type_renewal_cost = Bot::Inventory::GetItemTypeRenewalCost(type_id)
+        type_lifetime = Bot::Inventory::GetItemTypeLifetime(type_id)
 
         # if there are sub-items display the full list
+        embed.description += "**#{type_name}**\n"
+
+        cost_str = "#{pl(type_cost, "Starbuck")}"
+        unless type_lifetime.nil? or type_renewal_cost.nil?
+        cost_str += " + #{pl(type_renewal_cost, "Starbuck")} every #{ple(type_lifetime, "day")}"
+        end
+        cost_str += "\n"
+
+        embed.description += cost_str
         if not items_of_type[type_name].count == 1
-          embed.description += "**#{type_name}**\n"
           
           items_of_type[type_name].each do |item_name|
             embed.description += " - #{item_name}\n"
           end
-        else # display the one and only item
-          embed.description += "**#{items_of_type[type_name][0]}**\n"
         end
       end
 
@@ -739,7 +748,7 @@ module Bot::Economy
           "role. You can only rent override roles that you meet the level " +
           "requirement for (e.g. Mewman Citizen).\n\n" +
           "Color roles cost #{color_role_cost} Starbucks and override roles cost " +
-          "#{override_role_cost} Starbucks. Every #{pl(renew_frequency, "day")} " +
+          "#{override_role_cost} Starbucks. Every #{ple(renew_frequency, "day")} " +
           "you must pay #{renewal_cost} Starbucks to renew your role. If you " +
           "cannot afford it, you will lose it! It's recommended that " +
           "you keep an excess of Starbucks around.\n\n" +
@@ -906,7 +915,7 @@ module Bot::Economy
           "you can edit tags you own using +tag edit [name] and remove them " +
           "using +tag delete [name].\n\n" +
           "Tags cost #{tag_cost} Starbucks upfront and #{tag_renewal_cost} " +
-          "Starbucks every #{pl(tag_lifetime, "day")} to keep. If you cannot " +
+          "Starbucks every #{ple(tag_lifetime, "day")} to keep. If you cannot " +
           "afford to pay, they will be deleted!\n\n" +
           "If you want to search all of the available tags use the +tags " +
           "command. You can optionally specify a user (including yourself) " +
@@ -1216,7 +1225,7 @@ module Bot::Economy
           "can edit your commands using +mycom edit [name] and remove them " +
           "using +mycom delete [name].\n\n" +
           "Custom commands cost #{command_cost} Starbucks upfront and " +
-          "#{command_renewal_cost} Starbucks every #{pl(command_lifetime, "day")} " +
+          "#{command_renewal_cost} Starbucks every #{ple(command_lifetime, "day")} " +
           "to keep. If you cannot afford to pay, they will be deleted!\n\n" +
           "If you want to see all of your commands use the +mycom list."
         
@@ -1484,8 +1493,8 @@ module Bot::Economy
 
         embed.title = "Raffle"
         embed.description = 
-          "The raffle is an event that occurs once every #{raffle_frequency} " +
-          "days. When it happens, any user that has purchased at least one " +
+          "The raffle is an event that occurs once every #{ple(raffle_frequency, "day")}. " +
+          "When it happens, any user that has purchased at least one " +
           "ticket can win! Your odds of winning are directly proportionate to " +
           "how many you bought. Each ticket costs #{cost_of_ticket} Starbucks " +
           "and for every ticket in the pool the winner will receive " +
