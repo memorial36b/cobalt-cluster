@@ -149,7 +149,7 @@ module Bot::CustomCommands
     return false if command_name.length <= 0 or command_name.length > GetMaxCustomCommandNameLength() or command_content.length > GetMaxCustomCommandContentLength()
     return false if command_name =~ /\s/ # no spaces allowed
     return false if USER_CUSTOM_COMMANDS.where{Sequel.&({command_name: command_name}, {owner_user_id: owner_user_id})}.count() > 0
-
+    return false unless Bot::BOT.commands[command_name.to_sym] == nil
     
     # will raise error on invalid content
     USER_CUSTOM_COMMANDS << { command_name: command_name, owner_user_id: owner_user_id, item_entry_id: item_entry_id, command_content: command_content }

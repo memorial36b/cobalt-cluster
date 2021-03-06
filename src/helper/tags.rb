@@ -90,7 +90,11 @@ module Bot::Tags
     return false if tag_name.length <= 0 or tag_name.length > GetMaxTagNameLength() or tag_content.length > GetMaxTagContentLength()
     return false if tag_name =~ /\s/ # no spaces allowed
     return false if USER_TAGS.where(tag_name: tag_name).count() > 0
-    
+    case tag_name
+    when "add", "edit", "delete"
+      return false # collides with $tag command action
+    end    
+
     # will raise error on invalid content
     USER_TAGS << { item_entry_id: item_entry_id, owner_user_id: owner_user_id, tag_name: tag_name, tag_content: tag_content }
     return true
