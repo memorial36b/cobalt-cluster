@@ -113,33 +113,33 @@ module Bot::Economy
   # Get the role id for the given role item id.
   def self.get_role_for_item_id(role_item_id)
     case role_item_id
-    when Bot::Inventory::GetItemID('role_color_ghastly_green')
+    when Bot::Inventory::get_item_id('role_color_ghastly_green')
       role_id = GHASTLY_GREEN_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_obsolete_orange')
+    when Bot::Inventory::get_item_id('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_breathtaking_blue')
+    when Bot::Inventory::get_item_id('role_color_breathtaking_blue')
       role_id = BREATHTAKING_BLUE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_retro_red')
+    when Bot::Inventory::get_item_id('role_color_retro_red')
       role_id = RETRO_RED_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_lullaby_lavender')
+    when Bot::Inventory::get_item_id('role_color_lullaby_lavender')
       role_id = LULLABY_LAVENDER_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_whitey_white')
+    when Bot::Inventory::get_item_id('role_color_whitey_white')
       role_id = WHITEY_WHITE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_marvelous_magenta')
+    when Bot::Inventory::get_item_id('role_color_marvelous_magenta')
       role_id = MARVELOUS_MAGENTA_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_shallow_yellow')
+    when Bot::Inventory::get_item_id('role_color_shallow_yellow')
       role_id = SHALLOW_YELLOW_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_citizen')
+    when Bot::Inventory::get_item_id('role_override_citizen')
       role_id = OVERRIDE_MEWMAN_CITIZEN_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_squire')
+    when Bot::Inventory::get_item_id('role_override_squire')
       role_id = OVERRIDE_MEWMAN_SQUIRE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_knight')
+    when Bot::Inventory::get_item_id('role_override_knight')
       role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_noble')
+    when Bot::Inventory::get_item_id('role_override_noble')
       role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_monarch')
+    when Bot::Inventory::get_item_id('role_override_monarch')
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_bearer')
+    when Bot::Inventory::get_item_id('role_override_bearer')
       role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
     else
       raise ArgumentError, "Invalid role received from inventory!"
@@ -153,8 +153,8 @@ module Bot::Economy
   def self.get_user_rented_role_item(user_id)
     override_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_override')
     color_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
-    roles = Bot::Inventory::GetInventory(user_id, override_role_type)
-    roles.push(*Bot::Inventory::GetInventory(user_id, color_role_type))
+    roles = Bot::Inventory::get_inventory(user_id, override_role_type)
+    roles.push(*Bot::Inventory::get_inventory(user_id, color_role_type))
     return roles.empty? ? nil : roles[0]
   end
 
@@ -163,9 +163,9 @@ module Bot::Economy
   ################################
   SCHEDULER.every '1h' do
     # check for expired roles for each user
-    users = Bot::Inventory::GetUsersWithInventory()
+    users = Bot::Inventory::get_users_with_inventory()
     users.each do |user_id|
-      inventory = Bot::Inventory::GetInventory(user_id)
+      inventory = Bot::Inventory::get_inventory(user_id)
       next if inventory == nil || inventory.count <= 0 # sanity check, shouldn't be possible
 
       owner = DiscordUser.new(user_id)
@@ -182,7 +182,7 @@ module Bot::Economy
         end
 
         # determine how much it'll cost to renew
-        renewal_cost = Bot::Inventory::GetItemRenewalCost(item.item_id)
+        renewal_cost = Bot::Inventory::get_item_renewal_cost(item.item_id)
         if renewal_cost == nil
           puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!"
           next # continue onto valid items
@@ -190,10 +190,10 @@ module Bot::Economy
 
         # renew if possible, otherwise remove and add to list of removed
         if Bot::Bank::Withdraw(owner.id, renewal_cost)
-          Bot::Inventory::RenewItem(item.entry_id)
+          Bot::Inventory::renew_item(item.entry_id)
         else
           # remove from inventory
-          Bot::Inventory::RemoveItem(item.entry_id)
+          Bot::Inventory::remove_item(item.entry_id)
           removed_items.push(item)
 
           # perform necessary cleanup now that they don't own it
@@ -394,9 +394,9 @@ module Bot::Economy
         # avoid double printing types with shared names
         next if printed_types.include?(type_name)
         printed_types.add(type_name)
-        type_cost = Bot::Inventory::GetItemTypeValue(type_id)
-        type_renewal_cost = Bot::Inventory::GetItemTypeRenewalCost(type_id)
-        type_lifetime = Bot::Inventory::GetItemTypeLifetime(type_id)
+        type_cost = Bot::Inventory::get_item_type_value(type_id)
+        type_renewal_cost = Bot::Inventory::get_item_type_renewal_cost(type_id)
+        type_lifetime = Bot::Inventory::get_item_type_lifetime(type_id)
 
         # if there are sub-items display the full list
         embed.description += "**#{type_name}**\n"
@@ -729,10 +729,10 @@ module Bot::Economy
     
     # special rent-a-role info page
     if parsed_args.nil?
-      rand_color_role_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
+      rand_color_role_id = Bot::Inventory::get_item_id('role_color_obsolete_orange')
       color_role_cost = Bot::Bank::AppraiseItem('rentarole_color')
       override_role_cost = Bot::Bank::AppraiseItem('rentarole_override')
-      renew_frequency = Bot::Inventory::GetItemLifetime(rand_color_role_id)
+      renew_frequency = Bot::Inventory::get_item_lifetime(rand_color_role_id)
       renewal_cost = Bot::Bank::AppraiseItem('rentarole_maintain')
       
       event.send_embed do |embed|
@@ -780,51 +780,51 @@ module Bot::Economy
     role_name = parsed_args["role"]
     case role_name.downcase
     when "green", "ghastly_green"
-      role_item_id = Bot::Inventory::GetItemID('role_color_ghastly_green')
+      role_item_id = Bot::Inventory::get_item_id('role_color_ghastly_green')
       role_id = GHASTLY_GREEN_ROLE_ID
     when "orange", "obsolete_orange"
-      role_item_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
+      role_item_id = Bot::Inventory::get_item_id('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
     when "blue", "breathtaking_blue"
-      role_item_id = Bot::Inventory::GetItemID('role_color_breathtaking_blue')
+      role_item_id = Bot::Inventory::get_item_id('role_color_breathtaking_blue')
       role_id = BREATHTAKING_BLUE_ROLE_ID
     when "red", "retro_red"
-      role_item_id = Bot::Inventory::GetItemID('role_color_retro_red')
+      role_item_id = Bot::Inventory::get_item_id('role_color_retro_red')
       role_id = RETRO_RED_ROLE_ID
     when "lavender", "lavendar", "lullaby_lavender", "lullaby_lavendar", "purple"
-      role_item_id = Bot::Inventory::GetItemID('role_color_lullaby_lavender')
+      role_item_id = Bot::Inventory::get_item_id('role_color_lullaby_lavender')
       role_id = LULLABY_LAVENDER_ROLE_ID
     when "white", "white_white"
-      role_item_id = Bot::Inventory::GetItemID('role_color_whitey_white')
+      role_item_id = Bot::Inventory::get_item_id('role_color_whitey_white')
       role_id = WHITEY_WHITE_ROLE_ID
     when "magenta", "marvelous_magenta", "pink"
-      role_item_id = Bot::Inventory::GetItemID('role_color_marvelous_magenta')
+      role_item_id = Bot::Inventory::get_item_id('role_color_marvelous_magenta')
       role_id = MARVELOUS_MAGENTA_ROLE_ID
     when "yellow", "shallow_yellow"
-      role_item_id = Bot::Inventory::GetItemID('role_color_shallow_yellow')
+      role_item_id = Bot::Inventory::get_item_id('role_color_shallow_yellow')
       role_id = SHALLOW_YELLOW_ROLE_ID
     when "citizen", "override_citizen"
-      role_item_id = Bot::Inventory::GetItemID('role_override_citizen')
+      role_item_id = Bot::Inventory::get_item_id('role_override_citizen')
       role_id = OVERRIDE_MEWMAN_CITIZEN_ROLE_ID
       required_role_id = MEWMAN_CITIZEN_ROLE_ID
     when "squire", "override_squire"
-      role_item_id = Bot::Inventory::GetItemID('role_override_squire')
+      role_item_id = Bot::Inventory::get_item_id('role_override_squire')
       role_id = OVERRIDE_MEWMAN_SQUIRE_ROLE_ID
       required_role_id = MEWMAN_SQUIRE_ROLE_ID
     when "knight", "override_knight"
-      role_item_id = Bot::Inventory::GetItemID('role_override_knight')
+      role_item_id = Bot::Inventory::get_item_id('role_override_knight')
       role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
       required_role_id = MEWMAN_KNIGHT_ROLE_ID
     when "noble", "override_noble"
-      role_item_id = Bot::Inventory::GetItemID('role_override_noble')
+      role_item_id = Bot::Inventory::get_item_id('role_override_noble')
       role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
       required_role_id = MEWMAN_NOBLE_ROLE_ID
     when "monarch", "override_monarch"
-      role_item_id = Bot::Inventory::GetItemID('role_override_monarch')
+      role_item_id = Bot::Inventory::get_item_id('role_override_monarch')
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
       required_role_id = MEWMAN_MONARCH_ROLE_ID
     when "bearer", "bearer_of_the_wand", "override_bearer", "override_bearer_of_the_wand"
-      role_item_id = Bot::Inventory::GetItemID('role_override_bearer')
+      role_item_id = Bot::Inventory::get_item_id('role_override_bearer')
       role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
       required_role_id = BEARER_OF_THE_WAND_POG_ROLE_ID
     else 
@@ -840,7 +840,7 @@ module Bot::Economy
     end
 
     # attempt to buy role
-    role_cost = Bot::Inventory::GetItemValueFromID(role_item_id)
+    role_cost = Bot::Inventory::get_item_value_from_id(role_item_id)
     if not Bot::Bank::Withdraw(user.id, role_cost)
       event.respond "Sorry, you can't afford that role."
       break
@@ -850,11 +850,11 @@ module Bot::Economy
     now_datetime = Time.now.to_datetime
 
     # store in inventory
-    Bot::Inventory::AddItem(user.id, role_item_id)
+    Bot::Inventory::add_item(user.id, role_item_id)
 
     # assign role and respond
     user.user.add_role(role_id)
-    role_ui_name = Bot::Inventory::GetItemUINameFromID(role_item_id)
+    role_ui_name = Bot::Inventory::get_item_ui_name_from_id(role_item_id)
     event.respond "#{user.mention} you now have the #{role_ui_name} role!"
   end
 
@@ -875,7 +875,7 @@ module Bot::Economy
       user.user.remove_role(role_id)
     end
 
-    Bot::Inventory::RemoveItem(rented_role.entry_id)
+    Bot::Inventory::remove_item(rented_role.entry_id)
     event.respond "#{user.mention}, you no longer have the role #{rented_role.ui_name}!"
   end
 
@@ -899,10 +899,10 @@ module Bot::Economy
             icon_url: IMAGE_BANK
         }
 
-        tag_id = Bot::Inventory::GetItemID('tag')
+        tag_id = Bot::Inventory::get_item_id('tag')
         tag_cost = Bot::Bank::AppraiseItem('tag_add')
         tag_renewal_cost = Bot::Bank::AppraiseItem('tag_maintain')
-        tag_lifetime = Bot::Inventory::GetItemLifetime(tag_id)
+        tag_lifetime = Bot::Inventory::get_item_lifetime(tag_id)
 
         embed.title = "Tags"
         embed.description = 
@@ -1004,7 +1004,7 @@ module Bot::Economy
       end
 
       # store tag, charge user
-      tag_item = Bot::Inventory::AddItemByName(user.id, 'tag')
+      tag_item = Bot::Inventory::add_item_by_name(user.id, 'tag')
       if tag_item == nil
         user.dm.send_message("Sorry, an unknown error occurred and your tag could not be created. Please contact a developer.")
         break
@@ -1012,7 +1012,7 @@ module Bot::Economy
 
       if not Bot::Tags::AddTag(tag_name, tag_item.entry_id, user.id, tag_content)
         user.dm.send_message("Sorry, a tag named #{tag_name} was created while you were configuring your tag!")
-        Bot::Inventory::RemoveItem(tag_item.entry_id)
+        Bot::Inventory::remove_item(tag_item.entry_id)
         break
       end
 
@@ -1021,7 +1021,7 @@ module Bot::Economy
         # DM them for being a jerk and remove tag
         user.dm.send_message("Sorry, you can't afford a new tag!")
         Bot::Tags::RemoveTagByItemEntryID(tag_item.entry_id)
-        Bot::Inventory::RemoveItem(tag_item.entry_id)
+        Bot::Inventory::remove_item(tag_item.entry_id)
         break
       end
       
@@ -1100,7 +1100,7 @@ module Bot::Economy
         break
       end
 
-      Bot::Inventory::RemoveItem(tag.item_entry_id)
+      Bot::Inventory::remove_item(tag.item_entry_id)
       event.respond "Tag #{tag_name} has been removed!"
 
     #############################
@@ -1210,10 +1210,10 @@ module Bot::Economy
             icon_url: IMAGE_BANK
         }
 
-        command_id = Bot::Inventory::GetItemID('custom_command')
+        command_id = Bot::Inventory::get_item_id('custom_command')
         command_cost = Bot::Bank::AppraiseItem('mycom_add')
         command_renewal_cost = Bot::Bank::AppraiseItem('mycom_maintain')
-        command_lifetime = Bot::Inventory::GetItemLifetime(command_id)
+        command_lifetime = Bot::Inventory::get_item_lifetime(command_id)
 
         embed.title = "Custom Command"
         embed.description = 
@@ -1312,7 +1312,7 @@ module Bot::Economy
       end
 
       # store command, charge user
-      command_item = Bot::Inventory::AddItemByName(user.id, 'custom_command')
+      command_item = Bot::Inventory::add_item_by_name(user.id, 'custom_command')
       if command_item == nil
         user.dm.send_message("Sorry, an unknown error occurred and your command could not be created. Please contact a developer.")
         break
@@ -1320,7 +1320,7 @@ module Bot::Economy
 
       if not Bot::CustomCommands::AddCustomCommand(command_name, user.id, command_item.entry_id, command_content)
         user.dm.send_message("Sorry, you already created a command named #{command_name}!")
-        Bot::Inventory::RemoveItem(command_item.entry_id)
+        Bot::Inventory::remove_item(command_item.entry_id)
         break
       end
 
@@ -1329,7 +1329,7 @@ module Bot::Economy
         # DM them for being a jerk and remove command
         user.dm.send_message("Sorry, you can't afford a new command!")
         Bot::CustomCommands::RemoveCustomCommandByItemEntryID(command_item.entry_id)
-        Bot::Inventory::RemoveItem(command_item.entry_id)
+        Bot::Inventory::remove_item(command_item.entry_id)
         break
       end
       
@@ -1401,7 +1401,7 @@ module Bot::Economy
         break
       end
 
-      Bot::Inventory::RemoveItem(command.item_entry_id)
+      Bot::Inventory::remove_item(command.item_entry_id)
       event.respond "Command #{command_name} has been removed!"
 
     #############################
@@ -1803,7 +1803,7 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     item_name = parsed_args["item"]
-    if Bot::Inventory::AddItemByName(parsed_args["user"].id, item_name) != nil
+    if Bot::Inventory::add_item_by_name(parsed_args["user"].id, item_name) != nil
       event.respond "#{item_name} added!"
     else
       event.repond "Item '#{item_name}' not recognized."
@@ -1832,8 +1832,8 @@ module Bot::Economy
     item_type = parsed_args["item_type"]
     item_type = item_type > 0 ? item_type : nil
     
-    items = Bot::Inventory::GetInventory(user.id, item_type)
-    value = Bot::Inventory::GetInventoryValue(user.id)
+    items = Bot::Inventory::get_inventory(user.id, item_type)
+    value = Bot::Inventory::get_inventory_value(user.id)
     response = "#{user.full_username} inventory valued at #{value} Starbucks\n"
     items.each do |item|
       if item.expiration != nil
@@ -1866,9 +1866,9 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     user = parsed_args["user"]
-    items = Bot::Inventory::GetInventory(user.id)
+    items = Bot::Inventory::get_inventory(user.id)
     items.each do |item|
-      Bot::Inventory::RemoveItem(item.entry_id)
+      Bot::Inventory::remove_item(item.entry_id)
     end
 
     event.respond "#{user.full_username}'s inventory was cleared"
@@ -1898,7 +1898,7 @@ module Bot::Economy
         tag_content = "content #{counter}"
         next if Bot::Tags::HasTag(tag_name)
         
-        item = Bot::Inventory::AddItemByName(user_id, 'tag')
+        item = Bot::Inventory::add_item_by_name(user_id, 'tag')
         Bot::Tags::AddTag(tag_name, item.entry_id, user_id, tag_content)
       end
     end
@@ -1923,7 +1923,7 @@ module Bot::Economy
       command_content = "longer command content is long don't you think? #{counter}"
       next if Bot::CustomCommands::HasCustomCommand(command_name, user_id)
       
-      item = Bot::Inventory::AddItemByName(user_id, 'custom_command')
+      item = Bot::Inventory::add_item_by_name(user_id, 'custom_command')
       Bot::CustomCommands::AddCustomCommand(command_name, user_id, item.entry_id, command_content)
     end
 
