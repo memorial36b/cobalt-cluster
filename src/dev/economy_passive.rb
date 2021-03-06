@@ -20,17 +20,20 @@ module Bot::EconomyPassive
 
   # Channels that don't earn points
   IGNORED_CHANNELS = [
+    # text
     READ_ME_FIRST_CHANNEL_ID,
     ADDITIONAL_INFO_CHANNEL_ID,
     PARTNERS_CHANNEL_ID,
     QUOTEBOARD_CHANNEL_ID,
     BOT_COMMANDS_CHANNEL_ID,
-    *VOICE_TEXT_CHANNELS
+
+    # voice
+    MOD_VC_CHANNEL_ID,
+    MUSIC_VC_CHANNEL_ID
   ].freeze
 
   # Channels that have special point handling
   SPECIAL_CHAT_CHANNELS = [
-    SVTFOE_DISCUSSION_ID,
     SVTFOE_GALLERY_ID,
     ORIGINAL_ART_CHANNEL_ID,
     ORIGINAL_CONTENT_CHANNEL_ID
@@ -80,7 +83,6 @@ module Bot::EconomyPassive
         @@voice_connected[event.channel.id] = Set[]
       end
 
-
       # user disconnected
       if event.channel == nil && event.old_channel != nil
         @@voice_connected[event.old_channel.id].delete(event.user.id)
@@ -96,7 +98,7 @@ module Bot::EconomyPassive
         # continue on
       end
 
-      # remove users that have deafed themselves
+      # remove users that have deafened themselves
       if event.deaf || event.self_deaf
         @@voice_connected[event.channel.id].delete(event.user.id)
         next # done processing
@@ -113,19 +115,26 @@ module Bot::EconomyPassive
   SCHEDULER.every '1m' do
     DATA_LOCK.synchronize do
       # reward points for voice chat, can only earn points from one channel
-      already_earned_voice = Set[]
+      voice_earned = {}
       @@voice_connected.each do |channel_id, connected|
         next unless connected.count >= MIN_VOICE_CONNECTED
 
         # reward points to all users connected
         connected.each do |user_id|
-          next if already_earned_voice.include?(user_id)
-          already_earned_voice.add(user_id)
-          RewardVoiceActivity(user_id)
+          cur_value = voice_earned[user_id]
+          cur_value = 0 if cur_value == nil
+
+          new_value = GetVoiceReward(channel_id)
+          voice_earned[user_id] = max(cur_value, new_value)
         end
       end
 
-      # users earn points from the highest valued caht
+      # award points to each user participating in voice
+      voice_earned.each do |user, earnings|
+        Bot::Bank::Deposit(user, earnings)
+      end
+
+      # users earn points from the highest valued chat
       chat_earned = {}
       @@sent_messages.each do |channel_id, users|
         next if users.empty?
@@ -136,7 +145,7 @@ module Bot::EconomyPassive
           cur_value = 0 if cur_value == nil
 
           new_value = GetChatReward(channel_id)
-          chat_earned[user_id] = [cur_value, new_value].max
+          chat_earned[user_id] = max(cur_value, new_value)
         end
       end
 
@@ -163,11 +172,12 @@ module Bot::EconomyPassive
     return points_yaml[action_name]
   end
 
-  # Reward a user for voice activity.
-  # @param [Integer] user_id User to reward
-  def RewardVoiceActivity(user_id)
+  # Get the reward value for voice activity in the specified channel.
+  # @param [Integer] channel_id The channel the user is connected to.
+  # @return [Integer] The points earned by the activity.
+  def GetVoiceReward(channel_id)
     reward = GetActionEarnings('activity_voice_chat')
-    Bot::Bank::Deposit(user_id, reward) if reward != nil
+    return reward.nil? ? 0 : reward
   end
 
   # Get the reward value for chatting in the specified channel.
@@ -176,7 +186,15 @@ module Bot::EconomyPassive
   # @param [Integer] is_voice   Is this a voice channel?
   # @return [Integer] The points earned by the activity.
   def GetChatReward(channel_id)
-    reward = GetActionEarnings('activity_text_chat')
-    return reward != nil ? reward : 0
+    reward = nil
+
+    case channel_id
+    when SVTFOE_DISCUSSION_ID
+      reward = GetActionEarnings('activity_starvs_discussion')
+    else
+      reward = GetActionEarnings('activity_text_chat')
+    end
+
+    return reward.nil? ? 0 : reward
   end
 end
