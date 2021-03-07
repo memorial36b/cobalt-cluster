@@ -1,6 +1,7 @@
 # Crystal: Economy Earning
 require 'rufus-scheduler'
 require 'set'
+require 'uri'
 
 # This crystal contains the portion of Cobalt's economy features that handle awarding points for activity.
 # Note: This is separate due to the expectation that it will also be extremely large.
@@ -32,13 +33,6 @@ module Bot::EconomyPassive
     MUSIC_VC_CHANNEL_ID
   ].freeze
 
-  # Channels that have special point handling
-  SPECIAL_CHAT_CHANNELS = [
-    SVTFOE_GALLERY_ID,
-    ORIGINAL_ART_CHANNEL_ID,
-    ORIGINAL_CONTENT_CHANNEL_ID
-  ].freeze
-
   # The minimum number of people actively voice chat required to earn points.
   MIN_VOICE_CONNECTED = 2
 
@@ -48,23 +42,29 @@ module Bot::EconomyPassive
 
   # Message event handler
   @@sent_messages = {} # map of channels to users participating
+  @@message_bonus = {} # map of special message bonuses
   message do |event|
     next unless event.server == SERVER
     next if event.channel == nil || IGNORED_CHANNELS.include?(event.channel.id)
     next if event.user == nil
 
-    # special message rewards
-    if SPECIAL_CHAT_CHANNELS.include?(event.channel.id)
-      # do special handling
-    end
-
     # general chat awarding
     DATA_LOCK.synchronize do
+      # add to sent messages
       if @@sent_messages[event.channel.id] == nil
         @@sent_messages[event.channel.id] = Set[]
       end
 
       @@sent_messages[event.channel.id].add(event.user.id)
+
+      # queue up any necessary bonuses
+      new_bonus = get_bonus_reward(event.user.id, event.channel.id, event.message)
+      if not @@message_bonus[event.user.id].nil?
+        old_bonus = @@message_bonus[event.user.id]
+        @@message_bonus[event.user.id] = max(old_bonus, new_bonus)
+      elsif new_bonus > 0
+        @@message_bonus[event.user.id] = new_bonus
+      end
     end
   end
 
@@ -156,6 +156,14 @@ module Bot::EconomyPassive
 
       # clear message values, will be repopulated
       @@sent_messages.clear()
+
+      # reward bonuses
+      @@message_bonus.each do |user, bonus|
+        Bot::Bank::deposit(user, bonus)
+      end
+
+      # clear bonuses, will be repopulated
+      @@message_bonus.clear()
     end
   end
 
@@ -196,5 +204,52 @@ module Bot::EconomyPassive
     end
 
     return reward.nil? ? 0 : reward
+  end
+
+  # Give the bonus reward for special channels if the message meets the
+  # channel's criteria.
+  # @param [Integer] user_id            The user to reward.
+  # @param [Integer] channel_id         The channel the message was sent on.
+  # @param [Discordrb::Message] message The message.
+  def get_bonus_reward(user_id, channel_id, message)
+    reward = 0
+
+    case channel_id
+    when SVTFOE_GALLERY_ID
+      reward = get_action_earnings('activity_share_gallery') if
+        image?(message)
+    when ORIGINAL_ART_CHANNEL_ID
+      reward = get_action_earnings('activity_share_art') if
+        image?(message)
+    when ORIGINAL_CONTENT_CHANNEL_ID
+      reward = get_action_earnings('activity_share_content') if
+        image?(message) or link?(message)
+    end
+
+    return reward.nil? ? 0 : reward
+  end
+
+  # Check if a message has an image attachment.
+  # @param [Discordrb::Message] message The message.
+  # @return [bool] Has message?
+  def image?(message)
+    # if message has image award bonus Starbucks
+    return false if message.nil? or message.attachments.nil?
+
+    has_image = false
+    message.attachments.each do |attachment|
+      has_image = attachment.image?
+      break if has_image
+    end
+
+    return has_image
+  end
+
+  # Check if a message has a link.
+  # @param [Discordrb::Message] message The message.
+  # @return [bool] Has link?
+  def link?(message)
+    return false if message.nil? or message.content.nil?
+    return message.content =~ /#{URI::regexp(['http', 'https'])}/
   end
 end
