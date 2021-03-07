@@ -171,4 +171,17 @@ module Bot::Bank
     points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
     return points_yaml[item_id]
   end
+
+  # Get a list of all the users that have a temp balance.
+  # @return [Array<Integer>] Array of user ids.
+  def get_users_with_temp_balance()
+    users = DB["SELECT DISTINCT user_id FROM econ_user_balances"]
+
+    array = []
+    users.all.each do |user|
+      array.push(user[:user_id])
+    end
+
+    return array
+  end
 end

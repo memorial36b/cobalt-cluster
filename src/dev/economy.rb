@@ -166,7 +166,13 @@ module Bot::Economy
   ################################
   ##   RUFUS SCHEDULED EVENTS   ##
   ################################
-  SCHEDULER.every '1h' do
+  SCHEDULER.every '6h' do
+    # check for expired balances
+    users = Bot::Bank::get_users_with_temp_balance()
+    users.each do |user_id|
+      Bot::Bank::clean_account(user_id)
+    end
+
     # check for expired roles for each user
     users = Bot::Inventory::get_users_with_inventory()
     users.each do |user_id|
