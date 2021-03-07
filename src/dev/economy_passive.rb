@@ -124,7 +124,7 @@ module Bot::EconomyPassive
           cur_value = voice_earned[user_id]
           cur_value = 0 if cur_value == nil
 
-          new_value = GetVoiceReward(channel_id)
+          new_value = get_voice_reward(channel_id)
           voice_earned[user_id] = max(cur_value, new_value)
         end
       end
@@ -144,7 +144,7 @@ module Bot::EconomyPassive
           cur_value = chat_earned[user_id]
           cur_value = 0 if cur_value == nil
 
-          new_value = GetChatReward(channel_id)
+          new_value = get_chat_reward(channel_id)
           chat_earned[user_id] = max(cur_value, new_value)
         end
       end
@@ -167,7 +167,7 @@ module Bot::EconomyPassive
   # Get the Starbucks value for the specified action.
   # @param [String] action_name The action's name.
   # @return [Integer] Startbucks earned by the action. 
-  def GetActionEarnings(action_name)
+  def get_action_earnings(action_name)
     points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
     return points_yaml[action_name]
   end
@@ -175,8 +175,8 @@ module Bot::EconomyPassive
   # Get the reward value for voice activity in the specified channel.
   # @param [Integer] channel_id The channel the user is connected to.
   # @return [Integer] The points earned by the activity.
-  def GetVoiceReward(channel_id)
-    reward = GetActionEarnings('activity_voice_chat')
+  def get_voice_reward(channel_id)
+    reward = get_action_earnings('activity_voice_chat')
     return reward.nil? ? 0 : reward
   end
 
@@ -185,14 +185,14 @@ module Bot::EconomyPassive
   # @param [Integer] user_id    The user's id.
   # @param [Integer] is_voice   Is this a voice channel?
   # @return [Integer] The points earned by the activity.
-  def GetChatReward(channel_id)
+  def get_chat_reward(channel_id)
     reward = nil
 
     case channel_id
     when SVTFOE_DISCUSSION_ID
-      reward = GetActionEarnings('activity_starvs_discussion')
+      reward = get_action_earnings('activity_starvs_discussion')
     else
-      reward = GetActionEarnings('activity_text_chat')
+      reward = get_action_earnings('activity_text_chat')
     end
 
     return reward.nil? ? 0 : reward
