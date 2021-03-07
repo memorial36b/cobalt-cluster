@@ -131,7 +131,7 @@ module Bot::EconomyPassive
 
       # award points to each user participating in voice
       voice_earned.each do |user, earnings|
-        Bot::Bank::Deposit(user, earnings)
+        Bot::Bank::deposit(user, earnings)
       end
 
       # users earn points from the highest valued chat
@@ -151,7 +151,7 @@ module Bot::EconomyPassive
 
       # award points to each user participating in chat
       chat_earned.each do |user, earnings|
-        Bot::Bank::Deposit(user, earnings)
+        Bot::Bank::deposit(user, earnings)
       end
 
       # clear message values, will be repopulated

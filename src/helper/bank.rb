@@ -29,7 +29,7 @@ module Bot::Bank
 
   # Check for and remove any and all expired balances.
   # @param [Integer] user_id user_id 
-  def CleanAccount(user_id)
+  def clean_account(user_id)
     past_monday = Bot::Timezone::GetUserPastMonday(user_id)
     last_valid_timestamp = (past_monday - MAX_BALANCE_AGE_DAYS).to_time.to_i
 
@@ -41,7 +41,7 @@ module Bot::Bank
   # Gets the user's current balance. Assumes database is clean.
   # @param [Integer] user_id user id
   # @return [Integer] User's total balance.
-  def GetBalance(user_id)
+  def get_balance(user_id)
     sql = 
       "SELECT user_id, SUM(amount) total\n" +
       "FROM\n" + 
@@ -67,7 +67,7 @@ module Bot::Bank
   # Gets the amount of the user's balance that is at risk of expriring.
   # @param [Integer] user_id user id
   # @return [Integer] User's balance that is at risk of expiring.
-  def GetAtRiskBalance(user_id)
+  def get_at_risk_balance(user_id)
     past_monday = Bot::Timezone::GetUserPastMonday(user_id)
     last_safe_timestamp = (past_monday - MAX_BALANCE_AGE_SAFE_DAYS).to_time.to_i
     
@@ -79,7 +79,7 @@ module Bot::Bank
   # Gets the user's permanent balance.
   # @param [Integer] user_id user id
   # @return [Integer] User's non-expiring.
-  def GetPermaBalance(user_id)
+  def get_perm_balance(user_id)
     balance = USER_PERMA_BALANCES.where(user_id: user_id).sum(:amount)
     if(balance == nil)
       balance = 0
@@ -91,7 +91,7 @@ module Bot::Bank
   # @param [Integer] user_id user id
   # @param [Integer] amount  non-negative amount to deposit
   # @return [bool] Successful?
-  def Deposit(user_id, amount)
+  def deposit(user_id, amount)
     if amount < 0
       return false
     end
@@ -114,11 +114,11 @@ module Bot::Bank
     return true
   end
 
-  # Deposit money to perma, can also be used for fines (negative)!
+  # Deposit money to permanent balance, can also be used for fines (negative)!
   # @param [Integer] user_id user id
   # @param [Integer] amount  amount to deposit (can be negative)
   # @return [bool] Successful?
-  def DepositPerma(user_id, amount)
+  def deposit_perm(user_id, amount)
     if USER_PERMA_BALANCES[user_id: user_id]
       perma_balance = USER_PERMA_BALANCES.where(user_id: user_id)
       perma_balance.update(amount: perma_balance.first[:amount] + amount)
@@ -133,8 +133,8 @@ module Bot::Bank
   # @param [Integer] user_id user id
   # @param [Integer] amount  non-negative amount to withdraw
   # @return [bool]   Successful, can fail if negative or if the user doesn't have enough
-  def Withdraw(user_id, amount)
-    if amount < 0 || GetBalance(user_id) < amount
+  def withdraw(user_id, amount)
+    if amount < 0 || get_balance(user_id) < amount
       return false
     end
 
@@ -167,7 +167,7 @@ module Bot::Bank
   # @param [Integer] item_id Id of item in points_values
   # @return [Integer] value of the item in Starbucks.
   # Note: see ECON_DATA_PATH/point_values.yml
-  def AppraiseItem(item_id)
+  def appraise_item(item_id)
     points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
     return points_yaml[item_id]
   end

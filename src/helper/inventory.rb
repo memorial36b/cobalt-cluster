@@ -117,7 +117,7 @@ module Bot::Inventory
     catalogue_key = u!(item_type)
     point_value_key = catalog[catalogue_key]
     return 0 if point_value_key == nil
-    return Bot::Bank::AppraiseItem(point_value_key)
+    return Bot::Bank::appraise_item(point_value_key)
   end
 
   # Get an item's value from the id.
@@ -158,7 +158,7 @@ module Bot::Inventory
     point_value_key = catalog_value(catalogue_key)
     return nil if point_value_key == nil
 
-    return Bot::Bank::AppraiseItem(point_value_key)
+    return Bot::Bank::appraise_item(point_value_key)
   end
 
   # Get the cost to renew an item with the given id.
