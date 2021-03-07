@@ -39,9 +39,9 @@ raffle_win:       20 # earnings per ticket when a user wins
 raffle_reminder:   0 # set up a reminder for the raffle
 
 # moderator-only
-fine_small:    2500    # fine a user, basic punishment: -1000
+fine_small:    2500    # fine a user, basic punishment: -2500
 fine_medium:   5000    # fine a user, moderate punishment: -5000
-fine_large:   10000    # fine a user, extreme punishment: -15000
+fine_large:   10000    # fine a user, extreme punishment: -10000
 
 # dev-only
 #shutupandtakemymoney: all # displays gif, clears balance
