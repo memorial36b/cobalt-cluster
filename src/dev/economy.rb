@@ -65,7 +65,7 @@ module Bot::Economy
       raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
     end
 
-    return Bot::Bank::AppraiseItem(role_yaml_id)
+    return Bot::Bank::appraise_item(role_yaml_id)
   end
 
   # Determine how long the user has to wait until their next checkin.
@@ -113,33 +113,33 @@ module Bot::Economy
   # Get the role id for the given role item id.
   def self.get_role_for_item_id(role_item_id)
     case role_item_id
-    when Bot::Inventory::GetItemID('role_color_ghastly_green')
+    when Bot::Inventory::get_item_id('role_color_ghastly_green')
       role_id = GHASTLY_GREEN_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_obsolete_orange')
+    when Bot::Inventory::get_item_id('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_breathtaking_blue')
+    when Bot::Inventory::get_item_id('role_color_breathtaking_blue')
       role_id = BREATHTAKING_BLUE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_retro_red')
+    when Bot::Inventory::get_item_id('role_color_retro_red')
       role_id = RETRO_RED_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_lullaby_lavender')
+    when Bot::Inventory::get_item_id('role_color_lullaby_lavender')
       role_id = LULLABY_LAVENDER_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_whitey_white')
+    when Bot::Inventory::get_item_id('role_color_whitey_white')
       role_id = WHITEY_WHITE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_marvelous_magenta')
+    when Bot::Inventory::get_item_id('role_color_marvelous_magenta')
       role_id = MARVELOUS_MAGENTA_ROLE_ID
-    when Bot::Inventory::GetItemID('role_color_shallow_yellow')
+    when Bot::Inventory::get_item_id('role_color_shallow_yellow')
       role_id = SHALLOW_YELLOW_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_citizen')
+    when Bot::Inventory::get_item_id('role_override_citizen')
       role_id = OVERRIDE_MEWMAN_CITIZEN_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_squire')
+    when Bot::Inventory::get_item_id('role_override_squire')
       role_id = OVERRIDE_MEWMAN_SQUIRE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_knight')
+    when Bot::Inventory::get_item_id('role_override_knight')
       role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_noble')
+    when Bot::Inventory::get_item_id('role_override_noble')
       role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_monarch')
+    when Bot::Inventory::get_item_id('role_override_monarch')
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
-    when Bot::Inventory::GetItemID('role_override_bearer')
+    when Bot::Inventory::get_item_id('role_override_bearer')
       role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
     else
       raise ArgumentError, "Invalid role received from inventory!"
@@ -151,10 +151,10 @@ module Bot::Economy
 
   # Get the user's rented role or nil if they don't have one.
   def self.get_user_rented_role_item(user_id)
-    override_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_override')
-    color_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
-    roles = Bot::Inventory::GetInventory(user_id, override_role_type)
-    roles.push(*Bot::Inventory::GetInventory(user_id, color_role_type))
+    override_role_type = Bot::Inventory::catalog_value('item_type_role_override')
+    color_role_type = Bot::Inventory::catalog_value('item_type_role_color')
+    roles = Bot::Inventory::get_inventory(user_id, override_role_type)
+    roles.push(*Bot::Inventory::get_inventory(user_id, color_role_type))
     return roles.empty? ? nil : roles[0]
   end
 
@@ -163,9 +163,9 @@ module Bot::Economy
   ################################
   SCHEDULER.every '1h' do
     # check for expired roles for each user
-    users = Bot::Inventory::GetUsersWithInventory()
+    users = Bot::Inventory::get_users_with_inventory()
     users.each do |user_id|
-      inventory = Bot::Inventory::GetInventory(user_id)
+      inventory = Bot::Inventory::get_inventory(user_id)
       next if inventory == nil || inventory.count <= 0 # sanity check, shouldn't be possible
 
       owner = DiscordUser.new(user_id)
@@ -182,18 +182,18 @@ module Bot::Economy
         end
 
         # determine how much it'll cost to renew
-        renewal_cost = Bot::Inventory::GetItemRenewalCost(item.item_id)
+        renewal_cost = Bot::Inventory::get_item_renewal_cost_from_id(item.item_id)
         if renewal_cost == nil
-          puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!" 
+          puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!"
           next # continue onto valid items
         end
 
         # renew if possible, otherwise remove and add to list of removed
-        if Bot::Bank::Withdraw(owner.id, renewal_cost)
-          Bot::Inventory::RenewItem(item.entry_id)
+        if Bot::Bank::withdraw(owner.id, renewal_cost)
+          Bot::Inventory::renew_item(item.entry_id)
         else
           # remove from inventory
-          Bot::Inventory::RemoveItem(item.entry_id)
+          Bot::Inventory::remove_item(item.entry_id)
           removed_items.push(item)
 
           # perform necessary cleanup now that they don't own it
@@ -201,24 +201,24 @@ module Bot::Economy
           
           #############################
           ## Roles
-          when Bot::Inventory::GetValueFromCatalogue('item_type_role_override'),
-               Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
+          when Bot::Inventory::catalog_value('item_type_role_override'),
+               Bot::Inventory::catalog_value('item_type_role_color')
             # remove role if they have it
             role_id = get_role_for_item_id(item.item_id)
             owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
           
           #############################
           ## Tags
-          when Bot::Inventory::GetValueFromCatalogue('item_type_tag')
-            tag = Bot::Tags::GetTagByItemEntryID(item.entry_id)
-            Bot::Tags::RemoveTagByItemEntryID(item.entry_id) if tag != nil
+          when Bot::Inventory::catalog_value('item_type_tag')
+            tag = Bot::Tags::get_tag_by_item_entry_id(item.entry_id)
+            Bot::Tags::remove_tag_by_item_entry_id(item.entry_id) if tag != nil
             name_override[item.entry_id] = tag.tag_name
 
           #############################
           ## Custom Command
-          when Bot::Inventory::GetValueFromCatalogue('item_type_custom_command')
-            command = Bot::CustomCommands::GetCustomCommandByItemEntryID(item.entry_id)
-            Bot::CustomCommands::RemoveCustomCommandByItemEntryID(item.entry_id) if command != nil
+          when Bot::Inventory::catalog_value('item_type_custom_command')
+            command = Bot::CustomCommands::get_custom_command_by_item_entry_id(item.entry_id)
+            Bot::CustomCommands::remove_custom_command_by_item_entry_id(item.entry_id) if command != nil
             name_override[item.entry_id] = command.command_name
           
           #############################
@@ -269,9 +269,16 @@ module Bot::Economy
     # todo: perform any other routine maintenance
   end
 
-  # schedule the raffle ever n days, always at 7:00 PM GMT
-  def self.get_7pm_tomorrow(); (Bot::Timezone::GetTodayInTimezone('Etc/GMT') + 1).to_time + 7*60*60; end
-  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => get_7pm_tomorrow() do
+  # schedule the raffle every friday at 5PM GMT
+  # executes immediately if today is friday past 5PM GMT
+  def self.next_friday_at_5pm()
+    next_friday = Bot::Timezone::timezone_next_friday('Etc/GMT')
+    next_friday_5pm = next_friday.to_time + 17*60*60
+    puts "Info: First raffle scheduled for #{next_friday_5pm}\n"
+    return next_friday_5pm
+  end
+
+  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => next_friday_at_5pm() do
     entry_count = RAFFLE_ENTRIES.count
     entry_count = entry_count.nil? ? 0 : entry_count
 
@@ -286,15 +293,15 @@ module Bot::Economy
       # get winner and reward them
       winner_idx = rand(RAFFLE_ENTRIES.count)
       winner_user_id = RAFFLE_ENTRIES.offset(winner_idx).first[:user_id]
-      winnings_value = entry_count * Bot::Bank::AppraiseItem('raffle_win')
+      winnings_value = entry_count * Bot::Bank::appraise_item('raffle_win')
       RAFFLE_ENTRIES.delete # delete all entries
       
       winner = DiscordUser.new(winner_user_id)
-      Bot::Bank::Deposit(winner.id, winnings_value)
+      Bot::Bank::deposit(winner.id, winnings_value)
 
       # post results and announce start of next
       raffle_mention = raffle_role.nil? ? "@Raffle" : raffle_role.mention
-      cost_per_ticket = Bot::Bank::AppraiseItem('raffle_buyticket')
+      cost_per_ticket = Bot::Bank::appraise_item('raffle_buyticket')
 
       msg = "#{winner.mention} has won the raffle...\n\n" +
         "#{raffle_mention} A new one has begun! Use the command " + 
@@ -360,7 +367,7 @@ module Bot::Economy
     types = { }
     items_of_type = { }
     cur_type = 0x1000
-    while (type_name = Bot::Inventory::GetValueFromCatalogue(cur_type)) != nil
+    while (type_name = Bot::Inventory::catalog_value(cur_type)) != nil
       types[cur_type] = type_name
       items_of_type[type_name] = []
       cur_type += 0x1000
@@ -369,7 +376,7 @@ module Bot::Economy
     # enumerate items for each type
     types.each do |type_id, type_name|
       item_id = type_id + 1
-      while (item_name = Bot::Inventory::GetValueFromCatalogue(item_id)) != nil
+      while (item_name = Bot::Inventory::catalog_value(item_id)) != nil
         items_of_type[type_name].push(item_name)
         item_id += 1
       end
@@ -394,16 +401,25 @@ module Bot::Economy
         # avoid double printing types with shared names
         next if printed_types.include?(type_name)
         printed_types.add(type_name)
+        type_cost = Bot::Inventory::get_item_type_value(type_id)
+        type_renewal_cost = Bot::Inventory::get_item_type_renewal_cost(type_id)
+        type_lifetime = Bot::Inventory::get_item_type_lifetime(type_id)
 
         # if there are sub-items display the full list
+        embed.description += "**#{type_name}**\n"
+
+        cost_str = "#{pl(type_cost, "Starbuck")}"
+        unless type_lifetime.nil? or type_renewal_cost.nil?
+        cost_str += " + #{pl(type_renewal_cost, "Starbuck")} every #{ple(type_lifetime, "day")}"
+        end
+        cost_str += "\n"
+
+        embed.description += cost_str
         if not items_of_type[type_name].count == 1
-          embed.description += "**#{type_name}**\n"
           
           items_of_type[type_name].each do |item_name|
             embed.description += " - #{item_name}\n"
           end
-        else # display the one and only item
-          embed.description += "**#{items_of_type[type_name][0]}**\n"
         end
       end
 
@@ -427,12 +443,12 @@ module Bot::Economy
 
     # clean up for good measure since this will one of be the most performed action
     # note: calling this has no impact on the results of checkin
-    Bot::Bank::CleanAccount(user.id)
+    Bot::Bank::clean_account(user.id)
 
     # checkin if they can do that today
     checkin_value = get_user_checkin_value(user.id)
     if can_checkin
-      Bot::Bank::Deposit(user.id, checkin_value)
+      Bot::Bank::deposit(user.id, checkin_value)
 
       now = Bot::Timezone::utc_now().to_time.to_i
       if last_checkin_entry == nil
@@ -478,7 +494,7 @@ module Bot::Economy
       # todo: display full networth (+ items value)
       embed.add_field(
           name: 'Networth',
-          value: "#{Bot::Bank::GetBalance(user.id)} Starbucks",
+          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
           inline: true
       )
 
@@ -510,7 +526,7 @@ module Bot::Economy
 
     # clean before showing profile
     user = parsed_args["user"]
-    Bot::Bank::CleanAccount(user.id)
+    Bot::Bank::clean_account(user.id)
 
     # Sends embed containing user bank profile
     event.send_embed do |embed|
@@ -535,17 +551,17 @@ module Bot::Economy
       # todo display full networth (+ item values)
       embed.add_field(
           name: 'Networth',
-          value: "#{Bot::Bank::GetBalance(user.id)} Starbucks",
+          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
           inline: true
       )
 
       embed.add_field(
         name: 'At Risk',
-        value: "#{Bot::Bank::GetAtRiskBalance(user.id)} Starbucks",
+        value: "#{Bot::Bank::get_at_risk_balance(user.id)} Starbucks",
         inline: true
       )
 
-      perma_balance = Bot::Bank::GetPermaBalance(user.id)
+      perma_balance = Bot::Bank::get_perm_balance(user.id)
       if perma_balance < 0
         embed.add_field(
           name: "Outstanding Fines",
@@ -575,14 +591,14 @@ module Bot::Economy
         inline: true
       )
 
-      tag_count = Bot::Tags::GetUserTagCount(user.id)
+      tag_count = Bot::Tags::get_user_tag_count(user.id)
       embed.add_field(
         name: "Tags",
         value: tag_count,
         inline: true
       )
 
-      command_count = Bot::CustomCommands::GetUserCustomCommandCount(user.id)
+      command_count = Bot::CustomCommands::get_user_custom_command_count(user.id)
       embed.add_field(
         name: "Commands",
         value: command_count,
@@ -694,11 +710,11 @@ module Bot::Economy
     end
 
     # clean from_user's entries before transfer
-    Bot::Bank::CleanAccount(from_user_id)
+    Bot::Bank::clean_account(from_user_id)
 
     # transfer funds
-    if Bot::Bank::Withdraw(from_user_id, amount)
-      Bot::Bank::Deposit(to_user_id, amount)
+    if Bot::Bank::withdraw(from_user_id, amount)
+      Bot::Bank::deposit(to_user_id, amount)
       event.respond "#{parsed_args["to_user"].mention}, #{event.user.username} has transfered #{amount} Starbucks to your account!"
     else
       event.respond "You have insufficient funds to transfer that much!"
@@ -720,11 +736,11 @@ module Bot::Economy
     
     # special rent-a-role info page
     if parsed_args.nil?
-      rand_color_role_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
-      color_role_cost = Bot::Bank::AppraiseItem('rentarole_color')
-      override_role_cost = Bot::Bank::AppraiseItem('rentarole_override')
-      renew_frequency = Bot::Inventory::GetItemLifetime(rand_color_role_id)
-      renewal_cost = Bot::Bank::AppraiseItem('rentarole_maintain')
+      rand_color_role_id = Bot::Inventory::get_item_id('role_color_obsolete_orange')
+      color_role_cost = Bot::Bank::appraise_item('rentarole_color')
+      override_role_cost = Bot::Bank::appraise_item('rentarole_override')
+      renew_frequency = Bot::Inventory::get_item_lifetime_from_id(rand_color_role_id)
+      renewal_cost = Bot::Bank::appraise_item('rentarole_maintain')
       
       event.send_embed do |embed|
         embed.author = {
@@ -739,7 +755,7 @@ module Bot::Economy
           "role. You can only rent override roles that you meet the level " +
           "requirement for (e.g. Mewman Citizen).\n\n" +
           "Color roles cost #{color_role_cost} Starbucks and override roles cost " +
-          "#{override_role_cost} Starbucks. Every #{pl(renew_frequency, "day")} " +
+          "#{override_role_cost} Starbucks. Every #{ple(renew_frequency, "day")} " +
           "you must pay #{renewal_cost} Starbucks to renew your role. If you " +
           "cannot afford it, you will lose it! It's recommended that " +
           "you keep an excess of Starbucks around.\n\n" +
@@ -755,7 +771,7 @@ module Bot::Economy
       break # stop processing
     end
     
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
 
     # Check to see if the user is already renting a role.
     rented_role = get_user_rented_role_item(event.user.id)
@@ -771,51 +787,51 @@ module Bot::Economy
     role_name = parsed_args["role"]
     case role_name.downcase
     when "green", "ghastly_green"
-      role_item_id = Bot::Inventory::GetItemID('role_color_ghastly_green')
+      role_item_id = Bot::Inventory::get_item_id('role_color_ghastly_green')
       role_id = GHASTLY_GREEN_ROLE_ID
     when "orange", "obsolete_orange"
-      role_item_id = Bot::Inventory::GetItemID('role_color_obsolete_orange')
+      role_item_id = Bot::Inventory::get_item_id('role_color_obsolete_orange')
       role_id = OBSOLETE_ORANGE_ROLE_ID
     when "blue", "breathtaking_blue"
-      role_item_id = Bot::Inventory::GetItemID('role_color_breathtaking_blue')
+      role_item_id = Bot::Inventory::get_item_id('role_color_breathtaking_blue')
       role_id = BREATHTAKING_BLUE_ROLE_ID
     when "red", "retro_red"
-      role_item_id = Bot::Inventory::GetItemID('role_color_retro_red')
+      role_item_id = Bot::Inventory::get_item_id('role_color_retro_red')
       role_id = RETRO_RED_ROLE_ID
     when "lavender", "lavendar", "lullaby_lavender", "lullaby_lavendar", "purple"
-      role_item_id = Bot::Inventory::GetItemID('role_color_lullaby_lavender')
+      role_item_id = Bot::Inventory::get_item_id('role_color_lullaby_lavender')
       role_id = LULLABY_LAVENDER_ROLE_ID
     when "white", "white_white"
-      role_item_id = Bot::Inventory::GetItemID('role_color_whitey_white')
+      role_item_id = Bot::Inventory::get_item_id('role_color_whitey_white')
       role_id = WHITEY_WHITE_ROLE_ID
     when "magenta", "marvelous_magenta", "pink"
-      role_item_id = Bot::Inventory::GetItemID('role_color_marvelous_magenta')
+      role_item_id = Bot::Inventory::get_item_id('role_color_marvelous_magenta')
       role_id = MARVELOUS_MAGENTA_ROLE_ID
     when "yellow", "shallow_yellow"
-      role_item_id = Bot::Inventory::GetItemID('role_color_shallow_yellow')
+      role_item_id = Bot::Inventory::get_item_id('role_color_shallow_yellow')
       role_id = SHALLOW_YELLOW_ROLE_ID
     when "citizen", "override_citizen"
-      role_item_id = Bot::Inventory::GetItemID('role_override_citizen')
+      role_item_id = Bot::Inventory::get_item_id('role_override_citizen')
       role_id = OVERRIDE_MEWMAN_CITIZEN_ROLE_ID
       required_role_id = MEWMAN_CITIZEN_ROLE_ID
     when "squire", "override_squire"
-      role_item_id = Bot::Inventory::GetItemID('role_override_squire')
+      role_item_id = Bot::Inventory::get_item_id('role_override_squire')
       role_id = OVERRIDE_MEWMAN_SQUIRE_ROLE_ID
       required_role_id = MEWMAN_SQUIRE_ROLE_ID
     when "knight", "override_knight"
-      role_item_id = Bot::Inventory::GetItemID('role_override_knight')
+      role_item_id = Bot::Inventory::get_item_id('role_override_knight')
       role_id = OVERRIDE_MEWMAN_KNIGHT_ROLE_ID
       required_role_id = MEWMAN_KNIGHT_ROLE_ID
     when "noble", "override_noble"
-      role_item_id = Bot::Inventory::GetItemID('role_override_noble')
+      role_item_id = Bot::Inventory::get_item_id('role_override_noble')
       role_id = OVERRIDE_MEWMAN_NOBLE_ROLE_ID
       required_role_id = MEWMAN_NOBLE_ROLE_ID
     when "monarch", "override_monarch"
-      role_item_id = Bot::Inventory::GetItemID('role_override_monarch')
+      role_item_id = Bot::Inventory::get_item_id('role_override_monarch')
       role_id = OVERRIDE_MEWMAN_MONARCH_ROLE_ID
       required_role_id = MEWMAN_MONARCH_ROLE_ID
     when "bearer", "bearer_of_the_wand", "override_bearer", "override_bearer_of_the_wand"
-      role_item_id = Bot::Inventory::GetItemID('role_override_bearer')
+      role_item_id = Bot::Inventory::get_item_id('role_override_bearer')
       role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
       required_role_id = BEARER_OF_THE_WAND_POG_ROLE_ID
     else 
@@ -831,8 +847,8 @@ module Bot::Economy
     end
 
     # attempt to buy role
-    role_cost = Bot::Inventory::GetItemValueFromID(role_item_id)
-    if not Bot::Bank::Withdraw(user.id, role_cost)
+    role_cost = Bot::Inventory::get_item_value_from_id(role_item_id)
+    if not Bot::Bank::withdraw(user.id, role_cost)
       event.respond "Sorry, you can't afford that role."
       break
     end
@@ -841,17 +857,17 @@ module Bot::Economy
     now_datetime = Time.now.to_datetime
 
     # store in inventory
-    Bot::Inventory::AddItem(user.id, role_item_id)
+    Bot::Inventory::add_item(user.id, role_item_id)
 
     # assign role and respond
     user.user.add_role(role_id)
-    role_ui_name = Bot::Inventory::GetItemUINameFromID(role_item_id)
+    role_ui_name = Bot::Inventory::get_item_ui_name_from_id(role_item_id)
     event.respond "#{user.mention} you now have the #{role_ui_name} role!"
   end
 
   # remove rented role
   command :unrentarole do |event, *args|
-  	Bot::Bank::CleanAccount(event.user.id)
+  	Bot::Bank::clean_account(event.user.id)
     
     # check if the user is currently renting a role
     rented_role = get_user_rented_role_item(event.user.id)
@@ -866,7 +882,7 @@ module Bot::Economy
       user.user.remove_role(role_id)
     end
 
-    Bot::Inventory::RemoveItem(rented_role.entry_id)
+    Bot::Inventory::remove_item(rented_role.entry_id)
     event.respond "#{user.mention}, you no longer have the role #{rented_role.ui_name}!"
   end
 
@@ -890,10 +906,10 @@ module Bot::Economy
             icon_url: IMAGE_BANK
         }
 
-        tag_id = Bot::Inventory::GetItemID('tag')
-        tag_cost = Bot::Bank::AppraiseItem('tag_add')
-        tag_renewal_cost = Bot::Bank::AppraiseItem('tag_maintain')
-        tag_lifetime = Bot::Inventory::GetItemLifetime(tag_id)
+        tag_id = Bot::Inventory::get_item_id('tag')
+        tag_cost = Bot::Bank::appraise_item('tag_add')
+        tag_renewal_cost = Bot::Bank::appraise_item('tag_maintain')
+        tag_lifetime = Bot::Inventory::get_item_lifetime_from_id(tag_id)
 
         embed.title = "Tags"
         embed.description = 
@@ -906,7 +922,7 @@ module Bot::Economy
           "you can edit tags you own using +tag edit [name] and remove them " +
           "using +tag delete [name].\n\n" +
           "Tags cost #{tag_cost} Starbucks upfront and #{tag_renewal_cost} " +
-          "Starbucks every #{pl(tag_lifetime, "day")} to keep. If you cannot " +
+          "Starbucks every #{ple(tag_lifetime, "day")} to keep. If you cannot " +
           "afford to pay, they will be deleted!\n\n" +
           "If you want to search all of the available tags use the +tags " +
           "command. You can optionally specify a user (including yourself) " +
@@ -925,22 +941,22 @@ module Bot::Economy
     end
 
     # clean account before proceeding
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
 
     # actions and tag names always parsed in lower case
     action = parsed_args['action'].downcase
     tag_name = parsed_args['tag_name'].downcase
 
     # shared variables
-    tag_content_max_length = Bot::Tags::GetMaxTagContentLength()
+    tag_content_max_length = Bot::Tags::tag_content_max_length
     tag_config_msg = "What would you like your tag to say? Limited to #{tag_content_max_length} characters."
-    tag_config_timeout = Bot::Tags::GetTagResponseTimeout()
+    tag_config_timeout = Bot::Tags::tag_response_timeout
       
     case action
     #############################
     ## ADD
     when "add"
-      tag_name_max_length = Bot::Tags::GetMaxTagNameLength()
+      tag_name_max_length = Bot::Tags::tag_name_max_length
       if tag_name.length > tag_name_max_length
         event.respond "Sorry, the tag name you gave is too long. Names are limited to #{tag_name_max_length} characters."
         break
@@ -951,14 +967,20 @@ module Bot::Economy
         break
       end
 
-      if Bot::Tags::HasTag(tag_name)
+      case  tag_name
+      when "add", "delete", "edit"
+        event.respond "Sorry, you can't use one of the actions as your tag name!"
+        break
+      end
+
+      if Bot::Tags::has_tag(tag_name)
         event.respond "Sorry, that tag already exists!"
         break
       end
 
       # only charge after they create it
-      tag_cost = Bot::Bank::AppraiseItem('tag_add')
-      if Bot::Bank::GetBalance(event.user.id) < tag_cost
+      tag_cost = Bot::Bank::appraise_item('tag_add')
+      if Bot::Bank::get_balance(event.user.id) < tag_cost
         event.respond "Sorry, you can't afford a new tag!"
         break
       end
@@ -989,24 +1011,24 @@ module Bot::Economy
       end
 
       # store tag, charge user
-      tag_item = Bot::Inventory::AddItemByName(user.id, 'tag')
+      tag_item = Bot::Inventory::add_item_by_name(user.id, 'tag')
       if tag_item == nil
         user.dm.send_message("Sorry, an unknown error occurred and your tag could not be created. Please contact a developer.")
         break
       end
 
-      if not Bot::Tags::AddTag(tag_name, tag_item.entry_id, user.id, tag_content)
+      if not Bot::Tags::add_tag(tag_name, tag_item.entry_id, user.id, tag_content)
         user.dm.send_message("Sorry, a tag named #{tag_name} was created while you were configuring your tag!")
-        Bot::Inventory::RemoveItem(tag_item.entry_id)
+        Bot::Inventory::remove_item(tag_item.entry_id)
         break
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, tag_cost)
+      if not Bot::Bank::withdraw(user.id, tag_cost)
         # DM them for being a jerk and remove tag
         user.dm.send_message("Sorry, you can't afford a new tag!")
-        Bot::Tags::RemoveTagByItemEntryID(tag_item.entry_id)
-        Bot::Inventory::RemoveItem(tag_item.entry_id)
+        Bot::Tags::remove_tag_by_item_entry_id(tag_item.entry_id)
+        Bot::Inventory::remove_item(tag_item.entry_id)
         break
       end
       
@@ -1016,21 +1038,21 @@ module Bot::Economy
     #############################
     ## EDIT
     when "edit"
-      if not Bot::Tags::HasTag(tag_name)
+      if not Bot::Tags::has_tag(tag_name)
         event.respond "Sorry, I couldn't find that tag!"
         break
       end
 
       # make sure the user owns the tag
-      tag = Bot::Tags::GetTag(tag_name)
+      tag = Bot::Tags::get_tag(tag_name)
       if tag == nil || tag.owner_user_id != event.user.id
         event.respone "Sorry, you can only edit tags that you own!"
         break
       end
 
       # only charge after they edit it
-      edit_cost = Bot::Bank::AppraiseItem('tag_edit')
-      if Bot::Bank::GetBalance(event.user.id) < edit_cost
+      edit_cost = Bot::Bank::appraise_item('tag_edit')
+      if Bot::Bank::get_balance(event.user.id) < edit_cost
         event.respond "Sorry, you can't afford to edit a tag right now!"
         break
       end
@@ -1061,14 +1083,14 @@ module Bot::Economy
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, edit_cost)
+      if not Bot::Bank::withdraw(user.id, edit_cost)
         # DM them for being a jerk and remove tag
         user.dm.send_message("Sorry, you can't to edit a tag!")
         break
       end
       
       # update tag, validate
-      if not Bot::Tags::EditTag(tag_name, user.id, tag_content)
+      if not Bot::Tags::edit_tag(tag_name, user.id, tag_content)
         user.dm.send_message("Sorry, an error occurred and #{tag_name} could not be edited!")
         break
       end
@@ -1079,13 +1101,13 @@ module Bot::Economy
     #############################
     ## DELETE
     when "delete"
-      tag = Bot::Tags::GetTag(tag_name)
-      if not Bot::Tags::RemoveTag(tag_name, event.user.id)
+      tag = Bot::Tags::get_tag(tag_name)
+      if not Bot::Tags::remove_tag(tag_name, event.user.id)
         event.respond "Sorry, I couldn't find that tag or you don't own it!"
         break
       end
 
-      Bot::Inventory::RemoveItem(tag.item_entry_id)
+      Bot::Inventory::remove_item(tag.item_entry_id)
       event.respond "Tag #{tag_name} has been removed!"
 
     #############################
@@ -1100,7 +1122,7 @@ module Bot::Economy
       end
 
       # find tag
-      user_tag = Bot::Tags::GetTag(action)
+      user_tag = Bot::Tags::get_tag(action)
       if user_tag == nil
         event.respond "Sorry, I didn't recognize the tag #{user_tag}"
         break
@@ -1195,10 +1217,10 @@ module Bot::Economy
             icon_url: IMAGE_BANK
         }
 
-        command_id = Bot::Inventory::GetItemID('custom_command')
-        command_cost = Bot::Bank::AppraiseItem('mycom_add')
-        command_renewal_cost = Bot::Bank::AppraiseItem('mycom_maintain')
-        command_lifetime = Bot::Inventory::GetItemLifetime(command_id)
+        command_id = Bot::Inventory::get_item_id('custom_command')
+        command_cost = Bot::Bank::appraise_item('mycom_add')
+        command_renewal_cost = Bot::Bank::appraise_item('mycom_maintain')
+        command_lifetime = Bot::Inventory::get_item_lifetime_from_id(command_id)
 
         embed.title = "Custom Command"
         embed.description = 
@@ -1210,7 +1232,7 @@ module Bot::Economy
           "can edit your commands using +mycom edit [name] and remove them " +
           "using +mycom delete [name].\n\n" +
           "Custom commands cost #{command_cost} Starbucks upfront and " +
-          "#{command_renewal_cost} Starbucks every #{pl(command_lifetime, "day")} " +
+          "#{command_renewal_cost} Starbucks every #{ple(command_lifetime, "day")} " +
           "to keep. If you cannot afford to pay, they will be deleted!\n\n" +
           "If you want to see all of your commands use the +mycom list."
         
@@ -1228,22 +1250,22 @@ module Bot::Economy
     end
 
     # clean account before proceeding
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
 
     # actions and command names always parsed in lower case
     action = parsed_args['action'].downcase
     command_name = parsed_args['command_name'].downcase
 
     # shared variables
-    command_content_max_length = Bot::CustomCommands::GetMaxCustomCommandContentLength()
+    command_content_max_length = Bot::CustomCommands::custom_command_content_max_length
     command_config_msg = "What would you like your command to say? Limited to #{command_content_max_length} characters."
-    command_config_timeout = Bot::CustomCommands::GetCustomCommandResponseTimeout()
+    command_config_timeout = Bot::CustomCommands::custom_command_response_timeout
     
     case action
     #############################
     ## ADD
     when "add"
-      command_name_max_length = Bot::CustomCommands::GetMaxCustomCommandNameLength()
+      command_name_max_length = Bot::CustomCommands::custom_command_name_max_length
       if command_name.length > command_name_max_length
         event.respond "Sorry, the command name you gave is too long. Names are limited to #{command_name_max_length} characters."
         break
@@ -1254,14 +1276,19 @@ module Bot::Economy
         break
       end
 
-      if Bot::CustomCommands::HasCustomCommand(command_name, event.user.id)
+      unless Bot::BOT.commands[command_name.to_sym] == nil
+        event.respond "Sorry, you can't name your custom command after an existing command."
+        break
+      end
+
+      if Bot::CustomCommands::has_custom_command(command_name, event.user.id)
         event.respond "Sorry, you already have a command with the same name!"
         break
       end
 
       # only charge after they create it
-      command_cost = Bot::Bank::AppraiseItem('mycom_add')
-      if Bot::Bank::GetBalance(event.user.id) < command_cost
+      command_cost = Bot::Bank::appraise_item('mycom_add')
+      if Bot::Bank::get_balance(event.user.id) < command_cost
         event.respond "Sorry, you can't afford a new command!"
         break
       end
@@ -1292,24 +1319,24 @@ module Bot::Economy
       end
 
       # store command, charge user
-      command_item = Bot::Inventory::AddItemByName(user.id, 'custom_command')
+      command_item = Bot::Inventory::add_item_by_name(user.id, 'custom_command')
       if command_item == nil
         user.dm.send_message("Sorry, an unknown error occurred and your command could not be created. Please contact a developer.")
         break
       end
 
-      if not Bot::CustomCommands::AddCustomCommand(command_name, user.id, command_item.entry_id, command_content)
+      if not Bot::CustomCommands::add_custom_command(command_name, user.id, command_item.entry_id, command_content)
         user.dm.send_message("Sorry, you already created a command named #{command_name}!")
-        Bot::Inventory::RemoveItem(command_item.entry_id)
+        Bot::Inventory::remove_item(command_item.entry_id)
         break
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, command_cost)
+      if not Bot::Bank::withdraw(user.id, command_cost)
         # DM them for being a jerk and remove command
         user.dm.send_message("Sorry, you can't afford a new command!")
-        Bot::CustomCommands::RemoveCustomCommandByItemEntryID(command_item.entry_id)
-        Bot::Inventory::RemoveItem(command_item.entry_id)
+        Bot::CustomCommands::remove_custom_command_by_item_entry_id(command_item.entry_id)
+        Bot::Inventory::remove_item(command_item.entry_id)
         break
       end
       
@@ -1319,14 +1346,14 @@ module Bot::Economy
     #############################
     ## EDIT
     when "edit"
-      if not Bot::CustomCommands::HasCustomCommand(command_name, event.user.id)
+      if not Bot::CustomCommands::has_custom_command(command_name, event.user.id)
         event.respond "Sorry, I couldn't find that command!"
         break
       end
 
       # only charge after they edit it
-      edit_cost = Bot::Bank::AppraiseItem('mycom_edit')
-      if Bot::Bank::GetBalance(event.user.id) < edit_cost
+      edit_cost = Bot::Bank::appraise_item('mycom_edit')
+      if Bot::Bank::get_balance(event.user.id) < edit_cost
         event.respond "Sorry, you can't afford to edit a command right now!"
         break
       end
@@ -1357,14 +1384,14 @@ module Bot::Economy
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, edit_cost)
+      if not Bot::Bank::withdraw(user.id, edit_cost)
         # DM them for being a jerk
         user.dm.send_message("Sorry, you can't to edit a command!")
         break
       end
       
       # update command, validate
-      if not Bot::CustomCommands::EditCustomCommand(command_name, user.id, command_content)
+      if not Bot::CustomCommands::edit_custom_command(command_name, user.id, command_content)
         user.dm.send_message("Sorry, an error occurred and #{command_name} could not be edited!")
         break
       end
@@ -1375,19 +1402,19 @@ module Bot::Economy
     #############################
     ## DELETE
     when "delete"
-      command = Bot::CustomCommands::GetCustomCommand(command_name, event.user.id)
-      if not Bot::CustomCommands::RemoveCustomCommand(command_name, event.user.id)
+      command = Bot::CustomCommands::get_custom_command(command_name, event.user.id)
+      if not Bot::CustomCommands::remove_custom_command(command_name, event.user.id)
         event.respond "Sorry, I couldn't find that command!"
         break
       end
 
-      Bot::Inventory::RemoveItem(command.item_entry_id)
+      Bot::Inventory::remove_item(command.item_entry_id)
       event.respond "Command #{command_name} has been removed!"
 
     #############################
     ## LIST COMMANDS
     when "list"
-      commands = Bot::CustomCommands::GetAllUserCustomCommands(event.user.id)
+      commands = Bot::CustomCommands::get_all_user_custom_commands(event.user.id)
       if commands.count <= 0
         event.respond "Sorry, you don't own any commands."
         break
@@ -1438,8 +1465,8 @@ module Bot::Economy
         break
       end
 
-      cost_of_tickets = tickets_to_buy * Bot::Bank::AppraiseItem('raffle_buyticket')
-      if not Bot::Bank::Withdraw(event.user.id, cost_of_tickets)
+      cost_of_tickets = tickets_to_buy * Bot::Bank::appraise_item('raffle_buyticket')
+      if not Bot::Bank::withdraw(event.user.id, cost_of_tickets)
         event.respond "You can't afford to buy that many!"
         break
       end
@@ -1461,9 +1488,8 @@ module Bot::Economy
       end
 
     when 'info', 'information'
-      raffle_frequency = RAFFLE_FREQUENCY
-      cost_of_ticket = Bot::Bank::AppraiseItem('raffle_buyticket')
-      roi_of_ticket = Bot::Bank::AppraiseItem('raffle_win')
+      cost_of_ticket = Bot::Bank::appraise_item('raffle_buyticket')
+      roi_of_ticket = Bot::Bank::appraise_item('raffle_win')
 
       event.send_embed do |embed|
         embed.author = {
@@ -1473,8 +1499,8 @@ module Bot::Economy
 
         embed.title = "Raffle"
         embed.description = 
-          "The raffle is an event that occurs once every #{raffle_frequency} " +
-          "days. When it happens, any user that has purchased at least one " +
+          "The raffle is an event that occurs once every Friday at 5:00 PM GMT. " +
+          "When it happens, any user that has purchased at least one " +
           "ticket can win! Your odds of winning are directly proportionate to " +
           "how many you bought. Each ticket costs #{cost_of_ticket} Starbucks " +
           "and for every ticket in the pool the winner will receive " +
@@ -1516,7 +1542,7 @@ module Bot::Economy
     severity = parsed_args["fine_size"]
 
     entry_id = "fine_#{severity}"
-    fine_size = Bot::Bank::AppraiseItem(entry_id)
+    fine_size = Bot::Bank::appraise_item(entry_id)
     orig_fine_size = fine_size
     if fine_size == nil
       event.respond "Invalid fine size specified (small, medium, large)."
@@ -1524,18 +1550,18 @@ module Bot::Economy
     end
 
     # clean before proceeding
-    Bot::Bank::CleanAccount(user_id)
+    Bot::Bank::clean_account(user_id)
 
     # deduct fine from bank account balance
-    balance = Bot::Bank::GetBalance(user_id)
+    balance = Bot::Bank::get_balance(user_id)
     withdraw_amount = [fine_size, balance].min
     if withdraw_amount > 0
-      Bot::Bank::Withdraw(user_id, withdraw_amount)
+      Bot::Bank::withdraw(user_id, withdraw_amount)
       fine_size -= withdraw_amount
     end
 
     # deposit rest as negative perma currency
-    Bot::Bank::DepositPerma(user_id, -fine_size)
+    Bot::Bank::deposit_perm(user_id, -fine_size)
 
     mod_mention = DiscordUser.new(event.user.id).mention
     event.respond "#{user_mention} has been fined #{orig_fine_size} by #{mod_mention}"
@@ -1567,7 +1593,7 @@ module Bot::Economy
     # no need to clean because we're going to clear all of their balance
     user_id = parsed_args["user"].id
     user_mention = parsed_args["user"].mention
-    if Bot::Bank::GetBalance(user_id) <= 0
+    if Bot::Bank::get_balance(user_id) <= 0
       event.respond "Sorry, you're already broke!"
       next # bail out, this fool broke
     end
@@ -1629,13 +1655,13 @@ module Bot::Economy
     amount = parsed_args["amount"]
     user_id = parsed_args["user"].id
     username = parsed_args["user"].full_username
-    Bot::Bank::CleanAccount(user_id)
+    Bot::Bank::clean_account(user_id)
 
     case type.downcase
     when "perma", "perm", "permanent"
-      Bot::Bank::DepositPerma(user_id, amount)
+      Bot::Bank::deposit_perm(user_id, amount)
     else
-      Bot::Bank::Deposit(user_id, amount)
+      Bot::Bank::deposit(user_id, amount)
     end
     event.respond "#{username} received #{amount} Starbucks"
   end
@@ -1663,8 +1689,8 @@ module Bot::Economy
     amount = parsed_args["amount"]
     user_id = parsed_args["user"].id
     user_mention = parsed_args["user"].mention
-    Bot::Bank::CleanAccount(user_id)
-    if Bot::Bank::Withdraw(user_id, amount)
+    Bot::Bank::clean_account(user_id)
+    if Bot::Bank::withdraw(user_id, amount)
       event.respond "#{user_mention} lost #{amount} Starbucks"
     else
       event.respond "#{user_mention} does not have at least #{amount} Starbucks"
@@ -1691,12 +1717,12 @@ module Bot::Economy
     break unless not parsed_args.nil? 
 
     user = parsed_args["user"]
-    Bot::Bank::CleanAccount(user.id)
+    Bot::Bank::clean_account(user.id)
       
     response = 
       "**User:** #{user.full_username}\n" +
-      "**Networth:** #{Bot::Bank::GetBalance(user.id)} Starbucks" +
-      "\n**Non-Expiring:** #{Bot::Bank::GetPermaBalance(user.id)} Starbucks" +
+      "**Networth:** #{Bot::Bank::get_balance(user.id)} Starbucks" +
+      "\n**Non-Expiring:** #{Bot::Bank::get_perm_balance(user.id)} Starbucks" +
       "\n\n**Table of Temp Balances**"
 
     user_transactions = Bot::Bank::USER_BALANCES.where{Sequel.&({user_id: user.id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
@@ -1783,7 +1809,7 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     item_name = parsed_args["item"]
-    if Bot::Inventory::AddItemByName(parsed_args["user"].id, item_name) != nil
+    if Bot::Inventory::add_item_by_name(parsed_args["user"].id, item_name) != nil
       event.respond "#{item_name} added!"
     else
       event.repond "Item '#{item_name}' not recognized."
@@ -1812,8 +1838,8 @@ module Bot::Economy
     item_type = parsed_args["item_type"]
     item_type = item_type > 0 ? item_type : nil
     
-    items = Bot::Inventory::GetInventory(user.id, item_type)
-    value = Bot::Inventory::GetInventoryValue(user.id)
+    items = Bot::Inventory::get_inventory(user.id, item_type)
+    value = Bot::Inventory::get_inventory_value(user.id)
     response = "#{user.full_username} inventory valued at #{value} Starbucks\n"
     items.each do |item|
       if item.expiration != nil
@@ -1846,9 +1872,9 @@ module Bot::Economy
     break unless not parsed_args.nil?
 
     user = parsed_args["user"]
-    items = Bot::Inventory::GetInventory(user.id)
+    items = Bot::Inventory::get_inventory(user.id)
     items.each do |item|
-      Bot::Inventory::RemoveItem(item.entry_id)
+      Bot::Inventory::remove_item(item.entry_id)
     end
 
     event.respond "#{user.full_username}'s inventory was cleared"
@@ -1858,7 +1884,7 @@ module Bot::Economy
   command :econdummy do |event|
     break unless Convenience::IsUserDev(event.user.id)
 
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
     event.respond "Database cleaned for #{event.user.username}##{event.user.discriminator}"
   end
 
@@ -1867,8 +1893,8 @@ module Bot::Economy
     counter = 0
     (100...110).each do |user_id|
       # prevent expiration
-      if Bot::Bank::GetBalance(user_id) <= 0
-        Bot::Bank::Deposit(user_id, 10000)
+      if Bot::Bank::get_balance(user_id) <= 0
+        Bot::Bank::deposit(user_id, 10000)
       end
 
       # add garbage tags
@@ -1876,10 +1902,10 @@ module Bot::Economy
         counter += 1
         tag_name = (0...10).map { (65 + rand(26)).chr }.join
         tag_content = "content #{counter}"
-        next if Bot::Tags::HasTag(tag_name)
+        next if Bot::Tags::has_tag(tag_name)
         
-        item = Bot::Inventory::AddItemByName(user_id, 'tag')
-        Bot::Tags::AddTag(tag_name, item.entry_id, user_id, tag_content)
+        item = Bot::Inventory::add_item_by_name(user_id, 'tag')
+        Bot::Tags::add_tag(tag_name, item.entry_id, user_id, tag_content)
       end
     end
 
@@ -1892,8 +1918,8 @@ module Bot::Economy
     user_id = event.user.id
     
     # prevent expiration
-    if Bot::Bank::GetBalance(user_id) <= 10000000
-      Bot::Bank::Deposit(user_id, 10000000)
+    if Bot::Bank::get_balance(user_id) <= 10000000
+      Bot::Bank::deposit(user_id, 10000000)
     end
 
     # add garbage tags
@@ -1901,10 +1927,10 @@ module Bot::Economy
       counter += 1
       command_name = (0...10).map { (65 + rand(26)).chr }.join
       command_content = "longer command content is long don't you think? #{counter}"
-      next if Bot::CustomCommands::HasCustomCommand(command_name, user_id)
+      next if Bot::CustomCommands::has_custom_command(command_name, user_id)
       
-      item = Bot::Inventory::AddItemByName(user_id, 'custom_command')
-      Bot::CustomCommands::AddCustomCommand(command_name, user_id, item.entry_id, command_content)
+      item = Bot::Inventory::add_item_by_name(user_id, 'custom_command')
+      Bot::CustomCommands::add_custom_command(command_name, user_id, item.entry_id, command_content)
     end
 
     return "done" 

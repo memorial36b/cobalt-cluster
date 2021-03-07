@@ -105,7 +105,7 @@ module Bot::CustomCommands
     end
 
     # get and "execute" command
-    command = GetCustomCommand(command_name, event.user.id)
+    command = get_custom_command(command_name, event.user.id)
     next if command == nil
     event.respond command.command_content
   end
@@ -118,21 +118,21 @@ module Bot::CustomCommands
 
   # Get the max custom command name length.
   # @return [Integer] max custom command name length
-  def GetMaxCustomCommandNameLength()
+  def custom_command_name_max_length
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['custom_command_name_max_length']
   end 
 
   # Get max custom command content length.
   # @return [Integer] max custom command content length
-  def GetMaxCustomCommandContentLength()
+  def custom_command_content_max_length
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['custom_command_content_max_length']
   end
 
   # Get how long to wait in seconds before the configuration message times out.
   # @return [Integer] number of seconds to wait before timing out.
-  def GetCustomCommandResponseTimeout()
+  def custom_command_response_timeout
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['custom_command_response_timeout']
   end
@@ -144,12 +144,12 @@ module Bot::CustomCommands
   # @param [String]  command_content the message to send when invoked
   # @return [bool] Success? Returns false if command already exists or name/content is too long.
   # Note: Must link to a created item.
-  def AddCustomCommand(command_name, owner_user_id, item_entry_id, command_content)
+  def add_custom_command(command_name, owner_user_id, item_entry_id, command_content)
     command_name = command_name.downcase # enforce lowercase command naems
-    return false if command_name.length <= 0 or command_name.length > GetMaxCustomCommandNameLength() or command_content.length > GetMaxCustomCommandContentLength()
+    return false if command_name.length <= 0 or command_name.length > custom_command_name_max_length or command_content.length > custom_command_content_max_length
     return false if command_name =~ /\s/ # no spaces allowed
     return false if USER_CUSTOM_COMMANDS.where{Sequel.&({command_name: command_name}, {owner_user_id: owner_user_id})}.count() > 0
-
+    return false unless Bot::BOT.commands[command_name.to_sym] == nil
     
     # will raise error on invalid content
     USER_CUSTOM_COMMANDS << { command_name: command_name, owner_user_id: owner_user_id, item_entry_id: item_entry_id, command_content: command_content }
@@ -162,8 +162,8 @@ module Bot::CustomCommands
   # @param [Integer] owner_user_id       custom command owner's id
   # @param [String]  new_command_content new custom command content
   # @return [bool] Success? Returns false if not found
-  def EditCustomCommand(command_name, owner_user_id, new_command_content)
-    return false if new_command_content.length > GetMaxCustomCommandContentLength()
+  def edit_custom_command(command_name, owner_user_id, new_command_content)
+    return false if new_command_content.length > custom_command_content_max_length
     commands = USER_CUSTOM_COMMANDS.where{Sequel.&({owner_user_id: owner_user_id}, {command_name: command_name})}
     return false if commands.count() <= 0
 
@@ -175,7 +175,7 @@ module Bot::CustomCommands
   # @param [String]  command_name  custom command's unique name
   # @param [Integer] owner_user_id custom command's owner's id
   # @return [bool] Success? Returns false if not found
-  def RemoveCustomCommand(command_name, owner_user_id)
+  def remove_custom_command(command_name, owner_user_id)
     commands = USER_CUSTOM_COMMANDS.where{Sequel.&({command_name: command_name}, {owner_user_id: owner_user_id})}
     return false if commands.count() <= 0
 
@@ -186,7 +186,7 @@ module Bot::CustomCommands
   # Remove the custom command associated with the given item_entry_id.
   # @param [Integer] item_entry_id associated item entry id
   # @return [bool] Success? Returns false if not found
-  def RemoveCustomCommandByItemEntryID(item_entry_id)
+  def remove_custom_command_by_item_entry_id(item_entry_id)
     commands = USER_CUSTOM_COMMANDS.where(item_entry_id: item_entry_id)
     return false if commands == nil || commands.count <= 0
 
@@ -198,7 +198,7 @@ module Bot::CustomCommands
   # @param [String] command_name   custom command name
   # @param [Integer] owner_user_id custom command's owner's id
   # @return [bool] does the custom command exist?
-  def HasCustomCommand(command_name, owner_user_id)
+  def has_custom_command(command_name, owner_user_id)
     command = USER_CUSTOM_COMMANDS[command_name: command_name, owner_user_id: owner_user_id]
     return command != nil
   end
@@ -207,7 +207,7 @@ module Bot::CustomCommands
   # @param [String] command_name custom command name
   # @param [Integer] owner_user_id custom command's owner's id
   # @return [CustomCommand] The custom command or nil if not found.
-  def GetCustomCommand(command_name, owner_user_id)
+  def get_custom_command(command_name, owner_user_id)
     command = USER_CUSTOM_COMMANDS[command_name: command_name, owner_user_id: owner_user_id]
     return nil if command == nil
 
@@ -218,7 +218,7 @@ module Bot::CustomCommands
   # Get a custom command by its associated item.
   # @param [Integer] item_entry_id item's unique idenifier.
   # @return [CustomCommand] The custom command or nil if not found.
-  def GetCustomCommandByItemEntryID(item_entry_id)
+  def get_custom_command_by_item_entry_id(item_entry_id)
     command = USER_CUSTOM_COMMANDS[item_entry_id: item_entry_id]
     return nil if command == nil
 
@@ -229,7 +229,7 @@ module Bot::CustomCommands
   # Get the number of commands owned by the specified user.
   # @param [Integer] owner_user_id the user to filter by
   # @return [Integer] The number of commands the users owns
-  def GetUserCustomCommandCount(owner_user_id)
+  def get_user_custom_command_count(owner_user_id)
     count = USER_CUSTOM_COMMANDS.where(owner_user_id: owner_user_id).count
     return count.nil? ? 0 : count
   end
@@ -237,7 +237,7 @@ module Bot::CustomCommands
   # Get all of the custom commands owned by the specified user.
   # @param [Integer] owner_user_id the user to filter by
   # @return [Array<CustomCommand>] All custom commands owned by the specified user
-  def GetAllUserCustomCommands(owner_user_id)
+  def get_all_user_custom_commands(owner_user_id)
     command_hashes = USER_CUSTOM_COMMANDS.where(owner_user_id: owner_user_id).order(:command_name).all
 
     commands = []

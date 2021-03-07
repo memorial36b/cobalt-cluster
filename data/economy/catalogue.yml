@@ -21,10 +21,10 @@ item_type_raffle:         0x5000
 
 # item type id to name key map
 # note: key = item_type
-0x1000: "Role"
-0x2000: "Role"
+0x1000: "Override Role"
+0x2000: "Color Role"
 0x3000: "Tag"
-0x4000: "Command"
+0x4000: "Custom Command"
 0x5000: "Raffle"
 
 # item type id to point_values.yml key map
@@ -48,9 +48,9 @@ item_type_raffle:         0x5000
 # life-time value in days for item types
 # note: key = unsigned_not(item_type) - 2
 # works because we would need 4094 items of one type to hit this limit
-0xEFFD: 7   # item_type_role_override
-0xDFFD: 7   # item_type_role_color
-0xCFFD: 1   # item_type_tag
+0xEFFD: 1   # item_type_role_override
+0xDFFD: 1   # item_type_role_color
+0xCFFD: 7   # item_type_tag
 0xBFFD: 30  # item_type_custom_command
 0xAFFD: nil # item_type_raffle
 
@@ -106,7 +106,7 @@ tag_id: 0x3001
 0x3001: "Tag"
 
 # custom command (0x4000)
-#custom_command
+# custom_command
 custom_command_id: 0x4001
 0x4001: "Custom Command"
 

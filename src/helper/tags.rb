@@ -59,21 +59,21 @@ module Bot::Tags
 
   # Get the max tag name length.
   # @return [Integer] max tag name length
-  def GetMaxTagNameLength()
+  def tag_name_max_length
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['tag_name_max_length']
   end 
 
   # Get max tag content length.
   # @return [Integer] max tag content length
-  def GetMaxTagContentLength()
+  def tag_content_max_length
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['tag_content_max_length']
   end
 
   # Get how long to wait in seconds before the configuration message times out.
   # @return [Integer] number of seconds to wait before timing out.
-  def GetTagResponseTimeout()
+  def tag_response_timeout
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['tag_response_timeout']
   end
@@ -85,12 +85,16 @@ module Bot::Tags
   # @param [String]  tag_content   the message to send when invoked
   # @return [bool] Success? Returns false if tag already exists or name is invalid
   # Note: Must link to a created item.
-  def AddTag(tag_name, item_entry_id, owner_user_id, tag_content)
+  def add_tag(tag_name, item_entry_id, owner_user_id, tag_content)
     tag_name = tag_name.downcase #enforce lowercase names
-    return false if tag_name.length <= 0 or tag_name.length > GetMaxTagNameLength() or tag_content.length > GetMaxTagContentLength()
+    return false if tag_name.length <= 0 or tag_name.length > tag_name_max_length or tag_content.length > tag_content_max_length
     return false if tag_name =~ /\s/ # no spaces allowed
     return false if USER_TAGS.where(tag_name: tag_name).count() > 0
-    
+    case tag_name
+    when "add", "edit", "delete"
+      return false # collides with $tag command action
+    end    
+
     # will raise error on invalid content
     USER_TAGS << { item_entry_id: item_entry_id, owner_user_id: owner_user_id, tag_name: tag_name, tag_content: tag_content }
     return true
@@ -101,8 +105,8 @@ module Bot::Tags
   # @param [Integer] owner_user_id   tag owner's id, used for verification to prevent other users from editing it
   # @param [String]  new_tag_content new tag content
   # @return [bool] Success? Returns false if not found or doesn't belong to the specified user.
-  def EditTag(tag_name, owner_user_id, new_tag_content)
-    return false if new_tag_content.length > GetMaxTagContentLength()
+  def edit_tag(tag_name, owner_user_id, new_tag_content)
+    return false if new_tag_content.length > tag_content_max_length
     tags = USER_TAGS.where{Sequel.&({owner_user_id: owner_user_id}, {tag_name: tag_name})}
     return false if tags.count() <= 0
 
@@ -114,7 +118,7 @@ module Bot::Tags
   # @param [String]  tag_name      tag's unique name
   # @param [Integer] owner_user_id the owner to validate against
   # @return [bool] Success? Returns false if not found or not owned by specified user
-  def RemoveTag(tag_name, owner_user_id)
+  def remove_tag(tag_name, owner_user_id)
     tags = USER_TAGS.where{Sequel.&({owner_user_id: owner_user_id}, {tag_name: tag_name})}
     return false if tags.count() <= 0
 
@@ -125,7 +129,7 @@ module Bot::Tags
   # Remove the tag associated with the given item_entry_id.
   # @param [Integer] item_entry_id associated item entry id
   # @return [bool] Success? Returns false if not found
-  def RemoveTagByItemEntryID(item_entry_id)
+  def remove_tag_by_item_entry_id(item_entry_id)
     tags = USER_TAGS.where(item_entry_id: item_entry_id)
     return false if tags == nil || tags.count <= 0
 
@@ -136,7 +140,7 @@ module Bot::Tags
   # Check if a tag with the specified name exists.
   # @param [String] tag_name tag name
   # @return [bool] does the tag exist?
-  def HasTag(tag_name)
+  def has_tag(tag_name)
     tag = USER_TAGS[tag_name: tag_name]
     return tag != nil
   end
@@ -144,7 +148,7 @@ module Bot::Tags
   # Get tag with the specified name.
   # @param [String] tag_name tag name
   # @return [UserTag] The tag or nil if not found.
-  def GetTag(tag_name)
+  def get_tag(tag_name)
     tag = USER_TAGS[tag_name: tag_name]
     return nil if tag == nil
 
@@ -155,7 +159,7 @@ module Bot::Tags
   # Get a tag by its associated item.
   # @param [Integer] item_entry_id item's unique idenifier.
   # @return [UserTag] The tag or nil if not found.
-  def GetTagByItemEntryID(item_entry_id)
+  def get_tag_by_item_entry_id(item_entry_id)
     tag = USER_TAGS[item_entry_id: item_entry_id]
     return nil if tag == nil
 
@@ -165,7 +169,7 @@ module Bot::Tags
 
   # Get the full list of all valid tags.
   # @return [Array<UserTag>] All known tags.
-  def GetAllTags()
+  def get_all_tags()
     tag_hashes = USER_TAGS.order(:tag_name).all
 
     tags = []
@@ -179,7 +183,7 @@ module Bot::Tags
   # Get the number of tags owned by the specified user.
   # @param [Integer] owner_user_id user to filter by
   # @return [Integer] number of owned tags
-  def GetUserTagCount(owner_user_id)
+  def get_user_tag_count(owner_user_id)
     count = USER_TAGS.where(owner_user_id: owner_user_id).count
     return count.nil? ? 0 : count
   end
@@ -187,7 +191,7 @@ module Bot::Tags
   # Get all of the tags owned by the specified user.
   # @param [Integer] owner_user_id user to filter by
   # @return [Array<UserTag>] All tags owned by the specified user.
-  def GetAllUserTags(owner_user_id)
+  def get_all_user_tags(owner_user_id)
     tag_hashes = USER_TAGS.where(owner_user_id: owner_user_id).order(:tag_name).all
 
     tags = []
