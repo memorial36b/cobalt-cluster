@@ -133,7 +133,7 @@ module Bot::Timezone
   # @param [Integer] user_id  user id
   # @return [DateTime] past monday in user's local timezone
   # Note: Returns today if today is monday. 
-  def GetUserPastMonday(user_id)
+  def user_past_monday(user_id)
     today = user_today(user_id)
     wwday = today.cwday - 1
     return today - wwday
@@ -142,7 +142,7 @@ module Bot::Timezone
   # Get today in the specified timezone.
   # @param [String] timezone_name the timezone name
   # @return [DateTime] Today at 5:00 PM in the specified timezone.
-  def GetTodayInTimezone(timezone_name)
+  def timezone_today(timezone_name)
     tz = TZInfo::Timezone.get(timezone_name)
 
     # strip hours, minutes, seconds, fractional seconds
