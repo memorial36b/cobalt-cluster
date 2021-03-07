@@ -210,8 +210,8 @@ module Bot::Economy
           #############################
           ## Tags
           when Bot::Inventory::catalog_value('item_type_tag')
-            tag = Bot::Tags::GetTagByItemEntryID(item.entry_id)
-            Bot::Tags::RemoveTagByItemEntryID(item.entry_id) if tag != nil
+            tag = Bot::Tags::get_tag_by_item_entry_id(item.entry_id)
+            Bot::Tags::remove_tag_by_item_entry_id(item.entry_id) if tag != nil
             name_override[item.entry_id] = tag.tag_name
 
           #############################
@@ -591,7 +591,7 @@ module Bot::Economy
         inline: true
       )
 
-      tag_count = Bot::Tags::GetUserTagCount(user.id)
+      tag_count = Bot::Tags::get_user_tag_count(user.id)
       embed.add_field(
         name: "Tags",
         value: tag_count,
@@ -948,15 +948,15 @@ module Bot::Economy
     tag_name = parsed_args['tag_name'].downcase
 
     # shared variables
-    tag_content_max_length = Bot::Tags::GetMaxTagContentLength()
+    tag_content_max_length = Bot::Tags::tag_content_max_length
     tag_config_msg = "What would you like your tag to say? Limited to #{tag_content_max_length} characters."
-    tag_config_timeout = Bot::Tags::GetTagResponseTimeout()
+    tag_config_timeout = Bot::Tags::tag_response_timeout
       
     case action
     #############################
     ## ADD
     when "add"
-      tag_name_max_length = Bot::Tags::GetMaxTagNameLength()
+      tag_name_max_length = Bot::Tags::tag_name_max_length
       if tag_name.length > tag_name_max_length
         event.respond "Sorry, the tag name you gave is too long. Names are limited to #{tag_name_max_length} characters."
         break
@@ -973,7 +973,7 @@ module Bot::Economy
         break
       end
 
-      if Bot::Tags::HasTag(tag_name)
+      if Bot::Tags::has_tag(tag_name)
         event.respond "Sorry, that tag already exists!"
         break
       end
@@ -1017,7 +1017,7 @@ module Bot::Economy
         break
       end
 
-      if not Bot::Tags::AddTag(tag_name, tag_item.entry_id, user.id, tag_content)
+      if not Bot::Tags::add_tag(tag_name, tag_item.entry_id, user.id, tag_content)
         user.dm.send_message("Sorry, a tag named #{tag_name} was created while you were configuring your tag!")
         Bot::Inventory::remove_item(tag_item.entry_id)
         break
@@ -1027,7 +1027,7 @@ module Bot::Economy
       if not Bot::Bank::withdraw(user.id, tag_cost)
         # DM them for being a jerk and remove tag
         user.dm.send_message("Sorry, you can't afford a new tag!")
-        Bot::Tags::RemoveTagByItemEntryID(tag_item.entry_id)
+        Bot::Tags::remove_tag_by_item_entry_id(tag_item.entry_id)
         Bot::Inventory::remove_item(tag_item.entry_id)
         break
       end
@@ -1038,13 +1038,13 @@ module Bot::Economy
     #############################
     ## EDIT
     when "edit"
-      if not Bot::Tags::HasTag(tag_name)
+      if not Bot::Tags::has_tag(tag_name)
         event.respond "Sorry, I couldn't find that tag!"
         break
       end
 
       # make sure the user owns the tag
-      tag = Bot::Tags::GetTag(tag_name)
+      tag = Bot::Tags::get_tag(tag_name)
       if tag == nil || tag.owner_user_id != event.user.id
         event.respone "Sorry, you can only edit tags that you own!"
         break
@@ -1090,7 +1090,7 @@ module Bot::Economy
       end
       
       # update tag, validate
-      if not Bot::Tags::EditTag(tag_name, user.id, tag_content)
+      if not Bot::Tags::edit_tag(tag_name, user.id, tag_content)
         user.dm.send_message("Sorry, an error occurred and #{tag_name} could not be edited!")
         break
       end
@@ -1101,8 +1101,8 @@ module Bot::Economy
     #############################
     ## DELETE
     when "delete"
-      tag = Bot::Tags::GetTag(tag_name)
-      if not Bot::Tags::RemoveTag(tag_name, event.user.id)
+      tag = Bot::Tags::get_tag(tag_name)
+      if not Bot::Tags::remove_tag(tag_name, event.user.id)
         event.respond "Sorry, I couldn't find that tag or you don't own it!"
         break
       end
@@ -1122,7 +1122,7 @@ module Bot::Economy
       end
 
       # find tag
-      user_tag = Bot::Tags::GetTag(action)
+      user_tag = Bot::Tags::get_tag(action)
       if user_tag == nil
         event.respond "Sorry, I didn't recognize the tag #{user_tag}"
         break
@@ -1902,10 +1902,10 @@ module Bot::Economy
         counter += 1
         tag_name = (0...10).map { (65 + rand(26)).chr }.join
         tag_content = "content #{counter}"
-        next if Bot::Tags::HasTag(tag_name)
+        next if Bot::Tags::has_tag(tag_name)
         
         item = Bot::Inventory::add_item_by_name(user_id, 'tag')
-        Bot::Tags::AddTag(tag_name, item.entry_id, user_id, tag_content)
+        Bot::Tags::add_tag(tag_name, item.entry_id, user_id, tag_content)
       end
     end
 
