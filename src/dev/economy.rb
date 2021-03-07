@@ -8,6 +8,7 @@ module Bot::Economy
   extend Discordrb::EventContainer
   extend Convenience
   include Constants
+  include DMAction
   
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
@@ -1007,55 +1008,61 @@ module Bot::Economy
         break
       end
 
-      # send a temporary message telling user to check dms
-      event.channel.send_temporary_message(
-        "#{event.user.mention} check you DMs to setup your tag!",
-        30 # seconds
-      )
+      tried_add_tag = Bot::DM::do_action?(event.user.id, DM_ACTION_ADD_TAG) do
+        # send a temporary message telling user to check dms
+        event.channel.send_temporary_message(
+          "#{event.user.mention} check you DMs to setup your tag!",
+          30 # seconds
+        )
 
-      # dm the user to setup tag
-      event.user.dm.send_message(tag_config_msg) # internal issue when calling await! on message
-      response = event.user.dm.await!({timeout: tag_config_timeout})
+        # dm the user to setup tag
+        event.user.dm.send_message(tag_config_msg) # internal issue when calling await! on message
+        response = event.user.dm.await!({timeout: tag_config_timeout})
 
-      # check if it timed out
-      if response.message == nil || response.message.content.empty?
-        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new tag has been cancelled. You have not been charged.")
-        break
+        # check if it timed out
+        if response.message == nil || response.message.content.empty?
+          event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new tag has been cancelled. You have not been charged.")
+          break
+        end
+
+        user = response.user
+
+        # validate length
+        tag_content = response.message.content
+        if tag_content.length > tag_content_max_length
+          user.dm.send_message("Sorry, your tag message was too long! Please try something shorter.")
+          break
+        end
+
+        # store tag, charge user
+        tag_item = Bot::Inventory::add_item_by_name(user.id, 'tag')
+        if tag_item == nil
+          user.dm.send_message("Sorry, an unknown error occurred and your tag could not be created. Please contact a developer.")
+          break
+        end
+
+        if not Bot::Tags::add_tag(tag_name, tag_item.entry_id, user.id, tag_content)
+          user.dm.send_message("Sorry, a tag named #{tag_name} was created while you were configuring your tag!")
+          Bot::Inventory::remove_item(tag_item.entry_id)
+          break
+        end
+
+        # double check if they're trying to pulls some shit by having two devices
+        if not Bot::Bank::withdraw(user.id, tag_cost)
+          # DM them for being a jerk and remove tag
+          user.dm.send_message("Sorry, you can't afford a new tag!")
+          Bot::Tags::remove_tag_by_item_entry_id(tag_item.entry_id)
+          Bot::Inventory::remove_item(tag_item.entry_id)
+          break
+        end
+        
+        # all went well!
+        event.respond "#{user.mention}, you have created the tag #{tag_name}!"
       end
 
-      user = response.user
-
-      # validate length
-      tag_content = response.message.content
-      if tag_content.length > tag_content_max_length
-        user.dm.send_message("Sorry, your tag message was too long! Please try something shorter.")
-        break
+      unless tried_add_tag
+        event.respond "Sorry, you're already performing an action in your DMs!"
       end
-
-      # store tag, charge user
-      tag_item = Bot::Inventory::add_item_by_name(user.id, 'tag')
-      if tag_item == nil
-        user.dm.send_message("Sorry, an unknown error occurred and your tag could not be created. Please contact a developer.")
-        break
-      end
-
-      if not Bot::Tags::add_tag(tag_name, tag_item.entry_id, user.id, tag_content)
-        user.dm.send_message("Sorry, a tag named #{tag_name} was created while you were configuring your tag!")
-        Bot::Inventory::remove_item(tag_item.entry_id)
-        break
-      end
-
-      # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::withdraw(user.id, tag_cost)
-        # DM them for being a jerk and remove tag
-        user.dm.send_message("Sorry, you can't afford a new tag!")
-        Bot::Tags::remove_tag_by_item_entry_id(tag_item.entry_id)
-        Bot::Inventory::remove_item(tag_item.entry_id)
-        break
-      end
-      
-      # all went well!
-      event.respond "#{user.mention}, you have created the tag #{tag_name}!"
 
     #############################
     ## EDIT
@@ -1074,51 +1081,57 @@ module Bot::Economy
 
       # only charge after they edit it
       edit_cost = Bot::Bank::appraise_item('tag_edit')
-      if Bot::Bank::get_balance(event.user.id) < edit_cost
+      if Bot::Bank::get_balance(event.user.id) < edit_cost and edit_cost > 0
         event.respond "Sorry, you can't afford to edit a tag right now!"
         break
       end
 
-      # send a temporary message telling user to check dms
-      event.channel.send_temporary_message(
-        "#{event.user.mention} check you DMs to setup your tag!",
-        30 # seconds
-      )
+      tried_edit_tag = Bot::DM::do_action?(event.user.id, DM_ACTION_EDIT_TAG) do
+        # send a temporary message telling user to check dms
+        event.channel.send_temporary_message(
+          "#{event.user.mention} check you DMs to setup your tag!",
+          30 # seconds
+        )
 
-      # dm the user to edit tag
-      event.user.dm.send_message(tag_config_msg) # internal issue when calling await! on message
-      response = event.user.dm.await!({timeout: tag_config_timeout})
+        # dm the user to edit tag
+        event.user.dm.send_message(tag_config_msg) # internal issue when calling await! on message
+        response = event.user.dm.await!({timeout: tag_config_timeout})
 
-      # check if it timed out
-      if response.message == nil || response.message.content.empty?
-        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to edit a tag has been cancelled. You have not been charged.")
-        break
+        # check if it timed out
+        if response.message == nil || response.message.content.empty?
+          event.user.dm.send_message("Sorry, I didn't hear back from you so your request to edit a tag has been cancelled. You have not been charged.")
+          break
+        end
+
+        user = response.user
+
+        # validate length
+        tag_content = response.message.content
+        if tag_content.length > tag_content_max_length
+          user.dm.send_message("Sorry, your tag message was too long! Please try something shorter.")
+          break
+        end
+
+        # double check if they're trying to pulls some shit by having two devices
+        if not Bot::Bank::withdraw(user.id, edit_cost)
+          # DM them for being a jerk and remove tag
+          user.dm.send_message("Sorry, you can't to edit a tag!")
+          break
+        end
+        
+        # update tag, validate
+        if not Bot::Tags::edit_tag(tag_name, user.id, tag_content)
+          user.dm.send_message("Sorry, an error occurred and #{tag_name} could not be edited!")
+          break
+        end
+
+        # all went well!
+        event.respond "#{user.mention}, you have updated the tag #{tag_name}!"
       end
 
-      user = response.user
-
-      # validate length
-      tag_content = response.message.content
-      if tag_content.length > tag_content_max_length
-        user.dm.send_message("Sorry, your tag message was too long! Please try something shorter.")
-        break
+      unless tried_edit_tag
+        event.respond "Sorry, you're already performing an action in your DMs!"
       end
-
-      # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::withdraw(user.id, edit_cost)
-        # DM them for being a jerk and remove tag
-        user.dm.send_message("Sorry, you can't to edit a tag!")
-        break
-      end
-      
-      # update tag, validate
-      if not Bot::Tags::edit_tag(tag_name, user.id, tag_content)
-        user.dm.send_message("Sorry, an error occurred and #{tag_name} could not be edited!")
-        break
-      end
-
-      # all went well!
-      event.respond "#{user.mention}, you have updated the tag #{tag_name}!"
 
     #############################
     ## DELETE
@@ -1187,36 +1200,42 @@ module Bot::Economy
       break
     end
 
-    # generate embed inputs
-    if user.nil?
-      embed_title       = "Server Tags"
-      embed_description = "The server has #{pl(count, "tag")}."
-      embed_thumbnail   = { url: SERVER.icon_url }
-    elsif user.id == event.user.id # self
-      embed_title       = "Your Tags"
-      embed_description = "You have #{pl(count, "tag")}."
-      embed_thumbnail   = { url: user.avatar_url }
-    else
-      embed_title       = "#{user.full_username}'s Tags"
-      embed_description = "This user has #{pl(count, "tag")}."
-      embed_thumbnail   = { url: user.avatar_url }
+    searched_tags = Bot::DM::do_action?(event.user.id, DM_ACTION_LIST_TAGS) do 
+      # generate embed inputs
+      if user.nil?
+        embed_title       = "Server Tags"
+        embed_description = "The server has #{pl(count, "tag")}."
+        embed_thumbnail   = { url: SERVER.icon_url }
+      elsif user.id == event.user.id # self
+        embed_title       = "Your Tags"
+        embed_description = "You have #{pl(count, "tag")}."
+        embed_thumbnail   = { url: user.avatar_url }
+      else
+        embed_title       = "#{user.full_username}'s Tags"
+        embed_description = "This user has #{pl(count, "tag")}."
+        embed_thumbnail   = { url: user.avatar_url }
+      end
+
+      # paginate results
+      Paginator.new(
+        event.user.dm,                                    # channel
+        event.user.id,                                    # user_id
+        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
+        embed_title,                                      # embed_title
+        embed_description,                                # embed_description
+        embed_thumbnail,                                  # embed_thumbnail
+        filtered_data,                                    # dataset
+        :tag_name,                                        # query_column
+        true,                                             # force_queries_lowercase 
+        Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
+        # initial query: nil
+        # results_per_page: default
+      ).run()
     end
 
-    # paginate results
-    Paginator.new(
-      event.user.dm,                                    # channel
-      event.user.id,                                    # user_id
-      { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
-      embed_title,                                      # embed_title
-      embed_description,                                # embed_description
-      embed_thumbnail,                                  # embed_thumbnail
-      filtered_data,                                    # dataset
-      :tag_name,                                        # query_column
-      true,                                             # force_queries_lowercase 
-      Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
-      # initial query: nil
-      # results_per_page: default
-    ).run()
+    unless searched_tags
+      event.respond "Sorry, you're already performing an action in your DMs!"
+    end
   end
 
   # custom command mangement
@@ -1317,55 +1336,61 @@ module Bot::Economy
         break
       end
 
-      # send a temporary message telling user to check dms
-      event.channel.send_temporary_message(
-        "#{event.user.mention} check you DMs to setup your command!",
-        30 # seconds
-      )
+      tried_add_command = Bot::DM::do_action?(event.user.id, DM_ACTION_ADD_CUSTOM_COMMAND) do 
+        # send a temporary message telling user to check dms
+        event.channel.send_temporary_message(
+          "#{event.user.mention} check you DMs to setup your command!",
+          30 # seconds
+        )
 
-      # dm the user to setup command
-      event.user.dm.send_message(command_config_msg) # internal issue when calling await! on message
-      response = event.user.dm.await!({timeout: command_config_timeout})
+        # dm the user to setup command
+        event.user.dm.send_message(command_config_msg) # internal issue when calling await! on message
+        response = event.user.dm.await!({timeout: command_config_timeout})
 
-      # check if it timed out
-      if response.message == nil || response.message.content.empty?
-        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new command has been cancelled. You have not been charged.")
-        break
-      end
+        # check if it timed out
+        if response.message == nil || response.message.content.empty?
+          event.user.dm.send_message("Sorry, I didn't hear back from you so your request to create a new command has been cancelled. You have not been charged.")
+          break
+        end
 
-      user = response.user
+        user = response.user
 
-      # validate length
-      command_content = response.message.content
-      if command_content.length > command_content_max_length
-        user.dm.send_message("Sorry, your command message was too long! Please try something shorter.")
-        break
-      end
+        # validate length
+        command_content = response.message.content
+        if command_content.length > command_content_max_length
+          user.dm.send_message("Sorry, your command message was too long! Please try something shorter.")
+          break
+        end
 
-      # store command, charge user
-      command_item = Bot::Inventory::add_item_by_name(user.id, 'custom_command')
-      if command_item == nil
-        user.dm.send_message("Sorry, an unknown error occurred and your command could not be created. Please contact a developer.")
-        break
-      end
+        # store command, charge user
+        command_item = Bot::Inventory::add_item_by_name(user.id, 'custom_command')
+        if command_item == nil
+          user.dm.send_message("Sorry, an unknown error occurred and your command could not be created. Please contact a developer.")
+          break
+        end
 
-      if not Bot::CustomCommands::add_custom_command(command_name, user.id, command_item.entry_id, command_content)
-        user.dm.send_message("Sorry, you already created a command named #{command_name}!")
-        Bot::Inventory::remove_item(command_item.entry_id)
-        break
-      end
+        if not Bot::CustomCommands::add_custom_command(command_name, user.id, command_item.entry_id, command_content)
+          user.dm.send_message("Sorry, you already created a command named #{command_name}!")
+          Bot::Inventory::remove_item(command_item.entry_id)
+          break
+        end
 
-      # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::withdraw(user.id, command_cost)
-        # DM them for being a jerk and remove command
-        user.dm.send_message("Sorry, you can't afford a new command!")
-        Bot::CustomCommands::remove_custom_command_by_item_entry_id(command_item.entry_id)
-        Bot::Inventory::remove_item(command_item.entry_id)
-        break
+        # double check if they're trying to pulls some shit by having two devices
+        if not Bot::Bank::withdraw(user.id, command_cost)
+          # DM them for being a jerk and remove command
+          user.dm.send_message("Sorry, you can't afford a new command!")
+          Bot::CustomCommands::remove_custom_command_by_item_entry_id(command_item.entry_id)
+          Bot::Inventory::remove_item(command_item.entry_id)
+          break
+        end
+        
+        # all went well!
+        event.respond "#{user.mention}, you have created the command #{command_name}!"
       end
       
-      # all went well!
-      event.respond "#{user.mention}, you have created the command #{command_name}!"
+      unless tried_add_command
+        event.respond "Sorry, you're already performing an action in your DMs!"
+      end
 
     #############################
     ## EDIT
@@ -1377,51 +1402,57 @@ module Bot::Economy
 
       # only charge after they edit it
       edit_cost = Bot::Bank::appraise_item('mycom_edit')
-      if Bot::Bank::get_balance(event.user.id) < edit_cost
+      if Bot::Bank::get_balance(event.user.id) < edit_cost and edit_cost > 0
         event.respond "Sorry, you can't afford to edit a command right now!"
         break
       end
 
-      # send a temporary message telling user to check dms
-      event.channel.send_temporary_message(
-        "#{event.user.mention} check you DMs to setup your command!",
-        30 # seconds
-      )
+      tried_edit_command = Bot::DM::do_action?(event.user.id, DM_ACTION_EDIT_CUSTOM_COMMAND) do 
+        # send a temporary message telling user to check dms
+        event.channel.send_temporary_message(
+          "#{event.user.mention} check you DMs to setup your command!",
+          30 # seconds
+        )
 
-      # dm the user to edit command
-      event.user.dm.send_message(command_config_msg) # internal issue when calling await! on message
-      response = event.user.dm.await!({timeout: command_config_timeout})
+        # dm the user to edit command
+        event.user.dm.send_message(command_config_msg) # internal issue when calling await! on message
+        response = event.user.dm.await!({timeout: command_config_timeout})
 
-      # check if it timed out
-      if response.message == nil || response.message.content.empty?
-        event.user.dm.send_message("Sorry, I didn't hear back from you so your request to edit a command has been cancelled. You have not been charged.")
-        break
+        # check if it timed out
+        if response.message == nil || response.message.content.empty?
+          event.user.dm.send_message("Sorry, I didn't hear back from you so your request to edit a command has been cancelled. You have not been charged.")
+          break
+        end
+
+        user = response.user
+
+        # validate length
+        command_content = response.message.content
+        if command_content.length > command_content_max_length
+          user.dm.send_message("Sorry, your command message was too long! Please try something shorter.")
+          break
+        end
+
+        # double check if they're trying to pulls some shit by having two devices
+        if not Bot::Bank::withdraw(user.id, edit_cost)
+          # DM them for being a jerk
+          user.dm.send_message("Sorry, you can't to edit a command!")
+          break
+        end
+        
+        # update command, validate
+        if not Bot::CustomCommands::edit_custom_command(command_name, user.id, command_content)
+          user.dm.send_message("Sorry, an error occurred and #{command_name} could not be edited!")
+          break
+        end
+
+        # all went well!
+        event.respond "#{user.mention}, you have updated the command #{command_name}!"
       end
 
-      user = response.user
-
-      # validate length
-      command_content = response.message.content
-      if command_content.length > command_content_max_length
-        user.dm.send_message("Sorry, your command message was too long! Please try something shorter.")
-        break
+      unless tried_edit_command
+        event.respond "Sorry, you're already performing an action in your DMs!"
       end
-
-      # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::withdraw(user.id, edit_cost)
-        # DM them for being a jerk
-        user.dm.send_message("Sorry, you can't to edit a command!")
-        break
-      end
-      
-      # update command, validate
-      if not Bot::CustomCommands::edit_custom_command(command_name, user.id, command_content)
-        user.dm.send_message("Sorry, an error occurred and #{command_name} could not be edited!")
-        break
-      end
-
-      # all went well!
-      event.respond "#{user.mention}, you have updated the command #{command_name}!"
 
     #############################
     ## DELETE
@@ -1445,22 +1476,28 @@ module Bot::Economy
       end
 
       # paginate results
-      filtered_data = Bot::CustomCommands::USER_CUSTOM_COMMANDS
-        .where(owner_user_id: event.user.id)
-      Paginator.new(
-        event.user.dm,                                    # channel
-        event.user.id,                                    # user_id
-        { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
-        "Your Custom Commands",                           # embed_title
-        "You own #{pl(commands.count, "command")}",           # embed_description
-        { url: event.user.avatar_url },                   # embed_thumbnail
-        filtered_data,                                    # dataset
-        :command_name,                                    # query_column
-        true,                                             # force_queries_lowercase 
-        Bot::CustomCommands::COMMAND_HASH_TO_PAGINATOR_FIELD_LAMBDA # row_hash_to_field_Lambda
-        # initial query: nil
-        # results_per_page: default
-      ).run()
+      searched_commands = Bot::DM::do_action?(event.user.id, DM_ACTION_LIST_CUSTOM_COMMANDS) do 
+        filtered_data = Bot::CustomCommands::USER_CUSTOM_COMMANDS
+          .where(owner_user_id: event.user.id)
+        Paginator.new(
+          event.user.dm,                                    # channel
+          event.user.id,                                    # user_id
+          { name: STRING_BANK_NAME, icon_url: IMAGE_BANK }, # embed_author
+          "Your Custom Commands",                           # embed_title
+          "You own #{pl(commands.count, "command")}",           # embed_description
+          { url: event.user.avatar_url },                   # embed_thumbnail
+          filtered_data,                                    # dataset
+          :command_name,                                    # query_column
+          true,                                             # force_queries_lowercase 
+          Bot::CustomCommands::COMMAND_HASH_TO_PAGINATOR_FIELD_LAMBDA # row_hash_to_field_Lambda
+          # initial query: nil
+          # results_per_page: default
+        ).run()
+      end
+
+      unless searched_commands
+        event.respond "Sorry, you're already performing an action in your DMs!"
+      end
     end
   end
 
