@@ -65,7 +65,7 @@ module Bot::Economy
       raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
     end
 
-    return Bot::Bank::AppraiseItem(role_yaml_id)
+    return Bot::Bank::appraise_item(role_yaml_id)
   end
 
   # Determine how long the user has to wait until their next checkin.
@@ -151,8 +151,8 @@ module Bot::Economy
 
   # Get the user's rented role or nil if they don't have one.
   def self.get_user_rented_role_item(user_id)
-    override_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_override')
-    color_role_type = Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
+    override_role_type = Bot::Inventory::catalog_value('item_type_role_override')
+    color_role_type = Bot::Inventory::catalog_value('item_type_role_color')
     roles = Bot::Inventory::get_inventory(user_id, override_role_type)
     roles.push(*Bot::Inventory::get_inventory(user_id, color_role_type))
     return roles.empty? ? nil : roles[0]
@@ -182,14 +182,14 @@ module Bot::Economy
         end
 
         # determine how much it'll cost to renew
-        renewal_cost = Bot::Inventory::get_item_renewal_cost(item.item_id)
+        renewal_cost = Bot::Inventory::get_item_renewal_cost_from_id(item.item_id)
         if renewal_cost == nil
           puts "Item '#{item.ui_name}' (#{item.item_id}) has an expiration but not a renewal cost! This should be impossible!"
           next # continue onto valid items
         end
 
         # renew if possible, otherwise remove and add to list of removed
-        if Bot::Bank::Withdraw(owner.id, renewal_cost)
+        if Bot::Bank::withdraw(owner.id, renewal_cost)
           Bot::Inventory::renew_item(item.entry_id)
         else
           # remove from inventory
@@ -201,22 +201,22 @@ module Bot::Economy
           
           #############################
           ## Roles
-          when Bot::Inventory::GetValueFromCatalogue('item_type_role_override'),
-               Bot::Inventory::GetValueFromCatalogue('item_type_role_color')
+          when Bot::Inventory::catalog_value('item_type_role_override'),
+               Bot::Inventory::catalog_value('item_type_role_color')
             # remove role if they have it
             role_id = get_role_for_item_id(item.item_id)
             owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
           
           #############################
           ## Tags
-          when Bot::Inventory::GetValueFromCatalogue('item_type_tag')
+          when Bot::Inventory::catalog_value('item_type_tag')
             tag = Bot::Tags::GetTagByItemEntryID(item.entry_id)
             Bot::Tags::RemoveTagByItemEntryID(item.entry_id) if tag != nil
             name_override[item.entry_id] = tag.tag_name
 
           #############################
           ## Custom Command
-          when Bot::Inventory::GetValueFromCatalogue('item_type_custom_command')
+          when Bot::Inventory::catalog_value('item_type_custom_command')
             command = Bot::CustomCommands::GetCustomCommandByItemEntryID(item.entry_id)
             Bot::CustomCommands::RemoveCustomCommandByItemEntryID(item.entry_id) if command != nil
             name_override[item.entry_id] = command.command_name
@@ -286,15 +286,15 @@ module Bot::Economy
       # get winner and reward them
       winner_idx = rand(RAFFLE_ENTRIES.count)
       winner_user_id = RAFFLE_ENTRIES.offset(winner_idx).first[:user_id]
-      winnings_value = entry_count * Bot::Bank::AppraiseItem('raffle_win')
+      winnings_value = entry_count * Bot::Bank::appraise_item('raffle_win')
       RAFFLE_ENTRIES.delete # delete all entries
       
       winner = DiscordUser.new(winner_user_id)
-      Bot::Bank::Deposit(winner.id, winnings_value)
+      Bot::Bank::deposit(winner.id, winnings_value)
 
       # post results and announce start of next
       raffle_mention = raffle_role.nil? ? "@Raffle" : raffle_role.mention
-      cost_per_ticket = Bot::Bank::AppraiseItem('raffle_buyticket')
+      cost_per_ticket = Bot::Bank::appraise_item('raffle_buyticket')
 
       msg = "#{winner.mention} has won the raffle...\n\n" +
         "#{raffle_mention} A new one has begun! Use the command " + 
@@ -360,7 +360,7 @@ module Bot::Economy
     types = { }
     items_of_type = { }
     cur_type = 0x1000
-    while (type_name = Bot::Inventory::GetValueFromCatalogue(cur_type)) != nil
+    while (type_name = Bot::Inventory::catalog_value(cur_type)) != nil
       types[cur_type] = type_name
       items_of_type[type_name] = []
       cur_type += 0x1000
@@ -369,7 +369,7 @@ module Bot::Economy
     # enumerate items for each type
     types.each do |type_id, type_name|
       item_id = type_id + 1
-      while (item_name = Bot::Inventory::GetValueFromCatalogue(item_id)) != nil
+      while (item_name = Bot::Inventory::catalog_value(item_id)) != nil
         items_of_type[type_name].push(item_name)
         item_id += 1
       end
@@ -436,12 +436,12 @@ module Bot::Economy
 
     # clean up for good measure since this will one of be the most performed action
     # note: calling this has no impact on the results of checkin
-    Bot::Bank::CleanAccount(user.id)
+    Bot::Bank::clean_account(user.id)
 
     # checkin if they can do that today
     checkin_value = get_user_checkin_value(user.id)
     if can_checkin
-      Bot::Bank::Deposit(user.id, checkin_value)
+      Bot::Bank::deposit(user.id, checkin_value)
 
       now = Bot::Timezone::utc_now().to_time.to_i
       if last_checkin_entry == nil
@@ -487,7 +487,7 @@ module Bot::Economy
       # todo: display full networth (+ items value)
       embed.add_field(
           name: 'Networth',
-          value: "#{Bot::Bank::GetBalance(user.id)} Starbucks",
+          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
           inline: true
       )
 
@@ -519,7 +519,7 @@ module Bot::Economy
 
     # clean before showing profile
     user = parsed_args["user"]
-    Bot::Bank::CleanAccount(user.id)
+    Bot::Bank::clean_account(user.id)
 
     # Sends embed containing user bank profile
     event.send_embed do |embed|
@@ -544,17 +544,17 @@ module Bot::Economy
       # todo display full networth (+ item values)
       embed.add_field(
           name: 'Networth',
-          value: "#{Bot::Bank::GetBalance(user.id)} Starbucks",
+          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
           inline: true
       )
 
       embed.add_field(
         name: 'At Risk',
-        value: "#{Bot::Bank::GetAtRiskBalance(user.id)} Starbucks",
+        value: "#{Bot::Bank::get_at_risk_balance(user.id)} Starbucks",
         inline: true
       )
 
-      perma_balance = Bot::Bank::GetPermaBalance(user.id)
+      perma_balance = Bot::Bank::get_perm_balance(user.id)
       if perma_balance < 0
         embed.add_field(
           name: "Outstanding Fines",
@@ -703,11 +703,11 @@ module Bot::Economy
     end
 
     # clean from_user's entries before transfer
-    Bot::Bank::CleanAccount(from_user_id)
+    Bot::Bank::clean_account(from_user_id)
 
     # transfer funds
-    if Bot::Bank::Withdraw(from_user_id, amount)
-      Bot::Bank::Deposit(to_user_id, amount)
+    if Bot::Bank::withdraw(from_user_id, amount)
+      Bot::Bank::deposit(to_user_id, amount)
       event.respond "#{parsed_args["to_user"].mention}, #{event.user.username} has transfered #{amount} Starbucks to your account!"
     else
       event.respond "You have insufficient funds to transfer that much!"
@@ -730,10 +730,10 @@ module Bot::Economy
     # special rent-a-role info page
     if parsed_args.nil?
       rand_color_role_id = Bot::Inventory::get_item_id('role_color_obsolete_orange')
-      color_role_cost = Bot::Bank::AppraiseItem('rentarole_color')
-      override_role_cost = Bot::Bank::AppraiseItem('rentarole_override')
-      renew_frequency = Bot::Inventory::get_item_lifetime(rand_color_role_id)
-      renewal_cost = Bot::Bank::AppraiseItem('rentarole_maintain')
+      color_role_cost = Bot::Bank::appraise_item('rentarole_color')
+      override_role_cost = Bot::Bank::appraise_item('rentarole_override')
+      renew_frequency = Bot::Inventory::get_item_lifetime_from_id(rand_color_role_id)
+      renewal_cost = Bot::Bank::appraise_item('rentarole_maintain')
       
       event.send_embed do |embed|
         embed.author = {
@@ -764,7 +764,7 @@ module Bot::Economy
       break # stop processing
     end
     
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
 
     # Check to see if the user is already renting a role.
     rented_role = get_user_rented_role_item(event.user.id)
@@ -841,7 +841,7 @@ module Bot::Economy
 
     # attempt to buy role
     role_cost = Bot::Inventory::get_item_value_from_id(role_item_id)
-    if not Bot::Bank::Withdraw(user.id, role_cost)
+    if not Bot::Bank::withdraw(user.id, role_cost)
       event.respond "Sorry, you can't afford that role."
       break
     end
@@ -860,7 +860,7 @@ module Bot::Economy
 
   # remove rented role
   command :unrentarole do |event, *args|
-  	Bot::Bank::CleanAccount(event.user.id)
+  	Bot::Bank::clean_account(event.user.id)
     
     # check if the user is currently renting a role
     rented_role = get_user_rented_role_item(event.user.id)
@@ -900,9 +900,9 @@ module Bot::Economy
         }
 
         tag_id = Bot::Inventory::get_item_id('tag')
-        tag_cost = Bot::Bank::AppraiseItem('tag_add')
-        tag_renewal_cost = Bot::Bank::AppraiseItem('tag_maintain')
-        tag_lifetime = Bot::Inventory::get_item_lifetime(tag_id)
+        tag_cost = Bot::Bank::appraise_item('tag_add')
+        tag_renewal_cost = Bot::Bank::appraise_item('tag_maintain')
+        tag_lifetime = Bot::Inventory::get_item_lifetime_from_id(tag_id)
 
         embed.title = "Tags"
         embed.description = 
@@ -934,7 +934,7 @@ module Bot::Economy
     end
 
     # clean account before proceeding
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
 
     # actions and tag names always parsed in lower case
     action = parsed_args['action'].downcase
@@ -972,8 +972,8 @@ module Bot::Economy
       end
 
       # only charge after they create it
-      tag_cost = Bot::Bank::AppraiseItem('tag_add')
-      if Bot::Bank::GetBalance(event.user.id) < tag_cost
+      tag_cost = Bot::Bank::appraise_item('tag_add')
+      if Bot::Bank::get_balance(event.user.id) < tag_cost
         event.respond "Sorry, you can't afford a new tag!"
         break
       end
@@ -1017,7 +1017,7 @@ module Bot::Economy
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, tag_cost)
+      if not Bot::Bank::withdraw(user.id, tag_cost)
         # DM them for being a jerk and remove tag
         user.dm.send_message("Sorry, you can't afford a new tag!")
         Bot::Tags::RemoveTagByItemEntryID(tag_item.entry_id)
@@ -1044,8 +1044,8 @@ module Bot::Economy
       end
 
       # only charge after they edit it
-      edit_cost = Bot::Bank::AppraiseItem('tag_edit')
-      if Bot::Bank::GetBalance(event.user.id) < edit_cost
+      edit_cost = Bot::Bank::appraise_item('tag_edit')
+      if Bot::Bank::get_balance(event.user.id) < edit_cost
         event.respond "Sorry, you can't afford to edit a tag right now!"
         break
       end
@@ -1076,7 +1076,7 @@ module Bot::Economy
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, edit_cost)
+      if not Bot::Bank::withdraw(user.id, edit_cost)
         # DM them for being a jerk and remove tag
         user.dm.send_message("Sorry, you can't to edit a tag!")
         break
@@ -1211,9 +1211,9 @@ module Bot::Economy
         }
 
         command_id = Bot::Inventory::get_item_id('custom_command')
-        command_cost = Bot::Bank::AppraiseItem('mycom_add')
-        command_renewal_cost = Bot::Bank::AppraiseItem('mycom_maintain')
-        command_lifetime = Bot::Inventory::get_item_lifetime(command_id)
+        command_cost = Bot::Bank::appraise_item('mycom_add')
+        command_renewal_cost = Bot::Bank::appraise_item('mycom_maintain')
+        command_lifetime = Bot::Inventory::get_item_lifetime_from_id(command_id)
 
         embed.title = "Custom Command"
         embed.description = 
@@ -1243,7 +1243,7 @@ module Bot::Economy
     end
 
     # clean account before proceeding
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
 
     # actions and command names always parsed in lower case
     action = parsed_args['action'].downcase
@@ -1280,8 +1280,8 @@ module Bot::Economy
       end
 
       # only charge after they create it
-      command_cost = Bot::Bank::AppraiseItem('mycom_add')
-      if Bot::Bank::GetBalance(event.user.id) < command_cost
+      command_cost = Bot::Bank::appraise_item('mycom_add')
+      if Bot::Bank::get_balance(event.user.id) < command_cost
         event.respond "Sorry, you can't afford a new command!"
         break
       end
@@ -1325,7 +1325,7 @@ module Bot::Economy
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, command_cost)
+      if not Bot::Bank::withdraw(user.id, command_cost)
         # DM them for being a jerk and remove command
         user.dm.send_message("Sorry, you can't afford a new command!")
         Bot::CustomCommands::RemoveCustomCommandByItemEntryID(command_item.entry_id)
@@ -1345,8 +1345,8 @@ module Bot::Economy
       end
 
       # only charge after they edit it
-      edit_cost = Bot::Bank::AppraiseItem('mycom_edit')
-      if Bot::Bank::GetBalance(event.user.id) < edit_cost
+      edit_cost = Bot::Bank::appraise_item('mycom_edit')
+      if Bot::Bank::get_balance(event.user.id) < edit_cost
         event.respond "Sorry, you can't afford to edit a command right now!"
         break
       end
@@ -1377,7 +1377,7 @@ module Bot::Economy
       end
 
       # double check if they're trying to pulls some shit by having two devices
-      if not Bot::Bank::Withdraw(user.id, edit_cost)
+      if not Bot::Bank::withdraw(user.id, edit_cost)
         # DM them for being a jerk
         user.dm.send_message("Sorry, you can't to edit a command!")
         break
@@ -1458,8 +1458,8 @@ module Bot::Economy
         break
       end
 
-      cost_of_tickets = tickets_to_buy * Bot::Bank::AppraiseItem('raffle_buyticket')
-      if not Bot::Bank::Withdraw(event.user.id, cost_of_tickets)
+      cost_of_tickets = tickets_to_buy * Bot::Bank::appraise_item('raffle_buyticket')
+      if not Bot::Bank::withdraw(event.user.id, cost_of_tickets)
         event.respond "You can't afford to buy that many!"
         break
       end
@@ -1482,8 +1482,8 @@ module Bot::Economy
 
     when 'info', 'information'
       raffle_frequency = RAFFLE_FREQUENCY
-      cost_of_ticket = Bot::Bank::AppraiseItem('raffle_buyticket')
-      roi_of_ticket = Bot::Bank::AppraiseItem('raffle_win')
+      cost_of_ticket = Bot::Bank::appraise_item('raffle_buyticket')
+      roi_of_ticket = Bot::Bank::appraise_item('raffle_win')
 
       event.send_embed do |embed|
         embed.author = {
@@ -1536,7 +1536,7 @@ module Bot::Economy
     severity = parsed_args["fine_size"]
 
     entry_id = "fine_#{severity}"
-    fine_size = Bot::Bank::AppraiseItem(entry_id)
+    fine_size = Bot::Bank::appraise_item(entry_id)
     orig_fine_size = fine_size
     if fine_size == nil
       event.respond "Invalid fine size specified (small, medium, large)."
@@ -1544,18 +1544,18 @@ module Bot::Economy
     end
 
     # clean before proceeding
-    Bot::Bank::CleanAccount(user_id)
+    Bot::Bank::clean_account(user_id)
 
     # deduct fine from bank account balance
-    balance = Bot::Bank::GetBalance(user_id)
+    balance = Bot::Bank::get_balance(user_id)
     withdraw_amount = [fine_size, balance].min
     if withdraw_amount > 0
-      Bot::Bank::Withdraw(user_id, withdraw_amount)
+      Bot::Bank::withdraw(user_id, withdraw_amount)
       fine_size -= withdraw_amount
     end
 
     # deposit rest as negative perma currency
-    Bot::Bank::DepositPerma(user_id, -fine_size)
+    Bot::Bank::deposit_perm(user_id, -fine_size)
 
     mod_mention = DiscordUser.new(event.user.id).mention
     event.respond "#{user_mention} has been fined #{orig_fine_size} by #{mod_mention}"
@@ -1587,7 +1587,7 @@ module Bot::Economy
     # no need to clean because we're going to clear all of their balance
     user_id = parsed_args["user"].id
     user_mention = parsed_args["user"].mention
-    if Bot::Bank::GetBalance(user_id) <= 0
+    if Bot::Bank::get_balance(user_id) <= 0
       event.respond "Sorry, you're already broke!"
       next # bail out, this fool broke
     end
@@ -1649,13 +1649,13 @@ module Bot::Economy
     amount = parsed_args["amount"]
     user_id = parsed_args["user"].id
     username = parsed_args["user"].full_username
-    Bot::Bank::CleanAccount(user_id)
+    Bot::Bank::clean_account(user_id)
 
     case type.downcase
     when "perma", "perm", "permanent"
-      Bot::Bank::DepositPerma(user_id, amount)
+      Bot::Bank::deposit_perm(user_id, amount)
     else
-      Bot::Bank::Deposit(user_id, amount)
+      Bot::Bank::deposit(user_id, amount)
     end
     event.respond "#{username} received #{amount} Starbucks"
   end
@@ -1683,8 +1683,8 @@ module Bot::Economy
     amount = parsed_args["amount"]
     user_id = parsed_args["user"].id
     user_mention = parsed_args["user"].mention
-    Bot::Bank::CleanAccount(user_id)
-    if Bot::Bank::Withdraw(user_id, amount)
+    Bot::Bank::clean_account(user_id)
+    if Bot::Bank::withdraw(user_id, amount)
       event.respond "#{user_mention} lost #{amount} Starbucks"
     else
       event.respond "#{user_mention} does not have at least #{amount} Starbucks"
@@ -1711,12 +1711,12 @@ module Bot::Economy
     break unless not parsed_args.nil? 
 
     user = parsed_args["user"]
-    Bot::Bank::CleanAccount(user.id)
+    Bot::Bank::clean_account(user.id)
       
     response = 
       "**User:** #{user.full_username}\n" +
-      "**Networth:** #{Bot::Bank::GetBalance(user.id)} Starbucks" +
-      "\n**Non-Expiring:** #{Bot::Bank::GetPermaBalance(user.id)} Starbucks" +
+      "**Networth:** #{Bot::Bank::get_balance(user.id)} Starbucks" +
+      "\n**Non-Expiring:** #{Bot::Bank::get_perm_balance(user.id)} Starbucks" +
       "\n\n**Table of Temp Balances**"
 
     user_transactions = Bot::Bank::USER_BALANCES.where{Sequel.&({user_id: user.id}, (amount > 0))}.order(Sequel.asc(:timestamp)).all
@@ -1878,7 +1878,7 @@ module Bot::Economy
   command :econdummy do |event|
     break unless Convenience::IsUserDev(event.user.id)
 
-    Bot::Bank::CleanAccount(event.user.id)
+    Bot::Bank::clean_account(event.user.id)
     event.respond "Database cleaned for #{event.user.username}##{event.user.discriminator}"
   end
 
@@ -1887,8 +1887,8 @@ module Bot::Economy
     counter = 0
     (100...110).each do |user_id|
       # prevent expiration
-      if Bot::Bank::GetBalance(user_id) <= 0
-        Bot::Bank::Deposit(user_id, 10000)
+      if Bot::Bank::get_balance(user_id) <= 0
+        Bot::Bank::deposit(user_id, 10000)
       end
 
       # add garbage tags
@@ -1912,8 +1912,8 @@ module Bot::Economy
     user_id = event.user.id
     
     # prevent expiration
-    if Bot::Bank::GetBalance(user_id) <= 10000000
-      Bot::Bank::Deposit(user_id, 10000000)
+    if Bot::Bank::get_balance(user_id) <= 10000000
+      Bot::Bank::deposit(user_id, 10000000)
     end
 
     # add garbage tags
