@@ -21,6 +21,12 @@ module Constants include IDs
   
   # See IDs for hardcoded id list
 
+  # The test server's test channel.
+  # This ID is specified here because it is NOT STANDARD.
+  # It is ONLY available on the test server and as such
+  # is not included in the ids file.
+  TEST_TEST_CHANNEL_ID = 804944041292201994
+
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
 
