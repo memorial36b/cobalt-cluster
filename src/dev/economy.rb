@@ -242,6 +242,8 @@ module Bot::Economy
       end
 
       # send the user a dm letting them know they had subscriptions expire
+      # todo: either limit number of reported items or break up into several messages
+      # if it exceeds the embed limit otherwise the message will fail to send entirely
       if not removed_items.empty?
         owner.user.dm.send_embed do |embed|
           embed.author = {
