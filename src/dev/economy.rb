@@ -173,7 +173,7 @@ module Bot::Economy
       Bot::Bank::clean_account(user_id)
     end
 
-    # check for expired roles for each user
+    # check for expired items for each user
     users = Bot::Inventory::get_users_with_inventory()
     users.each do |user_id|
       inventory = Bot::Inventory::get_inventory(user_id)
