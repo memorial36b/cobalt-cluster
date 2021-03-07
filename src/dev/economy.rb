@@ -217,8 +217,8 @@ module Bot::Economy
           #############################
           ## Custom Command
           when Bot::Inventory::catalog_value('item_type_custom_command')
-            command = Bot::CustomCommands::GetCustomCommandByItemEntryID(item.entry_id)
-            Bot::CustomCommands::RemoveCustomCommandByItemEntryID(item.entry_id) if command != nil
+            command = Bot::CustomCommands::get_custom_command_by_item_entry_id(item.entry_id)
+            Bot::CustomCommands::remove_custom_command_by_item_entry_id(item.entry_id) if command != nil
             name_override[item.entry_id] = command.command_name
           
           #############################
@@ -598,7 +598,7 @@ module Bot::Economy
         inline: true
       )
 
-      command_count = Bot::CustomCommands::GetUserCustomCommandCount(user.id)
+      command_count = Bot::CustomCommands::get_user_custom_command_count(user.id)
       embed.add_field(
         name: "Commands",
         value: command_count,
@@ -1257,15 +1257,15 @@ module Bot::Economy
     command_name = parsed_args['command_name'].downcase
 
     # shared variables
-    command_content_max_length = Bot::CustomCommands::GetMaxCustomCommandContentLength()
+    command_content_max_length = Bot::CustomCommands::custom_command_content_max_length
     command_config_msg = "What would you like your command to say? Limited to #{command_content_max_length} characters."
-    command_config_timeout = Bot::CustomCommands::GetCustomCommandResponseTimeout()
+    command_config_timeout = Bot::CustomCommands::custom_command_response_timeout
     
     case action
     #############################
     ## ADD
     when "add"
-      command_name_max_length = Bot::CustomCommands::GetMaxCustomCommandNameLength()
+      command_name_max_length = Bot::CustomCommands::custom_command_name_max_length
       if command_name.length > command_name_max_length
         event.respond "Sorry, the command name you gave is too long. Names are limited to #{command_name_max_length} characters."
         break
@@ -1281,7 +1281,7 @@ module Bot::Economy
         break
       end
 
-      if Bot::CustomCommands::HasCustomCommand(command_name, event.user.id)
+      if Bot::CustomCommands::has_custom_command(command_name, event.user.id)
         event.respond "Sorry, you already have a command with the same name!"
         break
       end
@@ -1325,7 +1325,7 @@ module Bot::Economy
         break
       end
 
-      if not Bot::CustomCommands::AddCustomCommand(command_name, user.id, command_item.entry_id, command_content)
+      if not Bot::CustomCommands::add_custom_command(command_name, user.id, command_item.entry_id, command_content)
         user.dm.send_message("Sorry, you already created a command named #{command_name}!")
         Bot::Inventory::remove_item(command_item.entry_id)
         break
@@ -1335,7 +1335,7 @@ module Bot::Economy
       if not Bot::Bank::withdraw(user.id, command_cost)
         # DM them for being a jerk and remove command
         user.dm.send_message("Sorry, you can't afford a new command!")
-        Bot::CustomCommands::RemoveCustomCommandByItemEntryID(command_item.entry_id)
+        Bot::CustomCommands::remove_custom_command_by_item_entry_id(command_item.entry_id)
         Bot::Inventory::remove_item(command_item.entry_id)
         break
       end
@@ -1346,7 +1346,7 @@ module Bot::Economy
     #############################
     ## EDIT
     when "edit"
-      if not Bot::CustomCommands::HasCustomCommand(command_name, event.user.id)
+      if not Bot::CustomCommands::has_custom_command(command_name, event.user.id)
         event.respond "Sorry, I couldn't find that command!"
         break
       end
@@ -1391,7 +1391,7 @@ module Bot::Economy
       end
       
       # update command, validate
-      if not Bot::CustomCommands::EditCustomCommand(command_name, user.id, command_content)
+      if not Bot::CustomCommands::edit_custom_command(command_name, user.id, command_content)
         user.dm.send_message("Sorry, an error occurred and #{command_name} could not be edited!")
         break
       end
@@ -1402,8 +1402,8 @@ module Bot::Economy
     #############################
     ## DELETE
     when "delete"
-      command = Bot::CustomCommands::GetCustomCommand(command_name, event.user.id)
-      if not Bot::CustomCommands::RemoveCustomCommand(command_name, event.user.id)
+      command = Bot::CustomCommands::get_custom_command(command_name, event.user.id)
+      if not Bot::CustomCommands::remove_custom_command(command_name, event.user.id)
         event.respond "Sorry, I couldn't find that command!"
         break
       end
@@ -1414,7 +1414,7 @@ module Bot::Economy
     #############################
     ## LIST COMMANDS
     when "list"
-      commands = Bot::CustomCommands::GetAllUserCustomCommands(event.user.id)
+      commands = Bot::CustomCommands::get_all_user_custom_commands(event.user.id)
       if commands.count <= 0
         event.respond "Sorry, you don't own any commands."
         break
@@ -1927,10 +1927,10 @@ module Bot::Economy
       counter += 1
       command_name = (0...10).map { (65 + rand(26)).chr }.join
       command_content = "longer command content is long don't you think? #{counter}"
-      next if Bot::CustomCommands::HasCustomCommand(command_name, user_id)
+      next if Bot::CustomCommands::has_custom_command(command_name, user_id)
       
       item = Bot::Inventory::add_item_by_name(user_id, 'custom_command')
-      Bot::CustomCommands::AddCustomCommand(command_name, user_id, item.entry_id, command_content)
+      Bot::CustomCommands::add_custom_command(command_name, user_id, item.entry_id, command_content)
     end
 
     return "done" 
