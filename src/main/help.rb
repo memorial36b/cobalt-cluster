@@ -1041,7 +1041,7 @@ module Bot::Help
       )
 
       embed.add_field(
-        name: "+transfermoney [@username]",
+        name: "+transfermoney [@username] [amount]",
         value: "Send Starbucks to another user."
       )
 
