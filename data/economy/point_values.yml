@@ -54,5 +54,5 @@ activity_text_chat:          5 # per minute
 activity_voice_chat:         2 # per minute
 activity_starvs_discussion:  6 # per minute
 activity_share_gallery:     25 # per message (max 1/min)
-activity_share_art:        100 # per message (max 1/min)
-activity_share_content:    100 # per message (max 1/min)
+activity_share_art:         50 # per message (max 1/min)
+activity_share_content:     50 # per message (max 1/min)
