@@ -30,7 +30,7 @@ module Bot::Bank
   # Check for and remove any and all expired balances.
   # @param [Integer] user_id user_id 
   def clean_account(user_id)
-    past_monday = Bot::Timezone::GetUserPastMonday(user_id)
+    past_monday = Bot::Timezone::user_past_monday(user_id)
     last_valid_timestamp = (past_monday - MAX_BALANCE_AGE_DAYS).to_time.to_i
 
     # remove all expired transaction
@@ -68,7 +68,7 @@ module Bot::Bank
   # @param [Integer] user_id user id
   # @return [Integer] User's balance that is at risk of expiring.
   def get_at_risk_balance(user_id)
-    past_monday = Bot::Timezone::GetUserPastMonday(user_id)
+    past_monday = Bot::Timezone::user_past_monday(user_id)
     last_safe_timestamp = (past_monday - MAX_BALANCE_AGE_SAFE_DAYS).to_time.to_i
     
     user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (timestamp < last_safe_timestamp))}

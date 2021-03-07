@@ -270,7 +270,7 @@ module Bot::Economy
   end
 
   # schedule the raffle ever n days, always at 7:00 PM GMT
-  def self.get_7pm_tomorrow(); (Bot::Timezone::GetTodayInTimezone('Etc/GMT') + 1).to_time + 7*60*60; end
+  def self.get_7pm_tomorrow(); (Bot::Timezone::timezone_today('Etc/GMT') + 1).to_time + 7*60*60; end
   SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => get_7pm_tomorrow() do
     entry_count = RAFFLE_ENTRIES.count
     entry_count = entry_count.nil? ? 0 : entry_count
