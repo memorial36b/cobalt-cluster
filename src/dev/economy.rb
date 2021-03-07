@@ -37,6 +37,10 @@ module Bot::Economy
   ##########################
   ##   HELPER FUNCTIONS   ##
   ##########################
+  # Are we allowed to call an economy command in this channel?
+  def self.call_command?(channel_id)
+     return channel_id == BOT_COMMANDS_CHANNEL_ID || channel_id == TEST_TEST_CHANNEL_ID
+  end
 
   # Determine how many Starbucks the user gets for checking in.
   def self.get_user_checkin_value(user_id)
@@ -324,6 +328,8 @@ module Bot::Economy
   SETTIMEZONE_ARGS = [["timezone_name", String]]
   SETTIMEZONE_REQ_COUNT = 1
   command :settimezone do |event, *args|
+    break unless call_command?(event.channel.id)
+
     # parse args
     opt_defaults = []
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
@@ -358,11 +364,14 @@ module Bot::Economy
 
   # get the name of user's configured timezone
   command :gettimezone do |event|
+    break unless call_command?(event.channel.id)
     event.respond "Your current timezone is \"#{Bot::Timezone::get_user_timezone(event.user.id)}\""
   end
 
   # display all of the available items for purchase
-  command :shop do |event| 
+  command :shop do |event|
+    break unless call_command?(event.channel.id)
+    
     # enumerate types
     types = { }
     items_of_type = { }
@@ -429,9 +438,10 @@ module Bot::Economy
 
   # get daily amount
   command :checkin do |event|
-    user = DiscordUser.new(event.user.id)
+    break unless call_command?(event.channel.id)
 
     # determine if the user can checkin
+    user = DiscordUser.new(event.user.id)
     can_checkin = false
     today = Bot::Timezone::user_today(user.id)
     today = Bot::Timezone::user_to_utc(user.id, today).to_time.to_i
@@ -512,6 +522,8 @@ module Bot::Economy
   PROFILE_ARGS = [["user", DiscordUser]]
   PROFILE_REQ_COUNT = 0
   command :profile do |event, *args|
+    break unless call_command?(event.channel.id)
+    
     # parse args
     opt_defaults = [event.user.id]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
@@ -611,6 +623,8 @@ module Bot::Economy
   # TODO: bug, results may differ from profile reporting
   RICHEST_COUNT = 10
   command :richest do |event|
+    break unless call_command?(event.channel.id)
+
     # note: timestamp filtering is a rough estimate based on the server's
     # timezone as it would be prohibitively expensive to clean up all entries
     # for all users prior to the query
@@ -690,6 +704,8 @@ module Bot::Economy
   TRANSFERMONEY_ARGS = [["to_user", DiscordUser], ["amount", Integer]]
   TRANSFERMONEY_REQ_COUNT = 2
   command :transfermoney do |event, *args|
+    break unless call_command?(event.channel.id)
+
     opt_defaults = []
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
@@ -727,6 +743,8 @@ module Bot::Economy
   RENTAROLE_ARGS = [["role", String]]
   RENTAROLE_REQ_COUNT = 1
   command :rentarole do |event, *args|
+    break unless call_command?(event.channel.id)
+    
     opt_defaults = []
     parsed_args = Convenience::ParseArgs(
       RENTAROLE_ARGS,
@@ -867,7 +885,9 @@ module Bot::Economy
 
   # remove rented role
   command :unrentarole do |event, *args|
-  	Bot::Bank::clean_account(event.user.id)
+  	break unless call_command?(event.channel.id)
+    
+    Bot::Bank::clean_account(event.user.id)
     
     # check if the user is currently renting a role
     rented_role = get_user_rented_role_item(event.user.id)
@@ -892,6 +912,8 @@ module Bot::Economy
   TAG_ARGS = [["action", String], ["tag_name", String]]
   TAG_REQ_COUNT = 1
   command :tag do |event, *args|
+    break unless call_command?(event.channel.id)
+
     opt_defaults = [""]
     parsed_args = Convenience::ParseArgs(
       TAG_ARGS,
@@ -1112,9 +1134,7 @@ module Bot::Economy
 
     #############################
     ## DISPLAY TAG
-    else # user is trying to invoke a tag!
-      break unless event.channel.id == BOT_COMMANDS_CHANNEL_ID
-      
+    else # user is trying to invoke a tag!      
       # check that user isn't spamming tags
       if (rate_limit = TAG_BUCKET.rate_limited?(event.user.id))
         event.send_temporary_message("**Tags are on cooldown!** Wait for #{rate_limit.round}s.", 5)
@@ -1139,6 +1159,8 @@ module Bot::Economy
   TAGS_ARGS = [["owner_user", DiscordUser]]
   TAGS_REQ_COUNT = 0
   command :tags do |event, *args|
+    break unless call_command?(event.channel.id)
+    
     args[0] = event.user.id if args.length > 0 && args[0] == "mine" # special
     opt_defaults = [event.user.id]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
@@ -1203,6 +1225,8 @@ module Bot::Economy
   MYCOM_ARGS = [["action", String], ["command_name", String]]
   MYCOM_REQ_COUNT = 1
   command :mycom do |event, *args|
+    break unless call_command?(event.channel.id)
+
     opt_defaults = [""]
     parsed_args = Convenience::ParseArgs(
       MYCOM_ARGS,
@@ -1446,6 +1470,8 @@ module Bot::Economy
   RAFFLE_ARGS = [["action", String], ["number_of_tickets", Integer]]
   RAFFLE_REQ_COUNT = 0
   command :raffle do |event, *args|
+    break unless call_command?(event.channel.id)
+    
     opt_defaults = ["info", 1]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
@@ -1522,6 +1548,7 @@ module Bot::Economy
   FINE_ARGS = [["user", DiscordUser], ["fine_size", String]]
   FINE_REQ_COUNT = 2
   command :fine do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless (Convenience.IsUserDev(event.user.id) ||
                   event.user.role?(MODERATOR_ROLE_ID) ||
                   event.user.role?(HEAD_CREATOR_ROLE_ID))
@@ -1577,6 +1604,7 @@ module Bot::Economy
   SHUTUPANDTAKEMYMONEY_ARGS = [["user", DiscordUser]]
   SHUTUPANDTAKEMYMONEY_REQ_COUNT = 0
   command :shutupandtakemymoney do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1609,6 +1637,7 @@ module Bot::Economy
   CLEARBALANCES_ARGS = [["user", DiscordUser]]
   CLEARBALANCES_REQ_COUNT = 0
   command :clearbalances do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1638,6 +1667,7 @@ module Bot::Economy
   GIMME_ARGS = [["amount", Integer], ["user", DiscordUser], ["type", String]]
   GIMME_REQ_COUNT = 1
   command :gimme do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id, "temp"]
@@ -1672,6 +1702,7 @@ module Bot::Economy
   TAKEIT_ARGS = [["amount", Integer], ["user", DiscordUser]]
   TAKEIT_REQ_COUNT = 1
   command :takeit do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1703,6 +1734,7 @@ module Bot::Economy
   DEBUGPROFILE_ARGS = [["user", DiscordUser]]
   DEBUGPROFILE_REQ_COUNT = 0
   command :debugprofile do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1743,6 +1775,7 @@ module Bot::Economy
   LASTCHECKIN_ARGS = [["user", DiscordUser]]
   LASTCHECKIN_REQ_COUNT = 0
   command :lastcheckin do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1773,6 +1806,7 @@ module Bot::Economy
   CLEARCHECKIN_ARGS = [["user", DiscordUser]]
   CLEARCHECKIN_REQ_COUNT = 0
   command :clearcheckin do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1795,6 +1829,7 @@ module Bot::Economy
   ADDITEM_ARGS = [["item", String], ["user", DiscordUser]]
   ADDITEM_REQ_COUNT = 1
   command :additem do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1821,6 +1856,7 @@ module Bot::Economy
   INVENTORY_ARGS = [["user", DiscordUser], ["item_type", Integer]]
   INVENTORY_REQ_COUNT = 0
   command :inventory do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id, -1]
@@ -1858,6 +1894,7 @@ module Bot::Economy
   CLEARINVENTORY_ARGS = [["user", DiscordUser]]
   CLEARINVENTORY_REQ_COUNT = 0
   command :clearinventory do |event, *args|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     opt_defaults = [event.user.id]
@@ -1882,6 +1919,7 @@ module Bot::Economy
 
   # econ dummy command, does nothing lazy cleanup devs only
   command :econdummy do |event|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
 
     Bot::Bank::clean_account(event.user.id)
@@ -1889,6 +1927,7 @@ module Bot::Economy
   end
 
   command :oodlesoftags do |event|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
     counter = 0
     (100...110).each do |user_id|
@@ -1913,6 +1952,7 @@ module Bot::Economy
   end
 
   command :oodlesofcommands do |event|
+    break unless call_command?(event.channel.id)
     break unless Convenience::IsUserDev(event.user.id)
     counter = 0
     user_id = event.user.id
