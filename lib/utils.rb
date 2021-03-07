@@ -32,6 +32,7 @@ module Constants include IDs
   IMAGE_BANK = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
   IMAGE_STARBUCKS = 'https://www.in-lease.com/getmedia/41535176-48fd-46a2-94c3-c9ff15413cb2/temp_icon.png'
   IMAGE_RICHEST = 'https://pbs.twimg.com/profile_images/780589072733593600/3rG5efnk_400x400.jpg'
+  IMAGE_CHECKIN = 'https://cdn.discordapp.com/attachments/753163836844146770/817923830856024115/cobalt_checkin.gif'
 
   # Strings
   STRING_BANK_NAME = "Bank"

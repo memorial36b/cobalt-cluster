@@ -462,7 +462,6 @@ module Bot::Economy
       end
     end
 
-    # Sends embed containing user bank profile
     event.send_embed do |embed|
       embed.author = {
           name: STRING_BANK_NAME,
@@ -481,28 +480,29 @@ module Bot::Economy
       end
       embed.title = title
 
-      # row: checkin won if could checkin
+      # fields depend on whether we've just checked in
       if can_checkin
+        embed.image = Discordrb::Webhooks::EmbedImage.new(url: IMAGE_CHECKIN)
         embed.add_field(
           name: 'Checked in for',
           value: "#{checkin_value} Starbucks",
           inline: false
         )
-      end
+      else
+        # row: networth and next checkin time
+        # todo: display full networth (+ items value)
+        embed.add_field(
+            name: 'Networth',
+            value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
+            inline: true
+        )
 
-      # row: networth and next checkin time
-      # todo: display full networth (+ items value)
-      embed.add_field(
-          name: 'Networth',
-          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
+        embed.add_field(
+          name: "Time Until Next Check-in",
+          value: get_time_until_next_checkin_string(user.id),
           inline: true
-      )
-
-      embed.add_field(
-        name: "Time Until Next Check-in",
-        value: get_time_until_next_checkin_string(user.id),
-        inline: true
-      )
+        )
+      end
     end
   end
 
