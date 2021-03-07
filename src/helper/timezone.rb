@@ -141,20 +141,22 @@ module Bot::Timezone
 
   # Get today in the specified timezone.
   # @param [String] timezone_name the timezone name
-  # @return [DateTime] Today at 5:00 PM in the specified timezone.
+  # @return [DateTime] Start of today in the specified timezone.
   def timezone_today(timezone_name)
     tz = TZInfo::Timezone.get(timezone_name)
-
-    # strip hours, minutes, seconds, fractional seconds
     today = tz.now.to_datetime
-    day_offset = 
-      (today.hour) / 24.0 + 
-      (today.min / (24.0 * 60.0)) +
-      (today.sec / (24.0 * 60.0 * 60.0))
-      (today.second_fraction / (24.0 * 60.0 * 60.0))
-    today -= day_offset
+    return trim_to_start_of_day(today)
+  end
 
-    return today
+  # Get the next Friday in the specified timezone.
+  # @param [String] timezone_name the timezone name
+  # @return [DateTime] Next friday or today if today is Friday.
+  def timezone_next_friday(timezone_name)
+    tz = TZInfo::Timezone.get(timezone_name)
+    today = trim_to_start_of_day(tz.now.to_datetime)
+    offset = 5 - today.cwday
+    offset += 7 if offset < 0 # role to next week
+    return today + offset
   end
 
   # Push the datetime up to the start of the day.
