@@ -217,10 +217,10 @@ module Bot::EconomyPassive
     case channel_id
     when SVTFOE_GALLERY_ID
       reward = get_action_earnings('activity_share_gallery') if
-        image?(message)
+        image?(message) or link?(message)
     when ORIGINAL_ART_CHANNEL_ID
       reward = get_action_earnings('activity_share_art') if
-        image?(message)
+        image?(message) or link?(message)
     when ORIGINAL_CONTENT_CHANNEL_ID
       reward = get_action_earnings('activity_share_content') if
         image?(message) or link?(message)
