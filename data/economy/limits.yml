@@ -9,3 +9,5 @@ custom_command_content_max_length: 280 # the length of a tweet, avoid blowing up
 custom_command_response_timeout:   300 # how long to wait (in seconds) before timing out on a user's response to a tag message.
 
 raffle_frequency: 7 # how often (in days) the raffle occurs
+# raffle is currently assumed to be every Friday at 5PM GMT, we'll need
+# to change various code if the frequency is no longer weekly.

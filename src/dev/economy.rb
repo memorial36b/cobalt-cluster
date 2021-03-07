@@ -269,9 +269,16 @@ module Bot::Economy
     # todo: perform any other routine maintenance
   end
 
-  # schedule the raffle ever n days, always at 7:00 PM GMT
-  def self.get_7pm_tomorrow(); (Bot::Timezone::timezone_today('Etc/GMT') + 1).to_time + 7*60*60; end
-  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => get_7pm_tomorrow() do
+  # schedule the raffle every friday at 5PM GMT
+  # executes immediately if today is friday past 5PM GMT
+  def self.next_friday_at_5pm()
+    next_friday = Bot::Timezone::timezone_next_friday('Etc/GMT')
+    next_friday_5pm = next_friday.to_time + 17*60*60
+    puts "Info: First raffle scheduled for #{next_friday_5pm}\n"
+    return next_friday_5pm
+  end
+
+  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => next_friday_at_5pm() do
     entry_count = RAFFLE_ENTRIES.count
     entry_count = entry_count.nil? ? 0 : entry_count
 
@@ -1481,7 +1488,6 @@ module Bot::Economy
       end
 
     when 'info', 'information'
-      raffle_frequency = RAFFLE_FREQUENCY
       cost_of_ticket = Bot::Bank::appraise_item('raffle_buyticket')
       roi_of_ticket = Bot::Bank::appraise_item('raffle_win')
 
@@ -1493,7 +1499,7 @@ module Bot::Economy
 
         embed.title = "Raffle"
         embed.description = 
-          "The raffle is an event that occurs once every #{ple(raffle_frequency, "day")}. " +
+          "The raffle is an event that occurs once every Friday at 5:00 PM GMT. " +
           "When it happens, any user that has purchased at least one " +
           "ticket can win! Your odds of winning are directly proportionate to " +
           "how many you bought. Each ticket costs #{cost_of_ticket} Starbucks " +
