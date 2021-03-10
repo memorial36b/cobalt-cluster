@@ -26,7 +26,7 @@ module Bot::BasicCommands
   # Test Server Invte Command - Enables sending a link in chat to the Cobalt test server
   command :testserver do |event|
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
-    ping = event.respond "What test server?"
+    ping = event.respond "Ask Phazite for test server link (unless you're Phazite)"
     sleep 10
     ping.delete
   end
