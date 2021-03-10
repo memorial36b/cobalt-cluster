@@ -18,6 +18,9 @@ module Bot::BasicCommands
   # Build Version command - Should be in this format: Build MM/DD/YYYY - Revision X (revision number should start at 0)
   command :build do |event|
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.role?(COBALT_MOMMY_ROLE_ID)
+    
+    # Checking various parameters about the current local and remote instance of Cobalt. err and status are not used but are required to keep the output clean. Refer to https://git-scm.com/docs/git-show for documentation on --format. strip! removes the preceding and trailing whitespace.
+
     commit_hash, err, status = Open3.capture3("git show --format=format:%h")
     commit_hash.strip!
     commit_hash_full, err, status = Open3.capture3("git show --format=format:%H")
@@ -34,6 +37,9 @@ module Bot::BasicCommands
     last_pull_attempted.strip!
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
+    
+    # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
+    
     event.send_embed do |embed|
           
       embed.color = 0x65DDB7
