@@ -1,11 +1,11 @@
 # Crystal: BasicCommands
-
+require 'open3'
 
 # This crystal contains the basic commands of the bot, such as ping and exit.
 module Bot::BasicCommands
   extend Discordrb::Commands::CommandContainer
   include Constants
-  
+
   # Ping command
   command :ping do |event|
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.role?(COBALT_MOMMY_ROLE_ID) || event.user.role?(MODERATOR_ROLE_ID)
@@ -18,9 +18,56 @@ module Bot::BasicCommands
   # Build Version command - Should be in this format: Build MM/DD/YYYY - Revision X (revision number should start at 0)
   command :build do |event|
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.role?(COBALT_MOMMY_ROLE_ID)
-    ping = event.respond "Build 2/28/2021 - Revision 1"
-    sleep 10
-    ping.delete
+    commit_hash, err, status = Open3.capture3("git show --format=format:%h")
+    commit_hash.strip!
+    commit_hash_full, err, status = Open3.capture3("git show --format=format:%H")
+    commit_hash_full.strip!
+    author_name, err, status = Open3.capture3("git show --format=format:%an")
+    author_name.strip!
+    author_date, err, status = Open3.capture3("git show --format=format:%ad")
+    author_date.strip!
+    commit_subject, err, status = Open3.capture3("git show --format=format:%s")
+    commit_subject.strip!
+    current_branch, err, status = Open3.capture3("git branch --show-current")
+    current_branch.strip!
+    last_pull_attempted, err, status = Open3.capture3("stat -c %y .git/FETCH_HEAD")
+    last_pull_attempted.strip!
+    remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
+    remote_repo_url.strip!
+    event.send_embed do |embed|
+          
+      embed.color = 0x65DDB7
+      
+      embed.author = {
+          name: "Current Cobalt Build Info",
+          url: "https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch}",
+          icon_url: 'https://cdn.discordapp.com/attachments/753163837057794176/805998319251882034/467450365055336448.png'
+      }
+      embed.thumbnail = {
+          url: "https://cdn.discordapp.com/attachments/804750275793518603/819294692608442418/cobalt_icon_2.png"}
+      
+      embed.add_field(
+          name: "Parameters",
+          value: "Repo: [hecksalmonids/cobalt-cluster](#{remote_repo_url})
+                  Branch: [#{current_branch}](https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch})
+                  Run Mode:
+                  Auto-Updater Present:
+                  Crystals Loaded:"
+      )
+      
+      embed.add_field(
+          name: "Current Version",
+          value: "Commit: [#{commit_hash}](https://github.com/hecksalmonids/cobalt-cluster/commit/#{commit_hash_full})
+                  Commit Author: [#{author_name}](https://github.com/#{author_name})
+                  Commit Date: #{author_date}
+                  Last Update Attempt: #{last_pull_attempted}
+                  Update Check Frequency:
+                  Time Until Next Update Check:"
+      )
+        
+    #sleep 10
+    #ping.delete
+    end
   end
 
   # Test Server Invte Command - Enables sending a link in chat to the Cobalt test server
