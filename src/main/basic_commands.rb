@@ -110,6 +110,10 @@ module Bot::BasicCommands
     # Breaks unless event user is Owner or Dev
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
     event.respond 'Shutting down.'
+    FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
+    FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
+    FileUtils.remove('All.txt') if File.exist? 'All.txt'
+    FileUtils.remove('Updater-Enabled.txt') if File.exist? 'Updater-Enabled.txt'
     exit
   end
 end
