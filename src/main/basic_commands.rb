@@ -38,6 +38,8 @@ module Bot::BasicCommands
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
     
+    # Check to see if any generated files exist in /src/ These generated files indicate what mode Cobalt is being run on as well as if the auto-updater script is present and being utilized. Mode indicators are deleted & generated in Rakefile. Auto-updater indicators are generated in the auto-updater script and deleted only when the +exit command is used
+
     if File.exist? 'Main.txt'
       run_mode = File.basename("Main.txt", ".txt")
     elsif File.exist? 'Dev.txt'
@@ -84,9 +86,6 @@ module Bot::BasicCommands
                   Update Check Frequency:
                   Time Until Next Update Check:"
       )
-        
-    #sleep 10
-    #ping.delete
     end
   end
 

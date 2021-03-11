@@ -73,6 +73,7 @@ namespace :run do
   task :main => ['dependencies'] do |event|
     # Changes directory to src
     Dir.chdir('src') do
+      # Deletes previous mode indicator files then generates relevant indicator file
       FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
       FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
       FileUtils.remove('All.txt') if File.exist? 'All.txt'
@@ -86,6 +87,7 @@ namespace :run do
   task :dev => ['dependencies'] do |event|
     # Changes directory to src
     Dir.chdir('src') do
+      # Deletes previous mode indicator files then generates relevant indicator file
       FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
       FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
       FileUtils.remove('All.txt') if File.exist? 'All.txt'
@@ -99,6 +101,7 @@ namespace :run do
   task :all => ['dependencies'] do |event|
     # Changes directory to src
     Dir.chdir('src') do
+      # Deletes previous mode indicator files then generates relevant indicator file
       FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
       FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
       FileUtils.remove('All.txt') if File.exist? 'All.txt'
