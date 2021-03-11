@@ -37,6 +37,7 @@ module Bot::BasicCommands
     last_pull_attempted.strip!
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
+    
     if File.exist? 'Main.txt'
       run_mode = File.basename("Main.txt", ".txt")
     elsif File.exist? 'Dev.txt'
@@ -45,6 +46,12 @@ module Bot::BasicCommands
       run_mode = File.basename("All.txt", ".txt")
     end
     
+    if File.exist? "Updater-Enabled.txt"
+      auto_updater_enabled = "Yes"
+    else
+      auto_updater_enabled = "No"
+    end
+
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
     
     event.send_embed do |embed|
@@ -64,7 +71,7 @@ module Bot::BasicCommands
           value: "Repo: [hecksalmonids/cobalt-cluster](#{remote_repo_url})
                   Branch: [#{current_branch}](https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch})
                   Run Mode: #{run_mode}
-                  Auto-Updater Present:
+                  Auto-Updater Present: #{auto_updater_enabled}
                   Crystals Loaded:"
       )
       
