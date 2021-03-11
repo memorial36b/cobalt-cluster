@@ -54,6 +54,15 @@ module Bot::BasicCommands
       auto_updater_enabled = "No"
     end
 
+    # Checks to see if Update_Check_Frequency.txt exists in /scr/ as well as reading the contents of the file. This file is generated via the auto-updater script at startup and is only deleted if +exit is used
+
+    if File.exists? "Update_Check_Frequency.txt"
+      file = File.open("Update_Check_Frequency.txt")
+      auto_updater_frequency = "#{file.read} Minute(s)"
+    else
+      auto_updater_frequency = "N/A"
+    end
+
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
     
     event.send_embed do |embed|
@@ -83,9 +92,9 @@ module Bot::BasicCommands
                   Commit Author: [#{author_name}](https://github.com/#{author_name})
                   Commit Date: #{author_date}
                   Last Update Attempt: #{last_pull_attempted}
-                  Update Check Frequency:
+                  Update Check Frequency: #{auto_updater_frequency}
                   Time Until Next Update Check:"
-      )
+      ) # last_pull_attempted isn't currently working
     end
   end
 
@@ -109,10 +118,12 @@ module Bot::BasicCommands
     # Breaks unless event user is Owner or Dev
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id)
     event.respond 'Shutting down.'
+    # Deletes various status indicator files used by +build
     FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
     FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
     FileUtils.remove('All.txt') if File.exist? 'All.txt'
     FileUtils.remove('Updater-Enabled.txt') if File.exist? 'Updater-Enabled.txt'
+    FileUtils.remove('Update_Check_Frequency.txt') if File.exist? 'Update_Check_Frequency.txt'
     exit
   end
 end
