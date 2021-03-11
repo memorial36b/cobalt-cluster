@@ -16,7 +16,8 @@ data/data.db
 # Exclude Gemfile.lock
 Gemfile.lock
 
-# Exclude Run Mode Check Files
+# Exclude Run Mode & Updater Enabled Check Files
 src/Main.txt
 src/Dev.txt
 src/All.txt
+src/Updater-Enabled.txt
