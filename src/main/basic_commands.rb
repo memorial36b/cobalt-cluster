@@ -94,7 +94,7 @@ module Bot::BasicCommands
                   Last Update Attempt: #{last_pull_attempted}
                   Update Check Frequency: #{auto_updater_frequency}
                   Time Until Next Update Check:"
-      )
+      ) # last_pull_attempted isn't currently working
     end
   end
 
