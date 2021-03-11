@@ -60,7 +60,7 @@ module Bot::BasicCommands
       file = File.open("Update_Check_Frequency.txt")
       auto_updater_frequency = "#{file.read} Minute(s)"
     else
-      auto_updater_frequency = "Auto-Updater Disabled"
+      auto_updater_frequency = "N/A"
     end
 
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
