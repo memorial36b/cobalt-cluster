@@ -54,6 +54,13 @@ module Bot::BasicCommands
       auto_updater_enabled = "No"
     end
 
+    if File.exists? "Update_Check_Frequency.txt"
+      file = File.open("Update_Check_Frequency.txt")
+      auto_updater_frequency = "#{file.read} Minutes"
+    else
+      auto_updater_frequency = "N/A"
+    end
+
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
     
     event.send_embed do |embed|
@@ -83,7 +90,7 @@ module Bot::BasicCommands
                   Commit Author: [#{author_name}](https://github.com/#{author_name})
                   Commit Date: #{author_date}
                   Last Update Attempt: #{last_pull_attempted}
-                  Update Check Frequency:
+                  Update Check Frequency: #{auto_updater_frequency}
                   Time Until Next Update Check:"
       )
     end
