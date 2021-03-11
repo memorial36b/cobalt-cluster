@@ -58,7 +58,7 @@ module Bot::BasicCommands
 
     if File.exists? "Update_Check_Frequency.txt"
       file = File.open("Update_Check_Frequency.txt")
-      auto_updater_frequency = "#{file.read} Minutes"
+      auto_updater_frequency = "#{file.read} Minute(s)"
     else
       auto_updater_frequency = "N/A"
     end
