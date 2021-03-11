@@ -21,15 +21,15 @@ module Bot::BasicCommands
     
     # Checking various parameters about the current local and remote instance of Cobalt. err and status are not used but are required to keep the output clean. Refer to https://git-scm.com/docs/git-show for documentation on --format. strip! removes the preceding and trailing whitespace.
 
-    commit_hash, err, status = Open3.capture3("git show --format=format:%h")
+    commit_hash, err, status = Open3.capture3("git show --quiet --format=format:%h")
     commit_hash.strip!
-    commit_hash_full, err, status = Open3.capture3("git show --format=format:%H")
+    commit_hash_full, err, status = Open3.capture3("git show --quiet --format=format:%H")
     commit_hash_full.strip!
-    author_name, err, status = Open3.capture3("git show --format=format:%an")
+    author_name, err, status = Open3.capture3("git show --quiet --format=format:%an")
     author_name.strip!
-    author_date, err, status = Open3.capture3("git show --format=format:%ad")
+    author_date, err, status = Open3.capture3("git show --quiet --format=format:%ad")
     author_date.strip!
-    commit_subject, err, status = Open3.capture3("git show --format=format:%s")
+    commit_subject, err, status = Open3.capture3("git show --quiet --format=format:%s")
     commit_subject.strip!
     current_branch, err, status = Open3.capture3("git branch --show-current")
     current_branch.strip!
@@ -37,6 +37,13 @@ module Bot::BasicCommands
     last_pull_attempted.strip!
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
+    if File.exist? 'Main.txt'
+      run_mode = File.basename("Main.txt", ".txt")
+    elsif File.exist? 'Dev.txt'
+      run_mode = File.basename("Dev.txt", ".txt")
+    elsif File.exist? 'All.txt'
+      run_mode = File.basename("All.txt", ".txt")
+    end
     
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
     
@@ -56,7 +63,7 @@ module Bot::BasicCommands
           name: "Parameters",
           value: "Repo: [hecksalmonids/cobalt-cluster](#{remote_repo_url})
                   Branch: [#{current_branch}](https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch})
-                  Run Mode:
+                  Run Mode: #{run_mode}
                   Auto-Updater Present:
                   Crystals Loaded:"
       )
