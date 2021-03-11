@@ -73,6 +73,10 @@ namespace :run do
   task :main => ['dependencies'] do |event|
     # Changes directory to src
     Dir.chdir('src') do
+      FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
+      FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
+      FileUtils.remove('All.txt') if File.exist? 'All.txt'
+      File.new "Main.txt","w"
       # Runs the main bot script with main argument
       CMD_RUNNER.run_cmd("ruby bot.rb main")
     end
@@ -82,6 +86,10 @@ namespace :run do
   task :dev => ['dependencies'] do |event|
     # Changes directory to src
     Dir.chdir('src') do
+      FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
+      FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
+      FileUtils.remove('All.txt') if File.exist? 'All.txt'
+      File.new "Dev.txt","w"
       # Runs the main bot script with dev argument
       CMD_RUNNER.run_cmd("ruby bot.rb dev")
     end
@@ -91,6 +99,10 @@ namespace :run do
   task :all => ['dependencies'] do |event|
     # Changes directory to src
     Dir.chdir('src') do
+      FileUtils.remove('Main.txt') if File.exist? 'Main.txt'
+      FileUtils.remove('Dev.txt') if File.exist? 'Dev.txt'
+      FileUtils.remove('All.txt') if File.exist? 'All.txt'
+      File.new "All.txt","w"
       # Runs the main bot script with main and dev argument
       CMD_RUNNER.run_cmd("ruby bot.rb main dev")
     end
