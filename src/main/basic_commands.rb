@@ -33,19 +33,28 @@ module Bot::BasicCommands
     commit_subject.strip!
     current_branch, err, status = Open3.capture3("git branch --show-current")
     current_branch.strip!
-    last_pull_attempted, err, status = Open3.capture3("stat -c %y .git/FETCH_HEAD")
+    last_pull_attempted, err, status = Open3.capture3("stat -c %y ../.git/FETCH_HEAD")
     last_pull_attempted.strip!
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
     
-    # Check to see if any generated files exist in /src/ These generated files indicate what mode Cobalt is being run on as well as if the auto-updater script is present and being utilized. Mode indicators are deleted & generated in Rakefile. Auto-updater indicators are generated in the auto-updater script and deleted only when the +exit command is used
+    # Check to see if any generated files exist in /src/ These generated files indicate what mode Cobalt is being run on as well as if the auto-updater script is present and being utilized. Mode indicators are deleted & generated in Rakefile. Auto-updater indicators are generated in the auto-updater script and deleted only when the +exit command is used. Also checks which crystals should be loaded per the run mode
 
     if File.exist? 'Main.txt'
       run_mode = File.basename("Main.txt", ".txt")
+      active_crystals = Dir["../src/main/*.rb"]        
     elsif File.exist? 'Dev.txt'
       run_mode = File.basename("Dev.txt", ".txt")
+      active_crystals_a1 = Dir["../src/dev/*.rb"]
+      active_crystals_a2 = Dir["../src/helper/*.rb"]
+      active_crystals = active_crystals_a1 + active_crystals_a2
     elsif File.exist? 'All.txt'
       run_mode = File.basename("All.txt", ".txt")
+      active_crystals_a1 = Dir["../src/main/*.rb"]
+      active_crystals_a2 = Dir["../src/dev/*.rb"]
+      active_crystals_a3 = Dir["../src/helper/*.rb"]
+      active_crystals = active_crystals_a1 + active_crystals_a2 + active_crystals_a3
+
     end
     
     if File.exist? "Updater-Enabled.txt"
@@ -60,7 +69,7 @@ module Bot::BasicCommands
       file = File.open("Update_Check_Frequency.txt")
       auto_updater_frequency = "#{file.read} Minute(s)"
     else
-      auto_updater_frequency = "N/A"
+      auto_updater_frequency = "Updater Disabled"
     end
 
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
@@ -83,7 +92,7 @@ module Bot::BasicCommands
                   Branch: [#{current_branch}](https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch})
                   Run Mode: #{run_mode}
                   Auto-Updater Present: #{auto_updater_enabled}
-                  Crystals Loaded:"
+                  Crystals Loaded: \n```#{active_crystals}```"
       )
       
       embed.add_field(
@@ -94,7 +103,7 @@ module Bot::BasicCommands
                   Last Update Attempt: #{last_pull_attempted}
                   Update Check Frequency: #{auto_updater_frequency}
                   Time Until Next Update Check:"
-      ) # last_pull_attempted isn't currently working
+      )
     end
   end
 
