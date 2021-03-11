@@ -1,7 +1,7 @@
 # Hardcoded user IDs
 module IDs
   # Cobalt's Dev user ID - Eval Command
-  COBALT_DEV_ID_EVAL = 99567651944165376
+  COBALT_DEV_ID_EVAL = [99567651944165376]
   
   # Owner's (Geechan) user ID
   OWNER_ID = 108144520553578496
