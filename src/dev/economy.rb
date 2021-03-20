@@ -644,6 +644,7 @@ module Bot::Economy
   # display leaderboard
   # TODO: bug, results may differ from profile reporting
   RICHEST_COUNT = 10
+  RICHEST_NAME_MAX_LENGTH = 32
   command :richest do |event|
     break unless call_command?(event.channel.id)
 
@@ -652,7 +653,7 @@ module Bot::Economy
     # for all users prior to the query
 
     # compute when the last monday as a Unix timestmap
-    past_monday = Date.today
+    past_monday = Bot::Timezone::timezone_today('Etc/GMT')
     wwday = past_monday.cwday - 1
     past_monday = past_monday - wwday
 
@@ -698,11 +699,12 @@ module Bot::Economy
         networth = user_stats[:networth]
 
         if user.nickname?
-          top_names += "#{n + 1}: #{user.nickname} (#{user.full_username})\n"
+          top_name = "#{n + 1}: #{user.nickname} (#{user.full_username})"
         else
-          top_names += "#{n + 1}: #{user.full_username}\n"
+          top_name = "#{n + 1}: #{user.full_username}"
         end
 
+        top_names += top_name[0..RICHEST_NAME_MAX_LENGTH] + "\n"
         top_networths += "#{networth} Starbucks\n"
       end
 
