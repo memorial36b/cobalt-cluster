@@ -10,4 +10,4 @@ custom_command_response_timeout:   300 # how long to wait (in seconds) before ti
 
 raffle_frequency: 7 # how often (in days) the raffle occurs
 # raffle is currently assumed to be every Friday at 5PM GMT, we'll need
-# to change various code if the frequency is no longer weekly.
+# to change various code if the frequency is no longer weekly. 
