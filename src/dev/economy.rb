@@ -283,10 +283,18 @@ module Bot::Economy
   end
 
   # schedule the raffle every friday at 5PM GMT
-  # executes immediately if today is friday past 5PM GMT
+  #
+  # If the instance is killed on Friday before 5pm and is not revived until
+  # afterwards, this will result in a missed raffle execution.
   def self.next_friday_at_5pm()
     next_friday = Bot::Timezone::timezone_next_friday('Etc/GMT')
-    next_friday_5pm = next_friday.to_time + 17*60*60
+    next_friday_5pm = (next_friday.to_time + 17*60*60).to_datetime
+
+    one_second = 1.0 / (24.0 * 60.0 * 60.0)
+    if (Bot::Timezone::timezone_now('Etc/GMT') + one_second) >= next_friday_5pm
+      next_friday_5pm += 7 # ensure job is scheduled in the future
+    end
+
     puts "Info: First raffle scheduled for #{next_friday_5pm}\n"
     return next_friday_5pm
   end
