@@ -505,8 +505,21 @@ module Bot::Economy
         embed.add_field(
           name: 'Checked in for',
           value: "#{checkin_value} Starbucks",
+          inline: true
+        )
+
+        embed.add_field(
+          name: 'Networth',
+          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
+          inline: true
+        )
+
+        embed.add_field(
+          name: "Time Until Next Check-in",
+          value: get_time_until_next_checkin_string(user.id),
           inline: false
         )
+
       else
         # row: networth and next checkin time
         # todo: display full networth (+ items value)
