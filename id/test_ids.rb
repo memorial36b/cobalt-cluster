@@ -217,16 +217,29 @@ module IDs
   WORD_ASSOCIATION_CHANNEL_ID = 753163837703979067
   # general_vc channel ID
   GENERAL_VC_CHANNEL_ID = 753163838068621403
+  # general_voice channel ID
+  GENERAL_VOICE_CHANNEL_ID = 753163838068621408
   # generally_vc channel ID
   GENERALLY_VC_CHANNEL_ID = 753163838068621404
+  # generally_voice channel ID
+  GENERALLY_VOICE_CHANNEL_ID = 753163838068621409
   # music_vc channel ID
   MUSIC_VC_CHANNEL_ID = 753163838068621405
+  # music_voice channel ID
+  MUSIC_VOICE_CHANNEL_ID = 753163838068621410
   # gaming_vc channel ID
   GAMING_VC_CHANNEL_ID = 753163838068621406
+  # gaming_voice channel ID
+  GAMING_VOICE_CHANNEL_ID = 753163838068621411
   # mod_vc channel ID
   MOD_VC_CHANNEL_ID = 753163838068621407
+  # mod_voice channel ID
+  MOD_VOICE_CHANNEL_ID = 753163838274273320
+  # afk_voice channel ID
+  AFK_VOICE_CHANNEL_ID = 753163838274273322
   # head_creator_hq channel ID (this is set to the moderation channel on the test server, though should be set to the channel with the same name on the main server)
   HEAD_CREATOR_HQ_CHANNEL_ID = 753163837057794176
+  # 
 
   # Other IDs
 
