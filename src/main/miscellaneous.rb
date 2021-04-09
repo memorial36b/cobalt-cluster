@@ -19,7 +19,7 @@ module Bot::Miscellaneous
   # corresponding text channel and makes its text channel visible to user
   voice_state_update do |event|
     # Skips if user is Bounce Lounge (the music bot)
-    next if event.user.role?(BOT_ROLE_ID)
+    next if event.user.id == BOUNCE_LOUNGE_ID
 
     # Unless user just left a voice channel or updated their voice status (e.g. muted, unmuted,
     # deafened, undeafened), delete permission overwrites for event user in all voice text channels
@@ -298,7 +298,7 @@ module Bot::Miscellaneous
 
     # Skips if message has not reached required cam reacts to be quoted, if it is within a blacklisted channel,
     # if it has been quoted already, or if another message has been quoted within the last 30 seconds already
-    next if camera_reaction.count < (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 5) ||
+    next if camera_reaction.count < (YAML.load_data!("#{MISC_DATA_PATH}/qb_camera_count.yml")[event.channel.id] || 4) ||
             QUOTEBOARD_BLACKLIST.include?(event.channel.id) ||
             QUOTED_MESSAGES[id: event.message.id] ||
             qb_recent

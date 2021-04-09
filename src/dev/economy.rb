@@ -610,12 +610,12 @@ module Bot::Economy
           value: "#{-perma_balance} Starbucks",
           inline: true
         )
-      #else
-        #embed.add_field(
-          #name: "Non-Expiring",
-          #value: "#{perma_balance} Starbucks",
-          #inline: true
-        #)
+      else
+        embed.add_field(
+          name: "Non-Expiring",
+          value: "#{perma_balance} Starbucks",
+          inline: true
+        )
       end
 
       # ROW 2: Time until next checkin

@@ -27,13 +27,10 @@ module Bot::EconomyPassive
     PARTNERS_CHANNEL_ID,
     QUOTEBOARD_CHANNEL_ID,
     BOT_COMMANDS_CHANNEL_ID,
-    MUSIC_VC_CHANNEL_ID,
-    MOD_VC_CHANNEL_ID,
 
     # voice
-    MUSIC_VOICE_CHANNEL_ID,
-    MOD_VOICE_CHANNEL_ID
-    
+    MOD_VC_CHANNEL_ID,
+    MUSIC_VC_CHANNEL_ID
   ].freeze
 
   # The minimum number of people actively voice chat required to earn points.
