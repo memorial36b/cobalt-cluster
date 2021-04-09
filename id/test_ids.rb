@@ -10,7 +10,7 @@ module IDs
   # Cobalt's Artist (SkeletonOcelot) user ID
   COBALT_ART_ID = 354504581176098816
   # Bounce Lounge Bot user ID
-  BOUNCE_LOUNGE_ID = 829751679091212368
+  BOUNCE_LOUNGE_ID = 309018929584537602
   
   # Role IDs
 
