@@ -19,7 +19,7 @@ module Bot::Miscellaneous
   # corresponding text channel and makes its text channel visible to user
   voice_state_update do |event|
     # Skips if user is Bounce Lounge (the music bot)
-    next if event.user.id == BOUNCE_LOUNGE_ID
+    next if event.user.role?(BOT_ROLE_ID)
 
     # Unless user just left a voice channel or updated their voice status (e.g. muted, unmuted,
     # deafened, undeafened), delete permission overwrites for event user in all voice text channels
