@@ -699,7 +699,7 @@ module Bot::Help
           )
           
           embed.add_field(
-              name: "+report",
+              name: "+report [@username] [reason]",
               value: "Is another user causing a ruckus? Use +report to bring the issue to the server mods and admins. This command should be used in the channel where the issue is occuring"
           )
           
