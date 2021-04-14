@@ -1,27 +1,18 @@
-# cobalt-cluster: A Complete Rewrite of Cobalt Botterfly [WIP]
+# cobalt-cluster: A Complete Rewrite of Cobalt Butterfly
 
-This is a rewrite of Cobalt, the bot of the Discord server
-[Star vs. the Forces of Discord](https://discord.gg/svtfoe). It uses my [Cluster](https://github.com/410757864530-dead-salmonids/cluster) framework, along with some new hopefully-more-efficient
-coding practices that I didn't follow beforehand.
+Cobalt Butterfly is a multi-function custom bot developed for the Partnered Discord Server: [Star vs. the Forces of Discord](https://discord.gg/svtfoe). This iteration of Cobalt utilizes [hecksalmonids](https://github.com/hecksalmonids)’ [Cluster](https://github.com/410757864530-dead-salmonids/cluster) framework as well as [discordrb](https://github.com/shardlab/discordrb). Cobalt was originally developed and maintained by [hecksalmonids](https://github.com/hecksalmonids) up until September 2020 when [CorruptedPhazite](https://github.com/CorruptedPhazite) took over its development and maintenance. In January 2021 [invaderjon](https://github.com/invaderjon) joined the project spearheading development of the new Economy crystal and Auto-Updater. 
 
-It is currently still a work in progress -- any crystals (modules) that are complete are found in
-[the main branch](src/crystals/main), and any crystals that are unfinished (in progress or
-not started) are in [the dev branch](src/crystals/dev).
+## Crystals:
+Crystals that are currently in use on the main server will be located in [/src/main](https://github.com/hecksalmonids/cobalt-cluster/tree/release/src/main) in the [release](https://github.com/hecksalmonids/cobalt-cluster/tree/release) branch. These crystals currently are:
 
-Note: Because this is a very server specific Discord bot, the code hasn't been tested beyond syntax
-errors; after finishing the first version, more revisions may be needed.
+ - [Basic Commands](https://github.com/hecksalmonids/cobalt-cluster/blob/release/src/main/basic_commands.rb)
+ - [Beep Boop](https://github.com/hecksalmonids/cobalt-cluster/blob/release/src/main/beep_boop.rb)
+ - [Help](https://github.com/hecksalmonids/cobalt-cluster/blob/release/src/main/help.rb)
+ - [Miscellaneous](https://github.com/hecksalmonids/cobalt-cluster/blob/release/src/main/miscellaneous.rb)
+ - [Moderation](https://github.com/hecksalmonids/cobalt-cluster/blob/release/src/main/moderation.rb)
 
-You can find me on the SVTFOE server, I'm `410,757,864,530 DEAD SALMONIDS#0659`.
+Crystals that are currently under active development and are not available on the main server will be located in [/src/dev](https://github.com/hecksalmonids/cobalt-cluster/tree/master/src/dev) in either the [master](https://github.com/hecksalmonids/cobalt-cluster/tree/master) or [beta](https://github.com/hecksalmonids/cobalt-cluster/tree/beta) branch. These crystals currently are:
 
-## Current crystal progress
-
-### Finished
-
-+ BasicCommands
-+ Moderation
-+ Miscellaneous
-+ BeepBoop
-
-### In progress
-
-+ Economy (No ETA)
+ - [Custom Commands](https://github.com/hecksalmonids/cobalt-cluster/blob/master/src/dev/custom_commands.rb)
+ - [Economy](https://github.com/hecksalmonids/cobalt-cluster/blob/master/src/dev/economy.rb)
+ - [Economy Passive](https://github.com/hecksalmonids/cobalt-cluster/blob/master/src/dev/economy_passive.rb)
