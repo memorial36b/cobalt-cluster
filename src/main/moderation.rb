@@ -69,7 +69,7 @@ module Bot::Moderation
           )
         rescue StandardError => e
           puts "Exception raised when modifying a user's roles -- most likely user left the server"
-        end 
+        end
       end
     end
 
@@ -116,7 +116,7 @@ module Bot::Moderation
     POINTS.where(points: 0).delete
   end
 
-  
+
   # Master punish command; automatically decides punishment based on severity and existing points
   command :punish do |event, *args|
     # Breaks unless user is a moderator or HC, the user being punished is valid, and a reason is given
@@ -124,16 +124,16 @@ module Bot::Moderation
                   event.user.role?(HEAD_CREATOR_ROLE_ID)) &&
                  SERVER.get_user(args[0]) && # valid user
                  args.size >= 2 # reason
-    
+
     # Defines user and reason variables
     user = SERVER.get_user(args[0])
     reason = args[1..-1].join(' ')
-    
+
     # If user is a moderator with full punishment powers:
     if event.user.role?(MODERATOR_ROLE_ID)
       # Sends header
       Bot::BOT.send_message(
-        MODERATION_CHANNEL_CHANNEL_ID, 
+        MODERATION_CHANNEL_CHANNEL_ID,
         "#{event.user.mention}, **how many points would you like to add to user #{user.display_name} (#{user.distinct})? Guidelines as follows:**\n" +
         "**Minor:** 1-3 points\n" +
         "**Major:** 5-7 points\n" +
@@ -141,7 +141,7 @@ module Bot::Moderation
         "**Reply below with your value.** Respond with `cancel` to cancel."
       )
 
-      # Defines variable for points to be added to user; loops until value is valid point value, or 
+      # Defines variable for points to be added to user; loops until value is valid point value, or
       # nil if user wants to cancel
       added_points = loop do
         # Creates an await for a message from the event user in the event channel, and defines
@@ -172,18 +172,18 @@ module Bot::Moderation
     elsif event.user.role?(HEAD_CREATOR_ROLE_ID)
       # Header
       Bot::BOT.send_message(
-        HEAD_CREATOR_HQ_CHANNEL_ID, 
+        HEAD_CREATOR_HQ_CHANNEL_ID,
         "#{event.user.mention}, **how many points would you like to add to user #{user.display_name} (#{user.distinct})?**\n" +
         "You can add 1-3 points.\n" +
         "Respond with `cancel` to cancel."
       )
 
-      # Defines variable for points to be added to user; loops until value is valid point value, or 
+      # Defines variable for points to be added to user; loops until value is valid point value, or
       # nil if user wants to cancel
       added_points = loop do
         await_event = event.user.await!(channel: HEAD_CREATOR_HQ_CHANNEL_ID)
         await_content = await_event.message.content
-        
+
         # If user wants to cancel punishment:
         if await_content.downcase == 'cancel'
           break nil
@@ -316,7 +316,7 @@ module Bot::Moderation
 
           # Sends notification message to moderation channel
           Bot::BOT.send_message(
-              MODERATION_CHANNEL_CHANNEL_ID, 
+              MODERATION_CHANNEL_CHANNEL_ID,
               "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ROLE_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
           )
         end
@@ -395,7 +395,7 @@ module Bot::Moderation
 
           # Sends notification message to moderation channel
           Bot::BOT.send_message(
-              MODERATION_CHANNEL_CHANNEL_ID, 
+              MODERATION_CHANNEL_CHANNEL_ID,
               "@everyone **User #{user.mention} has been #{event.user.role?(ADMINISTRATOR_ROLE_ID) ? 'banned' : 'put on trial for ban'} after receiving 20 points.**"
           )
         end
@@ -478,7 +478,7 @@ module Bot::Moderation
   end
 
 
-  # Command to check points; usable by user in #bot_commands for their own points 
+  # Command to check points; usable by user in #bot_commands for their own points
   # or staff in #moderation_channel to get anyone's
   command :points do |event, *args|
     # If user is using command in #bot_commands:
@@ -592,7 +592,7 @@ module Bot::Moderation
           # Sends embed containing this info
           event.send_embed do |embed|
             embed.author = {
-              name: "POINTS | User: #{user.display_name} (#{user.distinct})", 
+              name: "POINTS | User: #{user.display_name} (#{user.distinct})",
               icon_url: user.avatar_url
             }
             embed.description = "**Points:** #{points}\n" +
@@ -626,7 +626,7 @@ module Bot::Moderation
       # Breaks if no reason is given
       break unless args.size >= 3
 
-      # Defines channel variable, reason for mute, and the Member role's 
+      # Defines channel variable, reason for mute, and the Member role's
       # permissions in the event channel
       channel = event.channel
       reason = args[2..-1].join(' ')
@@ -643,7 +643,7 @@ module Bot::Moderation
       # Sends confirmation message to event channel
       channel.send_message(
         "**Muted channel for #{args[1].scan(/[1-9]\d*[smhd]/i).join}.**\n" +
-        "**Reason:** #{reason}", 
+        "**Reason:** #{reason}",
         false, # tts
         {image: {url: 'https://cdn.discordapp.com/attachments/753161182441111624/754969825981366312/cobalt_banhammer.gif'}}
       )
@@ -651,7 +651,7 @@ module Bot::Moderation
       # Sends log message to log channel
       Bot::BOT.send_message(
         COBALT_REPORT_CHANNEL_ID,
-        ":x: **CHANNEL MUTE**\n" + 
+        ":x: **CHANNEL MUTE**\n" +
         "**#{event.user.distinct}:** Muted #{channel.mention} for **#{args[1].to_sec.to_dhms}**.\n" +
         "**Reason:** #{reason}"
       )
@@ -681,13 +681,13 @@ module Bot::Moderation
         # Sends confirmation message
         channel.send_message('**Channel unmuted.**') # confirmation message sent to event channel
       end
-    
+
     # If user is muting another user:
     else
       # Breaks if mute length is 10 minutes or higher without a given reason
-      break if args[1].to_sec >= 600 && 
+      break if args[1].to_sec >= 600 &&
                args.size < 3 # reason
-      
+
       # Defines the length of the mute in seconds, the user being muted, the reason for mute,
       # and an array of IDs of opt-in role that the user has
       mute_length = args[1].to_sec
@@ -717,12 +717,12 @@ module Bot::Moderation
         # Sends confirmation message and simpler log message (no identifier or embed)
         event.respond( # confirmation message sent to event channel
           "**Muted #{user.display_name} for #{args[1].to_sec.to_dhms}.**\n" +
-          "**Reason:** #{reason}", 
+          "**Reason:** #{reason}",
           false, # tts
           {image: {url: 'https://cdn.discordapp.com/attachments/753161182441111624/754969825981366312/cobalt_banhammer.gif'}}
         )
         Bot::BOT.send_message( # log message
-          COBALT_REPORT_CHANNEL_ID, 
+          COBALT_REPORT_CHANNEL_ID,
           ":mute: **MUTE**\n" +
           "**#{event.user.distinct}: Muted #{user.mention} for #{args[1].to_sec.to_dhms}** in channel #{event.channel.mention}\n" +
           "**Reason:** #{reason}"
@@ -735,17 +735,17 @@ module Bot::Moderation
         event.respond( # confirmation message with identifier sent to event channel
           "• **ID**`#{identifier}`\n" +
           "**Muted #{user.display_name} for #{args[1].to_sec.to_dhms}.**\n" +
-          "**Reason:** #{reason}", 
+          "**Reason:** #{reason}",
           false, # tts
           {image: {url: 'https://cdn.discordapp.com/attachments/753161182441111624/754969825981366312/cobalt_banhammer.gif'}}
         )
         Bot::BOT.send_message( # full log message with identifier
-          COBALT_REPORT_CHANNEL_ID, 
-          "**ID:** `#{identifier}`", 
+          COBALT_REPORT_CHANNEL_ID,
+          "**ID:** `#{identifier}`",
           false, # tts
           {
             author: {
-              name: "MUTE | User: #{user.display_name} (#{user.distinct})", 
+              name: "MUTE | User: #{user.display_name} (#{user.distinct})",
               icon_url: user.avatar_url
             },
             description: "**#{user.mention} muted for #{args[1].to_sec.to_dhms}** in channel #{event.channel.mention}.\n" +
@@ -784,7 +784,7 @@ module Bot::Moderation
           )
         rescue StandardError => e
           puts "Exception raised when modifying a user's roles -- most likely user left the server"
-        end 
+        end
       end
     end
 
@@ -799,7 +799,7 @@ module Bot::Moderation
                  args.size >= 1 &&
                  ((user = SERVER.get_user(args.join(' '))) ||
                   args[0] == 'channel')
-    
+
     # If user is unmuting a channel:
     if args[0] == 'channel' # preferred to unmuting user, so users can't nickname themselves 'channel'
       # Breaks unless the channel is muted
@@ -822,7 +822,7 @@ module Bot::Moderation
 
       # Sends confirmation message
       event.channel.send_message('**Channel unmuted.**') # confirmation message sent to event channel
-    
+
     # If user is unmuting another user:
     else
       # Breaks unless the user is muted
@@ -836,7 +836,7 @@ module Bot::Moderation
 
       # Defines array of IDs of user's opt-in roles
       opt_in_roles = MUTED_USERS[id: user.id][:opt_in_roles].split(',')
-      
+
       # Unschedules unmute job and deletes user entry from data file and job hash
       mute_jobs[user.id].unschedule # unschedules unmute job
       MUTED_USERS.where(id: user.id).delete
@@ -864,13 +864,13 @@ module Bot::Moderation
       # If no users are muted, send notification message
       if MUTED_USERS.empty?
         event.respond 'No users are muted.'
-      
+
       # If users are muted:
       else
         # Sends embed displaying info of all muted users
         event.send_embed do |embed|
           embed.author = {
-            name: 'Muted: Users', 
+            name: 'Muted: Users',
             icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
           }
           embed.color = 0xFFD700
@@ -884,14 +884,14 @@ module Bot::Moderation
             # Adds field to embed with the muted user and their info
             embed.add_field(
               name: user ? user.distinct : "ID: #{entry[:id]}",
-              value: "**Time remaining:** #{time_remaining}\n" + 
+              value: "**Time remaining:** #{time_remaining}\n" +
                      "**Reason:** #{entry[:reason]}",
               inline: true
             )
           end
         end
       end
-    
+
     # If user wants to display muted channels:
     elsif arg.downcase == 'channels'
       # If no channels are muted, send notification message
@@ -902,7 +902,7 @@ module Bot::Moderation
       else
         event.send_embed do |embed|
           embed.author = {
-            name: 'Muted: Users', 
+            name: 'Muted: Users',
             icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
           }
           embed.color = 0xFFD700
@@ -938,7 +938,7 @@ module Bot::Moderation
                   head_creator_punishing.include?(event.user.id)) &&
                  args.size >= 2 &&
                  (user = SERVER.get_user(args[0]))
-    
+
     # Defines reason variable
     reason = args[1..-1].join(' ')
 
@@ -952,7 +952,7 @@ module Bot::Moderation
     # Unschedules mute job and deletes from hash if user is currently muted
     if MUTED_USERS[id: user.id]
       mute_jobs[user.id].unschedule
-      mute_jobs.delete(user.id)  
+      mute_jobs.delete(user.id)
     end
 
     # If user is an administrator, and can immediately ban:
@@ -970,17 +970,17 @@ module Bot::Moderation
       # Sends confirmation message with identifier to event channel
       identifier = SecureRandom.hex(4)
       event.send_message(
-        "• **ID** `#{identifier}`\n" + 
+        "• **ID** `#{identifier}`\n" +
         "**User #{user.distinct} banned from server.**\n" +
-        "• **Reason:** #{reason}", 
+        "• **Reason:** #{reason}",
         false, # tts
         {image: {url: 'https://cdn.discordapp.com/attachments/753161182441111624/754969825981366312/cobalt_banhammer.gif'}}
       )
 
       # Sends log message with identifier to log channel
       Bot::BOT.send_message(
-        COBALT_REPORT_CHANNEL_ID, 
-        "**ID:** `#{identifier}`", 
+        COBALT_REPORT_CHANNEL_ID,
+        "**ID:** `#{identifier}`",
         false, # tts
         {
           author: {
@@ -1001,7 +1001,7 @@ module Bot::Moderation
            head_creator_punishing.include?(event.user.id))
       # Defines array of IDs of user's opt-in roles
       opt_in_roles = OPT_IN_ROLES.select { |id| user.role?(id) }
-      
+
       # Mutes user by adding Muted role and removing Member and opt-in roles
       user.modify_roles(
         MUTED_ROLE_ID, # add Muted
@@ -1030,7 +1030,7 @@ module Bot::Moderation
 
       # Sends log message with identifier to log channel and adds approve/deny buttons
       msg = Bot::BOT.send_message(
-        COBALT_REPORT_CHANNEL_ID, 
+        COBALT_REPORT_CHANNEL_ID,
         "@here **| ID:** `#{identifier}`",
         false, # tts
         {
@@ -1050,7 +1050,7 @@ module Bot::Moderation
       msg.react [0x2705].pack('U*') # react with check mark (approval button)
       msg.react [0x274C].pack('U*') # react with x (rejection button)
 
-      # Creates await for button presses, and defines variables containing whether ban was approved 
+      # Creates await for button presses, and defines variables containing whether ban was approved
       # or denied and which user approved/denied it
       approval, second_user = loop do
         # Creates reaction await which detects when one of the buttons has been pressed
@@ -1064,7 +1064,7 @@ module Bot::Moderation
         if await_event.emoji.name == [0x2705].pack('U*') &&
           await_event.user != event.user
           break [true, await_event.user]
-        
+
         # If rejection button is pressed and the user who reacted is either the same user
         # who initiated the trial or an administrator:
         elsif await_event.emoji.name == [0x274C].pack('U*') &&
@@ -1105,7 +1105,7 @@ module Bot::Moderation
             color: 0xFFD700
           }
         )
-      
+
       # If the ban was rejected:
       else
         # Unmutes user by removing Muted role and re-adding Member and opt-in roles
@@ -1191,14 +1191,14 @@ module Bot::Moderation
 
     # Sends log message to log channel
     Bot::BOT.send_message(
-      COBALT_REPORT_CHANNEL_ID, 
-      ":no_entry: **BLOCK**\n" + 
+      COBALT_REPORT_CHANNEL_ID,
+      ":no_entry: **BLOCK**\n" +
       "**#{event.user.distinct}: Blocked #{user.mention} from channel #{event.channel.mention}**.\n" +
       "**Reason:** #{reason}\n" +
       "\n" +
       "**2** points have been added to this user."
     )
-    
+
     nil # returns nil so command doesn't send an extra message
   end
 
@@ -1210,7 +1210,7 @@ module Bot::Moderation
                   event.user.role?(HEAD_CREATOR_ROLE_ID)) &&
                  (user = SERVER.get_user(args.join(' '))) &&
                  CHANNEL_BLOCKS[channel_id: event.channel.id, user_id: user.id]
-    
+
     # Defines user variable and gets user's permissions in the event channel
     permissions = event.channel.permission_overwrites[user.id]
 
@@ -1233,7 +1233,7 @@ module Bot::Moderation
 
     # Sends log message to log channel
     Bot::BOT.send_message(
-      COBALT_REPORT_CHANNEL_ID, 
+      COBALT_REPORT_CHANNEL_ID,
       ":o: **UNBLOCK**\n" + "
       **#{event.user.distinct}: Unblocked #{user.mention} from channel #{event.channel.mention}**"
     )
@@ -1250,7 +1250,7 @@ module Bot::Moderation
     # Sends embed to channel displaying blocks
     event.send_embed do |embed|
       embed.author = {
-        name: 'Channel Blocks', 
+        name: 'Channel Blocks',
         icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
       }
 
@@ -1284,7 +1284,7 @@ module Bot::Moderation
     if MUTED_USERS[id: user.id]
       user.add_role(MUTED_ROLE_ID)
     end
-    
+
     # Denies read message perms for channels user is blocked from, if any
     if CHANNEL_BLOCKS.all.any? { |e| e[:blocked_users].include? user.id.to_s }
       # Defines array containing the database entries of all channels user is blocked from,
@@ -1323,7 +1323,7 @@ module Bot::Moderation
   message do |event|
     # Breaks unless the event comes from SVTFOD (i.e. a user has joined SVTFOD)
     next unless event.server == SERVER
-    
+
     # Skips if message is in #moderation_channel, user is moderator, user is Owner, or user has COBALT'S MOMMY Role (this exception only exists so it's possible to promote the test server in the future)
     next if event.channel.id == MODERATION_CHANNEL_CHANNEL_ID || event.user.role?(COBALT_MOMMY_ROLE_ID) || event.user.id == OWNER_ID || event.user.role?(COBALT_MOMMY_ROLE_ID)
 
