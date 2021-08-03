@@ -16,7 +16,7 @@ id:
 # ■ REQUIRED ■ Put the bot account's token here.
 token:
 
-# ■ REQUIRED ■ Put the bot's command prefix within the brackets here. 
+# ■ REQUIRED ■ Put the bot's command prefix within the brackets here.
 # For multiple prefixes, separate each prefix with commas.
 # Surround your prefix with single ('') quotes if it contains any of the following characters:
 # : { } [ ] , ' & * ? | - < > = ! % @ \ #
