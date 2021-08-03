@@ -2,7 +2,7 @@
 module IDs
   # Cobalt's Dev user ID - Eval Command
   COBALT_DEV_ID_EVAL = [99567651944165376]
-  
+
   # Owner's (Geechan) user ID
   OWNER_ID = 108144520553578496
   # Cobalt's Dev (CorruptedPhazite) user ID
@@ -11,7 +11,7 @@ module IDs
   COBALT_ART_ID = 354504581176098816
   # Bounce Lounge Bot user ID
   BOUNCE_LOUNGE_ID = 829751679091212368
-  
+
   # Role IDs
 
   # ⚖️ Administrators role ID
@@ -150,7 +150,7 @@ module IDs
   COBALT_SQUIRE_ROLE_ID = 755020794706264215
   # SPECIAL CODE ONLY: INVALID ROLE ID
   INVALID_ROLE_ID = -1
-  
+
   # Channel IDs
 
   # read_me_first channel ID
@@ -239,13 +239,13 @@ module IDs
   AFK_VOICE_CHANNEL_ID = 753163838274273322
   # head_creator_hq channel ID (this is set to the moderation channel on the test server, though should be set to the channel with the same name on the main server)
   HEAD_CREATOR_HQ_CHANNEL_ID = 753163837057794176
-  # 
+  #
 
   # Other IDs
 
   # Role button message ID (reaction roles in #read_me_first)
   ROLE_MESSAGE_ID = 753317076260880416
-  
+
   # Voice channel IDs with their respective text channel IDs; in the format {voice => text}
   VOICE_TEXT_CHANNELS = {
     753163838068621408 => 753163838068621403, # General
@@ -253,7 +253,7 @@ module IDs
     753163838068621410 => 753163838068621405, # Music
     753163838068621411 => 753163838068621406, # Gaming
   }.freeze
-  
+
   # IDs of channels blacklisted from #quoteboard
   QUOTEBOARD_BLACKLIST = [
     307726630061735936, #news

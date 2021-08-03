@@ -4,7 +4,7 @@ require 'sequel'
 require 'rufus-scheduler'
 
 # determine which ids file to use
-if File.exists?("#{__dir__}/../id/ids.rb")
+if File.exist?("#{__dir__}/../id/ids.rb")
   require_relative '../id/ids.rb'
 else # fall back on test id set
   require_relative '../id/test_ids.rb'
@@ -18,7 +18,7 @@ module Constants include IDs
     # StarDis server constant
     SERVER = Bot::BOT.server(753163835862417480)
   end
-  
+
   # See IDs for hardcoded id list
 
   # The test server's test channel.
@@ -57,7 +57,7 @@ class DiscordUser
     else
       user = Constants::SERVER.member(id)
     end
-    
+
     # TODO: check what happens if they leave the server!
     raise ArgumentError, "Invalid user id specified!" unless not user.nil?
     @user = user
@@ -100,7 +100,7 @@ class DiscordUser
   end
 
   # Check if the user has a server nickname.
-  # @return [bool] has nickname? 
+  # @return [bool] has nickname?
   def nickname?
     return @user.nickname != nil && @user.nickname != ""
   end
@@ -116,7 +116,7 @@ class DiscordUser
   # @return [bool] has role?
   def role?(role_id)
     return @user.role?(role_id)
-  end 
+  end
 
   # Get the discord user object.
   # @return [Discordrb::User] user object
@@ -149,7 +149,7 @@ module Convenience
   # @return [String]  singular form (i.e. squid) if int is 1, plural form (8 squids) otherwise
   def plural_every(int, str)
     return "#{int} #{str}s" unless int == 1
-    "#{str}"
+    str.to_s
   end
   alias_method(:ple, :plural_every)
 
@@ -169,7 +169,7 @@ module Convenience
   # When equal, a is selected.
   # @param [Comparable] a first value
   # @param [Comparable] b second value
-  # @return min of a and b 
+  # @return min of a and b
   def min_of(a, b)
     return a <= b ? a : b
   end
@@ -189,7 +189,7 @@ module Convenience
   # @param [Comparable] a value to clamp
   # @param [Comparable] b min value
   # @param [Comparable] c max value (inclusive)
-  # @return [Comparable] a clamped between b and c 
+  # @return [Comparable] a clamped between b and c
   def clamp_of(a, b, c)
     return max(min(a, c), b)
   end
@@ -285,11 +285,11 @@ module Convenience
     total_arg_count = name_types.count
     (args.count...total_arg_count).each do |n|
       default_idx = n - req_count
-      
+
       def_value = opt_defaults[default_idx]
       arg_name  = name_types[n][0]
       arg_type  = name_types[n][1]
-      
+
       # developer error if not valid, not directly assigned to catch errors
       parsed_dict[arg_name] = InitType(arg_type, def_value)
       raise ArgumentError, "Invalid default provided for: '" + arg_name + "'" unless not(parsed_dict[arg_name].nil?)
