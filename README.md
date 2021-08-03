@@ -1,5 +1,5 @@
 # cobalt-cluster: A Complete Rewrite of Cobalt Butterfly
-
+[![CodeFactor](https://www.codefactor.io/repository/github/hecksalmonids/cobalt-cluster/badge)](https://www.codefactor.io/repository/github/hecksalmonids/cobalt-cluster)
 Cobalt Butterfly is a multi-function custom bot developed for the Partnered Discord Server: [Star vs. the Forces of Discord](https://discord.gg/svtfoe). This iteration of Cobalt utilizes [hecksalmonids](https://github.com/hecksalmonids)’ [Cluster](https://github.com/410757864530-dead-salmonids/cluster) framework built on top of [discordrb](https://github.com/shardlab/discordrb). Cobalt was originally developed and maintained by [hecksalmonids](https://github.com/hecksalmonids) up until September 2020 when [CorruptedPhazite](https://github.com/CorruptedPhazite) took over its development and maintenance. In January 2021 [invaderjon](https://github.com/invaderjon) joined the project spearheading development of the new Economy crystal and Auto-Updater. 
 
 ## Crystals:
