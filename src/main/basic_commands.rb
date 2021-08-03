@@ -18,7 +18,7 @@ module Bot::BasicCommands
   # Build Version command - Should be in this format: Build MM/DD/YYYY - Revision X (revision number should start at 0)
   command :build do |event|
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.role?(COBALT_MOMMY_ROLE_ID)
-    
+
     # Checking various parameters about the current local and remote instance of Cobalt. err and status are not used but are required to keep the output clean. Refer to https://git-scm.com/docs/git-show for documentation on --format. strip! removes the preceding and trailing whitespace.
 
     commit_hash, err, status = Open3.capture3("git show --quiet --format=format:%h")
@@ -37,12 +37,12 @@ module Bot::BasicCommands
     last_pull_attempted.strip!
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
-    
+
     # Check to see if any generated files exist in /src/ These generated files indicate what mode Cobalt is being run on as well as if the auto-updater script is present and being utilized. Mode indicators are deleted & generated in Rakefile. Auto-updater indicators are generated in the auto-updater script and deleted only when the +exit command is used. Also checks which crystals should be loaded per the run mode
 
     if File.exist? 'Main.txt'
       run_mode = File.basename("Main.txt", ".txt")
-      active_crystals = Dir["../src/main/*.rb"]        
+      active_crystals = Dir["../src/main/*.rb"]
     elsif File.exist? 'Dev.txt'
       run_mode = File.basename("Dev.txt", ".txt")
       active_crystals_a1 = Dir["../src/dev/*.rb"]
@@ -56,7 +56,7 @@ module Bot::BasicCommands
       active_crystals = active_crystals_a1 + active_crystals_a2 + active_crystals_a3
 
     end
-    
+
     if File.exist? "Updater-Enabled.txt"
       auto_updater_enabled = "Yes"
     else
@@ -65,7 +65,7 @@ module Bot::BasicCommands
 
     # Checks to see if Update_Check_Frequency.txt exists in /scr/ as well as reading the contents of the file. This file is generated via the auto-updater script at startup and is only deleted if +exit is used
 
-    if File.exists? "Update_Check_Frequency.txt"
+    if File.exist? "Update_Check_Frequency.txt"
       file = File.open("Update_Check_Frequency.txt")
       auto_updater_frequency = "#{file.read} Minute(s)"
     else
@@ -73,11 +73,11 @@ module Bot::BasicCommands
     end
 
     # Sends an embed with human-readable build and instance information. While most fields are present, some haven't been implemented yet and will be blank
-    
+
     event.send_embed do |embed|
-          
+
       embed.color = 0x65DDB7
-      
+
       embed.author = {
           name: "Current Cobalt Build Info",
           url: "https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch}",
@@ -85,7 +85,7 @@ module Bot::BasicCommands
       }
       embed.thumbnail = {
           url: "https://cdn.discordapp.com/attachments/804750275793518603/819294692608442418/cobalt_icon_2.png"}
-      
+
       embed.add_field(
           name: "Parameters",
           value: "Repo: [hecksalmonids/cobalt-cluster](#{remote_repo_url})
@@ -94,7 +94,7 @@ module Bot::BasicCommands
                   Auto-Updater Present: #{auto_updater_enabled}
                   Crystals Loaded: \n```#{active_crystals}```"
       )
-      
+
       embed.add_field(
           name: "Current Version",
           value: "Commit: [#{commit_hash}](https://github.com/hecksalmonids/cobalt-cluster/commit/#{commit_hash_full})
