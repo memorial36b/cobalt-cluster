@@ -38,7 +38,7 @@ module Bot::CustomCommands
   extend Discordrb::EventContainer
   extend Convenience
   include Constants
-    
+
   # User created custom commands
   # { command_name, owner_user_id, item_entry_id, command_content }
   USER_CUSTOM_COMMANDS = DB[:econ_custom_commands]
@@ -53,9 +53,9 @@ module Bot::CustomCommands
       time_span: 2  # seconds
   )
 
-  # Converts command hashes to paginator fields. 
+  # Converts command hashes to paginator fields.
   COMMAND_HASH_TO_PAGINATOR_FIELD_LAMBDA = lambda do |hash|
-    field_name  = hash[:command_name] 
+    field_name  = hash[:command_name]
     field_value = hash[:command_content]
 
     field_name = "_ERROR_" if field_name.nil? or field_name.empty?
@@ -121,7 +121,7 @@ module Bot::CustomCommands
   def custom_command_name_max_length
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['custom_command_name_max_length']
-  end 
+  end
 
   # Get max custom command content length.
   # @return [Integer] max custom command content length
@@ -150,7 +150,7 @@ module Bot::CustomCommands
     return false if command_name =~ /\s/ # no spaces allowed
     return false if USER_CUSTOM_COMMANDS.where{Sequel.&({command_name: command_name}, {owner_user_id: owner_user_id})}.count() > 0
     return false unless Bot::BOT.commands[command_name.to_sym] == nil
-    
+
     # will raise error on invalid content
     USER_CUSTOM_COMMANDS << { command_name: command_name, owner_user_id: owner_user_id, item_entry_id: item_entry_id, command_content: command_content }
     return true

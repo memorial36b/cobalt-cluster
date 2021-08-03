@@ -11,10 +11,10 @@ module Bot::Miscellaneous
   QUOTED_MESSAGES = DB[:quoted_messages]
   # Path to crystal's data folder
   MISC_DATA_PATH = "#{Bot::DATA_PATH}/miscellaneous".freeze
-  
+
   # Tracker for whether a message has been quoted to #quoteboard recently
   qb_recent = false
-  
+
   # Voice text channel management; detects when user has joined a voice channel that has a
   # corresponding text channel and makes its text channel visible to user
   voice_state_update do |event|
@@ -27,7 +27,7 @@ module Bot::Miscellaneous
       VOICE_TEXT_CHANNELS.values.each { |id| Bot::BOT.channel(id).delete_overwrite(event.user.id) }
     end
 
-    # If user has just joined/switched to a voice channel that has a corresponding text channel, 
+    # If user has just joined/switched to a voice channel that has a corresponding text channel,
     # allows read message perms for the corresponding text channel and sends temporary notification
     # message in the channel
     if event.channel &&
@@ -63,7 +63,7 @@ module Bot::Miscellaneous
 
   # Makes bot say something
   command :say do |event|
-    # Breaks unless user is Owner, Cobalt's Dev, Cobalt's Artist, or Administrator 
+    # Breaks unless user is Owner, Cobalt's Dev, Cobalt's Artist, or Administrator
     break unless event.user.id == OWNER_ID || COBALT_DEV_ID.include?(event.user.id) || event.user.id == COBALT_ART_ID || event.user.role?(ADMINISTRATOR_ROLE_ID)
 
     # Deletes event message and responds with the content of it, deleting the command call
@@ -128,7 +128,7 @@ module Bot::Miscellaneous
     when '🗣' # discord has changed the emoji, keep the old ones around for safety
       event.user.remove_role(DEBATE_ROLE_ID)
     when '🗣️'
-      event.user.remove_role(DEBATE_ROLE_ID)      
+      event.user.remove_role(DEBATE_ROLE_ID)
     when '🎲'
       event.user.remove_role(SANDBOX_ROLE_ID)
     end
@@ -138,7 +138,7 @@ module Bot::Miscellaneous
   command(:serverinfo, channels: %w(#bot_commands #moderation_channel)) do |event|
     # Sends embed containing server info
     event.send_embed do |embed|
-      
+
       embed.author = {
           name: "SERVER: #{SERVER.name}",
           icon_url: 'https://cdn.discordapp.com/attachments/330586271116165120/427435169826471936/glossaryck_icon.png'
@@ -312,15 +312,15 @@ module Bot::Miscellaneous
           name: "#{event.message.author.display_name} (#{event.message.author.distinct})",
           icon_url: event.message.author.avatar_url
       }
-      
+
       content = event.message.content.nil? ? "" : event.message.content
-      
+
       # Add embedded attachment if original contains one
       unless event.message.attachments == []
         # we can only use the first attachment
         attachment = event.message.attachments[0]
 
-        isimage = ( attachment.url =~ /.*(.png|.gif|.jpg|.jpeg|.webp)/ ) 
+        isimage = ( attachment.url =~ /.*(.png|.gif|.jpg|.jpeg|.webp)/ )
         embed.url = attachment.url
         if isimage # custom method because attachment.image? returns true on videos!
           embed.image = Discordrb::Webhooks::EmbedImage.new(url: attachment.url)
@@ -379,7 +379,7 @@ module Bot::Miscellaneous
   # Evaluates Ruby code
   command :eval do |event|
     # Breaks unless user is Owner or Dev
-    break unless event.user.id == OWNER_ID || COBALT_DEV_ID_EVAL.include?(event.user.id) 
+    break unless event.user.id == OWNER_ID || COBALT_DEV_ID_EVAL.include?(event.user.id)
     begin
       "**Returns:** `#{eval event.message.content.sub('+eval ', '')}`"
     rescue => e

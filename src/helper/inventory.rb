@@ -94,7 +94,7 @@ module Bot::Inventory
     item_id_name = item_name + "_id"
     return catalog[item_id_name]
   end
-  
+
   # Get the item's unique id from the name.
   # @param [Integer] item_id The item's unique id.
   # @return [Integer] item type id
@@ -140,16 +140,16 @@ module Bot::Inventory
   # @param [Integer] item_type item type
   # @return [String] item type ui name or nil if not found
   def get_item_type_ui_name(item_type)
-    return catalog[item_type] 
+    return catalog[item_type]
   end
 
   # Get an item's ui name from a the id.
   # @param [Integer] item_id item id
-  # @return [String] item name or nil if not found 
+  # @return [String] item name or nil if not found
   def get_item_ui_name_from_id(item_id)
     return catalog[item_id]
   end
-  
+
   # Get the cost to renew an item type.
   # @param [Integer] item_type item type
   # @return [Integer] The cost to renew or nil if it doesn't expire.
@@ -215,7 +215,7 @@ module Bot::Inventory
 
     return InventoryItem.new(item)
   end
-  
+
   # Add an item to the user's inventory by name.
   # @param [Integer] user_id    user id
   # @param [String]  item_name  name of the item in catalogue.yml
@@ -266,7 +266,7 @@ module Bot::Inventory
 
     items = items.all
     inventory = []
-    
+
     items.each do |item|
       inventory.push(InventoryItem.new(item))
     end

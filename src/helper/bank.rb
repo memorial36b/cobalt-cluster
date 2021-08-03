@@ -13,11 +13,11 @@ module Bot::Bank
   # The maximum number of days old a temp balance before it's considered in risk.
   # Note: Count starts from the past monday.
   MAX_BALANCE_AGE_SAFE_DAYS = MAX_BALANCE_AGE_DAYS - 7
-  
+
   # Permanent user balances, one entry per user, negative => fines
   # { user_id, amount }
   USER_PERMA_BALANCES = DB[:econ_user_perma_balances]
-  
+
   # User balances table, these balances expire on a rolling basis
   # { transaction_id, user_id, timestamp, amount }
   USER_BALANCES = DB[:econ_user_balances]
@@ -28,7 +28,7 @@ module Bot::Bank
   module_function
 
   # Check for and remove any and all expired balances.
-  # @param [Integer] user_id user_id 
+  # @param [Integer] user_id user_id
   def clean_account(user_id)
     past_monday = Bot::Timezone::user_past_monday(user_id)
     last_valid_timestamp = (past_monday - MAX_BALANCE_AGE_DAYS).to_time.to_i
@@ -42,9 +42,9 @@ module Bot::Bank
   # @param [Integer] user_id user id
   # @return [Integer] User's total balance.
   def get_balance(user_id)
-    sql = 
+    sql =
       "SELECT user_id, SUM(amount) total\n" +
-      "FROM\n" + 
+      "FROM\n" +
       "(\n" +
       "  SELECT user_id, amount FROM econ_user_balances\n" +
       "  WHERE user_id = #{user_id}\n" +
@@ -70,7 +70,7 @@ module Bot::Bank
   def get_at_risk_balance(user_id)
     past_monday = Bot::Timezone::user_past_monday(user_id)
     last_safe_timestamp = (past_monday - MAX_BALANCE_AGE_SAFE_DAYS).to_time.to_i
-    
+
     user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (timestamp < last_safe_timestamp))}
     at_risk_balance = user_transactions.sum(:amount)
     return at_risk_balance != nil ? at_risk_balance : 0
@@ -86,7 +86,7 @@ module Bot::Bank
     end
     return balance
   end
-  
+
   # Deposit money to perma if fines exist then to temp balances, cannot be negative!
   # @param [Integer] user_id user id
   # @param [Integer] amount  non-negative amount to deposit
@@ -140,7 +140,7 @@ module Bot::Bank
 
     # iterate through balances and remove until amount is withdrawn
     user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (amount > 0))}.order(Sequel.asc(:timestamp))
-    while amount > 0 and user_transactions.count > 0 do
+    while amount > 0 and user_transactions.count > 0
       transaction = user_transactions.first
       transaction_id = transaction[:transaction_id]
       old_amount = transaction[:amount]
