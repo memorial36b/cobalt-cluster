@@ -26,7 +26,7 @@ module Bot::Economy
 
   # How often the raffle occurs.
   # This is a constant because it needs to be consumed by rufus scheduler...
-  RAFFLE_FREQUENCY = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")['raffle_frequency'] 
+  RAFFLE_FREQUENCY = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")['raffle_frequency']
 
   # Limits the number of tags used per second
   TAG_BUCKET = Bot::BOT.bucket(
