@@ -149,7 +149,7 @@ module Convenience
   # @return [String]  singular form (i.e. squid) if int is 1, plural form (8 squids) otherwise
   def plural_every(int, str)
     return "#{int} #{str}s" unless int == 1
-    str.to_s
+    "#{str}"
   end
   alias_method(:ple, :plural_every)
 
