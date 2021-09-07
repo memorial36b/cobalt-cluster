@@ -67,7 +67,7 @@ module Bot::Economy
     end
 
     if role_yaml_id == nil
-raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
+      raise RuntimeError, "Unexpected role ID received, there may be a new role that needs to be accounted for by checkin!"
     end
 
     return Bot::Bank::appraise_item(role_yaml_id)
