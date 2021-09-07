@@ -5,7 +5,7 @@
 #
 # Note: Always add new items in a category to the end of the list.
 #
-# THINGS THAT NEED TO UPDATE WHEN EDITING: 
+# THINGS THAT NEED TO UPDATE WHEN EDITING:
 # New item types requires updates to Rufus loop in Bot::Economy
 # Adding new roles requies updates to Bot::Economy::GetRoleForItemID and Bot::Economy::rentarole
 # Adding new items requires relavent command implementations/updates in Bot::Economy

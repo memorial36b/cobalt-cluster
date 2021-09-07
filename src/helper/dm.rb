@@ -35,7 +35,7 @@ module Bot::DM
     did_action = false
     if set_action?(user_id, action)
       yield
-      
+
       was_cleared = clear_action?(user_id, action)
       throw RuntimeError, "Failed to clear action!" unless was_cleared
 
@@ -48,7 +48,7 @@ module Bot::DM
   # Set the user's current action.
   # @param [Integer] user_id the user
   # @param [DMAction] action the action
-  # @return [bool] Could action be set? Fails if already set. 
+  # @return [bool] Could action be set? Fails if already set.
   def set_action?(user_id, action)
     was_set = false
     DATA_LOCK.synchronize do

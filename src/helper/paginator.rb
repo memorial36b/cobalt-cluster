@@ -4,7 +4,7 @@
 # are displayed as embeds with the results limited to the class
 # defined maximum.
 
-# Intermediate that Paginator consumes to create embed fields in the 
+# Intermediate that Paginator consumes to create embed fields in the
 # results page. This must be created by the lambda passed to Paginator.
 class PaginatorField
   # Create a paginator digestible field.
@@ -16,7 +16,7 @@ class PaginatorField
     @field_value = field_value
 
     raise ArgumentError, "Invalid field or name specified for PaginatorField!" if
-      @field_name  == nil || @field_name.empty?  || 
+      @field_name  == nil || @field_name.empty?  ||
       @field_value == nil || @field_value.empty?
   end
 
@@ -76,9 +76,9 @@ class Paginator
   # @param [Lambda]             row_hash_to_field_lambda A lambda that converts result table hashes to PaginatorFields.
   # @param [String]             initial_query            The initial query to start with, nil means no filter.
   # @param [Integer]            results_per_page         The number of results to display per page.
-  def initialize(channel, user_id, embed_author, embed_title, embed_description, 
-                 embed_thumbnail, dataset, query_column, force_queries_lowercase, 
-                 row_hash_to_field_lambda, initial_query = nil, 
+  def initialize(channel, user_id, embed_author, embed_title, embed_description,
+                 embed_thumbnail, dataset, query_column, force_queries_lowercase,
+                 row_hash_to_field_lambda, initial_query = nil,
                  results_per_page = DEFAULT_RESULTS_PER_PAGE)
     @channel                  = channel
     @user_id                  = user_id
@@ -90,27 +90,27 @@ class Paginator
     @query_column             = query_column
     @force_queries_lowercase  = force_queries_lowercase
     @row_hash_to_field_lambda = row_hash_to_field_lambda
-    @current_query            = initial_query 
+    @current_query            = initial_query
     @results_per_page         = min(results_per_page, MAX_RESULTS_PER_PAGE)
     @current_page_index       = 0
     @query_result_count       = 0
     @last_results_message     = nil
 
     # validate inputs
-    raise ArgumentError, "Invalid inputs received for paginator!" if 
+    raise ArgumentError, "Invalid inputs received for paginator!" if
       @embed_author == nil || @embed_title == nil || @embed_description == nil ||
       @channel == nil || @dataset == nil || @query_column == nil ||
       @row_hash_to_field_lambda == nil
 
     # enforce query casing if necessary
-    @current_query = @current_query.downcase if 
+    @current_query = @current_query.downcase if
       not(@current_query.nil?) and @force_queries_lowercase
   end
 
   # Run the paginator.
   def run()
     @running = true
-    while @running 
+    while @running
       results = query()
       display_results(results)
       await_and_process_input()
@@ -126,7 +126,7 @@ class Paginator
     if @current_query == nil || @current_query.empty?
       query_data = @dataset.order(@query_column)
     else
-      query_data = @dataset.where(Sequel.like(@query_column, 
+      query_data = @dataset.where(Sequel.like(@query_column,
         "%#{@current_query}%")).order(@query_column)
     end
 
@@ -141,7 +141,7 @@ class Paginator
   def display_results(results)
     # create locally understood fields
     fields = results.map{ |result| @row_hash_to_field_lambda.call(result) }
-    raise RuntimeError, "Too many results received!" if 
+    raise "Too many results received!" if
       fields.count > @results_per_page
 
     # delete previous results to avoid clutter
@@ -171,14 +171,14 @@ class Paginator
 
       footer_text  = "Page #{current_page}/#{page_count}"
       footer_text += "\tQuery: \"#{@current_query}\"" if @current_query != nil
-      embed.footer = { text: footer_text } 
+      embed.footer = { text: footer_text }
 
       # generate controls
       embed.description += "\n\nControls:\n"
       embed.description += "n - next page\n" if current_page < page_count
       embed.description += "p - prevous page\n" if current_page > 1
       embed.description += "g - goto page\n" if page_count > 1
-      embed.description += 
+      embed.description +=
         "q - new search\n" +
         "c - clear search\n" +
         "e - exit/stop"
@@ -218,7 +218,7 @@ class Paginator
         msg = "#{user.mention}, sorry you're already on the last page."
         @channel.send_temporary_message(msg, 5)
       end
-    when 'p', 'prev', 'previous', 'previous page' 
+    when 'p', 'prev', 'previous', 'previous page'
       if current_page > 1
         @current_page_index -= 1
       else
@@ -247,7 +247,7 @@ class Paginator
     message = @channel.send_message("What page would you like to go to?")
     # todo: filter by a specific user
     response = @channel.await!({timeout: PAGINATOR_TIMEOUT})
-    
+
     begin
       return @current_page_index if timed_out?(response)
 
@@ -276,7 +276,7 @@ class Paginator
   def ask_for_new_query()
     message = @channel.send_message("What would you like to search for?")
     response = @channel.await!({timeout: PAGINATOR_TIMEOUT})
-    
+
     begin
       return nil if timed_out?(response)
       @current_query = response.message.content
@@ -285,7 +285,7 @@ class Paginator
     ensure
       begin
         # prevent chat polution, order is important, second can fail
-        message.delete 
+        message.delete
         response.message.delete if response.message != nil
       rescue
         # insufficient permissions
@@ -298,12 +298,12 @@ class Paginator
   # @param the value returned by await
   # @return [bool] Did it time out?
   def timed_out?(await_response)
-    # check if timed out 
-    if await_response == nil || await_response.message == nil || 
+    # check if timed out
+    if await_response == nil || await_response.message == nil ||
        await_response.user == nil
       timeout_msg = "I haven't heard from you in a bit so I'm stopping your search."
       @channel.send_temporary_message(timeout_msg, 30)
-      
+
       @running = false
       return true
     else

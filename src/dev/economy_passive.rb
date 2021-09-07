@@ -33,7 +33,7 @@ module Bot::EconomyPassive
     # voice
     MUSIC_VOICE_CHANNEL_ID,
     MOD_VOICE_CHANNEL_ID
-    
+
   ].freeze
 
   # The minimum number of people actively voice chat required to earn points.
@@ -91,10 +91,10 @@ module Bot::EconomyPassive
         @@voice_connected[event.old_channel.id].delete(event.user.id)
         next # done processing
       end
-      
+
       # safely handle weird states
       next unless event.channel != nil || event.user == nil
-      
+
       # user switched channels
       if event.old_channel != nil and event.channel != event.old_channel
         @@voice_connected[event.old_channel.id].delete(event.user.id)
@@ -106,7 +106,7 @@ module Bot::EconomyPassive
         @@voice_connected[event.channel.id].delete(event.user.id)
         next # done processing
       end
-      
+
       # user is connected and not deafened, let them gain points
       @@voice_connected[event.channel.id].add(event.user.id)
     end
@@ -174,10 +174,10 @@ module Bot::EconomyPassive
   ##   HELPER FUNCTIONS   ##
   ##########################
   module_function
-  
+
   # Get the Starbucks value for the specified action.
   # @param [String] action_name The action's name.
-  # @return [Integer] Startbucks earned by the action. 
+  # @return [Integer] Startbucks earned by the action.
   def get_action_earnings(action_name)
     points_yaml = YAML.load_data!("#{ECON_DATA_PATH}/point_values.yml")
     return points_yaml[action_name]

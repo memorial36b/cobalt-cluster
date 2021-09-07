@@ -11,12 +11,12 @@
 # ===============================================================
 
 # ■ REQUIRED ■ Put the client ID (bot's user ID) here.
-id: 
+id:
 
 # ■ REQUIRED ■ Put the bot account's token here.
-token: 
+token:
 
-# ■ REQUIRED ■ Put the bot's command prefix within the brackets here. 
+# ■ REQUIRED ■ Put the bot's command prefix within the brackets here.
 # For multiple prefixes, separate each prefix with commas.
 # Surround your prefix with single ('') quotes if it contains any of the following characters:
 # : { } [ ] , ' & * ? | - < > = ! % @ \ #
@@ -28,15 +28,15 @@ type: bot
 
 # Put the game to set the bot's "Playing" status to here.
 # Leave blank to have no game.
-game: 
+game:
 
 # Put the name of your bot here, to be sent to Discord upon making any API requests and used
 # by them to trace the source of excessive API requests.
 # Leave blank to have no name.
-name: 
+name:
 
 # ===================================================================================
-# Commands & Messages: This section contains options concerning how the bot reacts to 
+# Commands & Messages: This section contains options concerning how the bot reacts to
 # messages and command calls.
 # ===================================================================================
 
@@ -58,7 +58,7 @@ command_doesnt_exist_message:
 # Put the message to be displayed when the user doesn't have permission to use the command
 # (a NoPermission error is raised.)
 # Leave blank to disable.
-no_permission_message: 
+no_permission_message:
 
 # Put whether spaces should be allowed between the prefix and the command name.
 # Accepted are yes/true and no/false (case sensitive); anything else defaults to no.
@@ -108,16 +108,16 @@ log_token: no
 # ========================================================================
 
 # Put the shard number that this bot should handle here.
-shard_id: 
+shard_id:
 
 # Put the total number of shards that should be running here.
 num_shards:
 
 # =========================================================================================
 # Advanced Functionality: This section contains the options related to discordrb's advanced
-# functionality, command chaining. 
+# functionality, command chaining.
 # Details at: https://github.com/meew0/discordrb/wiki/Commands#command-chain-syntax
-# Note: All entries in this section except for enabling/disabling advanced functionality 
+# Note: All entries in this section except for enabling/disabling advanced functionality
 # must be limited to one character only.
 # =========================================================================================
 

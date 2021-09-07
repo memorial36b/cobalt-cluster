@@ -9,7 +9,7 @@ module Bot::Economy
   extend Convenience
   include Constants
   include DMAction
-  
+
   # Scheduler constant
   SCHEDULER = Rufus::Scheduler.new
 
@@ -26,7 +26,7 @@ module Bot::Economy
 
   # How often the raffle occurs.
   # This is a constant because it needs to be consumed by rufus scheduler...
-  RAFFLE_FREQUENCY = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")['raffle_frequency'] 
+  RAFFLE_FREQUENCY = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")['raffle_frequency']
 
   # Limits the number of tags used per second
   TAG_BUCKET = Bot::BOT.bucket(
@@ -63,7 +63,7 @@ module Bot::Economy
     when VERIFIED_ROLE_ID
       role_yaml_id = "checkin_verified"
     when INVALID_ROLE_ID
-      role_yaml_id = "checkin_new"    
+      role_yaml_id = "checkin_new"
     end
 
     if role_yaml_id == nil
@@ -92,13 +92,13 @@ module Bot::Economy
   # Determine how long the user has to wait until their next checkin.
   def self.get_time_until_next_checkin_string(user_id)
     seconds = get_time_until_next_checkin(user_id)
-    
+
     return "now" if seconds <= 0
 
     msg = ""
     if seconds > 60*60
       hours = seconds / (60*60)
-      msg = "#{hours}h, " 
+      msg = "#{hours}h, "
       seconds -= (hours*60*60)
     end
 
@@ -107,8 +107,8 @@ module Bot::Economy
       msg += "#{minutes}m, "
       seconds -= (minutes*60)
     end
-    
-    if seconds > 0  
+
+    if seconds > 0
       msg += "#{seconds}s, "
     end
 
@@ -209,7 +209,7 @@ module Bot::Economy
 
           # perform necessary cleanup now that they don't own it
           case item.item_type
-          
+
           #############################
           ## Roles
           when Bot::Inventory::catalog_value('item_type_role_override'),
@@ -217,7 +217,7 @@ module Bot::Economy
             # remove role if they have it
             role_id = get_role_for_item_id(item.item_id)
             owner.user.remove_role(role_id, "#{owner.mention} could not afford to renew role '#{item.ui_name}'!") if owner.user.role?(role_id)
-          
+
           #############################
           ## Tags
           when Bot::Inventory::catalog_value('item_type_tag')
@@ -231,7 +231,7 @@ module Bot::Economy
             command = Bot::CustomCommands::get_custom_command_by_item_entry_id(item.entry_id)
             Bot::CustomCommands::remove_custom_command_by_item_entry_id(item.entry_id) if command != nil
             name_override[item.entry_id] = command.command_name
-          
+
           #############################
           ## Error: Unhandled
           else
@@ -266,7 +266,7 @@ module Bot::Economy
             item_ui_name = item_ui_name.nil? ? "ITEM NAME NOT FOUND (#{item.item_id})" : item_ui_name
 
             if name_override[item.entry_id] != nil
-              item_ui_name = "#{name_override[item.entry_id]}"
+              item_ui_name = (name_override[item.entry_id]).to_s
             end
 
             embed.add_field(
@@ -274,7 +274,7 @@ module Bot::Economy
               value: item_ui_name,
               inline: true
             )
-          end         
+          end
         end
       end
     end
@@ -316,7 +316,7 @@ module Bot::Economy
       winner_user_id = RAFFLE_ENTRIES.offset(winner_idx).first[:user_id]
       winnings_value = entry_count * Bot::Bank::appraise_item('raffle_win')
       RAFFLE_ENTRIES.delete # delete all entries
-      
+
       winner = DiscordUser.new(winner_user_id)
       Bot::Bank::deposit(winner.id, winnings_value)
 
@@ -325,7 +325,7 @@ module Bot::Economy
       cost_per_ticket = Bot::Bank::appraise_item('raffle_buyticket')
 
       msg = "#{winner.mention} has won the raffle...\n\n" +
-        "#{raffle_mention} A new one has begun! Use the command " + 
+        "#{raffle_mention} A new one has begun! Use the command " +
         "+raffle buyticket [number] (default 1) to purchase raffle " +
         "tickets. Tickets cost #{cost_per_ticket} Starbucks each."
 
@@ -366,7 +366,7 @@ module Bot::Economy
 
     next_time_allowed = Bot::Timezone::get_next_time_can_change_timezone(event.user.id)
     if Bot::Timezone::user_now(event.user.id) < next_time_allowed
-      event.respond "Sorry, you can't update your timezone until " + 
+      event.respond "Sorry, you can't update your timezone until " +
         "#{next_time_allowed.strftime('%A, %B %d')}."
       break
     end
@@ -388,7 +388,7 @@ module Bot::Economy
   # display all of the available items for purchase
   command :shop do |event|
     break unless call_command?(event.channel.id)
-    
+
     # enumerate types
     types = { }
     items_of_type = { }
@@ -434,7 +434,7 @@ module Bot::Economy
         # if there are sub-items display the full list
         embed.description += "**#{type_name}**\n"
 
-        cost_str = "#{pl(type_cost, "Starbuck")}"
+        cost_str = pl(type_cost, "Starbuck").to_s
         unless type_lifetime.nil? or type_renewal_cost.nil?
         cost_str += " + #{pl(type_renewal_cost, "Starbuck")} every #{ple(type_lifetime, "day")}"
         end
@@ -442,7 +442,7 @@ module Bot::Economy
 
         embed.description += cost_str
         if not items_of_type[type_name].count == 1
-          
+
           items_of_type[type_name].each do |item_name|
             embed.description += " - #{item_name}\n"
           end
@@ -463,7 +463,7 @@ module Bot::Economy
     today = Bot::Timezone::user_today(user.id)
     today = Bot::Timezone::user_to_utc(user.id, today).to_time.to_i
     last_checkin_entry = USER_CHECKIN_TIME[user_id: user.id]
-    if last_checkin_entry.nil? or 
+    if last_checkin_entry.nil? or
        last_checkin_entry[:checkin_timestamp] < today
       can_checkin = true
     end
@@ -480,7 +480,7 @@ module Bot::Economy
       now = Bot::Timezone::utc_now().to_time.to_i
       if last_checkin_entry == nil
         USER_CHECKIN_TIME << {
-          user_id: user.id, 
+          user_id: user.id,
           checkin_timestamp: now
         }
       else
@@ -553,7 +553,7 @@ module Bot::Economy
   PROFILE_REQ_COUNT = 0
   command :profile do |event, *args|
     break unless call_command?(event.channel.id)
-    
+
     # parse args
     opt_defaults = [event.user.id]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
@@ -564,7 +564,7 @@ module Bot::Economy
       PROFILE_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil? 
+    break unless not parsed_args.nil?
 
     # clean before showing profile
     user = parsed_args["user"]
@@ -670,7 +670,7 @@ module Bot::Economy
     last_valid_timestamp = (past_monday - (Bot::Bank::MAX_BALANCE_AGE_DAYS + 1)).to_time.to_i
     sql =
       "SELECT user_id, SUM(amount) networth\n" +
-      "FROM\n" + 
+      "FROM\n" +
       "(\n" +
       "  SELECT user_id, amount FROM econ_user_balances\n" +
       "  WHERE timestamp >= #{last_valid_timestamp}\n" +
@@ -701,7 +701,7 @@ module Bot::Economy
       top_names = ""
       top_networths = ""
       (0...top_user_stats.count).each do |n|
-        user_stats = top_user_stats[n] 
+        user_stats = top_user_stats[n]
         user_id = user_stats[:user_id]
         user = DiscordUser.new(user_id)
         networth = user_stats[:networth]
@@ -747,7 +747,7 @@ module Bot::Economy
       TRANSFERMONEY_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     from_user_id = event.user.id
     to_user_id = parsed_args["to_user"].id
@@ -776,14 +776,14 @@ module Bot::Economy
   RENTAROLE_REQ_COUNT = 1
   command :rentarole do |event, *args|
     break unless call_command?(event.channel.id)
-    
+
     opt_defaults = []
     parsed_args = Convenience::ParseArgs(
       RENTAROLE_ARGS,
       RENTAROLE_REQ_COUNT,
       opt_defaults,
       args)
-    
+
     # special rent-a-role info page
     if parsed_args.nil?
       rand_color_role_id = Bot::Inventory::get_item_id('role_color_obsolete_orange')
@@ -791,7 +791,7 @@ module Bot::Economy
       override_role_cost = Bot::Bank::appraise_item('rentarole_override')
       renew_frequency = Bot::Inventory::get_item_lifetime_from_id(rand_color_role_id)
       renewal_cost = Bot::Bank::appraise_item('rentarole_maintain')
-      
+
       event.send_embed do |embed|
         embed.author = {
             name: STRING_BANK_NAME,
@@ -799,7 +799,7 @@ module Bot::Economy
         }
 
         embed.title = "Rent-A-Role"
-        embed.description = 
+        embed.description =
           "You can rent any of the available roles here. You can only " +
           "rent one at a time. You can rent either a color or an override " +
           "role. You can only rent override roles that you meet the level " +
@@ -814,13 +814,13 @@ module Bot::Economy
           "The available roles are as follows:\n" +
           "Color: green, orange, blue, red, lavender, white, magenta, yellow\n" +
           "Override: citizen, squire, knight, noble, monarch, bearer"
-        
+
         embed.footer = {text: "Purchase a role with +rentarole [name]"}
         embed.color = COLOR_EMBED
       end
       break # stop processing
     end
-    
+
     Bot::Bank::clean_account(event.user.id)
 
     # Check to see if the user is already renting a role.
@@ -884,7 +884,7 @@ module Bot::Economy
       role_item_id = Bot::Inventory::get_item_id('role_override_bearer')
       role_id = OVERRIDE_BEARER_OF_THE_WAND_POG_ROLE_ID
       required_role_id = BEARER_OF_THE_WAND_POG_ROLE_ID
-    else 
+    else
       event.respond "Sorry, I couldn't find that role."
       break
     end
@@ -918,9 +918,9 @@ module Bot::Economy
   # remove rented role
   command :unrentarole do |event, *args|
   	break unless call_command?(event.channel.id)
-    
+
     Bot::Bank::clean_account(event.user.id)
-    
+
     # check if the user is currently renting a role
     rented_role = get_user_rented_role_item(event.user.id)
     if rented_role == nil
@@ -966,7 +966,7 @@ module Bot::Economy
         tag_lifetime = Bot::Inventory::get_item_lifetime_from_id(tag_id)
 
         embed.title = "Tags"
-        embed.description = 
+        embed.description =
           "You can buy tags here. Tags are custom messages that are sent " +
           "whenever +tag [name] is called. Anyone can use any tag " +
           "on the server! However, they can only be used in the #bot_commands " +
@@ -981,7 +981,7 @@ module Bot::Economy
           "If you want to search all of the available tags use the +tags " +
           "command. You can optionally specify a user (including yourself) " +
           "to look at tags created by someone in particular."
-        
+
         embed.footer = {text: "Create a tag with +tag add [name]"}
         embed.color = COLOR_EMBED
       end
@@ -1005,7 +1005,7 @@ module Bot::Economy
     tag_content_max_length = Bot::Tags::tag_content_max_length
     tag_config_msg = "What would you like your tag to say? Limited to #{tag_content_max_length} characters."
     tag_config_timeout = Bot::Tags::tag_response_timeout
-      
+
     case action
     #############################
     ## ADD
@@ -1086,7 +1086,7 @@ module Bot::Economy
           Bot::Inventory::remove_item(tag_item.entry_id)
           break
         end
-        
+
         # all went well!
         event.respond "#{user.mention}, you have created the tag #{tag_name}!"
       end
@@ -1149,7 +1149,7 @@ module Bot::Economy
           user.dm.send_message("Sorry, you can't to edit a tag!")
           break
         end
-        
+
         # update tag, validate
         if not Bot::Tags::edit_tag(tag_name, user.id, tag_content)
           user.dm.send_message("Sorry, an error occurred and #{tag_name} could not be edited!")
@@ -1178,7 +1178,7 @@ module Bot::Economy
 
     #############################
     ## DISPLAY TAG
-    else # user is trying to invoke a tag!      
+    else # user is trying to invoke a tag!
       # check that user isn't spamming tags
       if (rate_limit = TAG_BUCKET.rate_limited?(event.user.id))
         event.send_temporary_message("**Tags are on cooldown!** Wait for #{rate_limit.round}s.", 5)
@@ -1204,7 +1204,7 @@ module Bot::Economy
   TAGS_REQ_COUNT = 0
   command :tags do |event, *args|
     break unless call_command?(event.channel.id)
-    
+
     args[0] = event.user.id if args.length > 0 && args[0] == "mine" # special
     opt_defaults = [event.user.id]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
@@ -1220,7 +1220,7 @@ module Bot::Economy
     user = (args.nil? || args.count <= 0) ? nil : parsed_args['owner_user']
 
     # get dataset
-    filtered_data = user.nil? ? 
+    filtered_data = user.nil? ?
       Bot::Tags::USER_TAGS :
       Bot::Tags::USER_TAGS.where(owner_user_id: user.id)
 
@@ -1231,7 +1231,7 @@ module Bot::Economy
       break
     end
 
-    searched_tags = Bot::DM::do_action?(event.user.id, DM_ACTION_LIST_TAGS) do 
+    searched_tags = Bot::DM::do_action?(event.user.id, DM_ACTION_LIST_TAGS) do
       # generate embed inputs
       if user.nil?
         embed_title       = "Server Tags"
@@ -1257,7 +1257,7 @@ module Bot::Economy
         embed_thumbnail,                                  # embed_thumbnail
         filtered_data,                                    # dataset
         :tag_name,                                        # query_column
-        true,                                             # force_queries_lowercase 
+        true,                                             # force_queries_lowercase
         Bot::Tags::TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA     # row_hash_to_field_Lambda
         # initial query: nil
         # results_per_page: default
@@ -1297,7 +1297,7 @@ module Bot::Economy
         command_lifetime = Bot::Inventory::get_item_lifetime_from_id(command_id)
 
         embed.title = "Custom Command"
-        embed.description = 
+        embed.description =
           "You can buy custom commands here. Custom commands send custom messages " +
           "when they are called using +command_name. Only you can use your custom " +
           "commands, but they can be used anywhere on the server!\n\n" +
@@ -1309,7 +1309,7 @@ module Bot::Economy
           "#{command_renewal_cost} Starbucks every #{ple(command_lifetime, "day")} " +
           "to keep. If you cannot afford to pay, they will be deleted!\n\n" +
           "If you want to see all of your commands use the +mycom list."
-        
+
         embed.footer = {text: "Create a command with +mycom add [name]"}
         embed.color = COLOR_EMBED
       end
@@ -1334,7 +1334,7 @@ module Bot::Economy
     command_content_max_length = Bot::CustomCommands::custom_command_content_max_length
     command_config_msg = "What would you like your command to say? Limited to #{command_content_max_length} characters."
     command_config_timeout = Bot::CustomCommands::custom_command_response_timeout
-    
+
     case action
     #############################
     ## ADD
@@ -1367,7 +1367,7 @@ module Bot::Economy
         break
       end
 
-      tried_add_command = Bot::DM::do_action?(event.user.id, DM_ACTION_ADD_CUSTOM_COMMAND) do 
+      tried_add_command = Bot::DM::do_action?(event.user.id, DM_ACTION_ADD_CUSTOM_COMMAND) do
         # send a temporary message telling user to check dms
         event.channel.send_temporary_message(
           "#{event.user.mention} check you DMs to setup your command!",
@@ -1414,11 +1414,11 @@ module Bot::Economy
           Bot::Inventory::remove_item(command_item.entry_id)
           break
         end
-        
+
         # all went well!
         event.respond "#{user.mention}, you have created the command #{command_name}!"
       end
-      
+
       unless tried_add_command
         event.respond "Sorry, you're already performing an action in your DMs!"
       end
@@ -1438,7 +1438,7 @@ module Bot::Economy
         break
       end
 
-      tried_edit_command = Bot::DM::do_action?(event.user.id, DM_ACTION_EDIT_CUSTOM_COMMAND) do 
+      tried_edit_command = Bot::DM::do_action?(event.user.id, DM_ACTION_EDIT_CUSTOM_COMMAND) do
         # send a temporary message telling user to check dms
         event.channel.send_temporary_message(
           "#{event.user.mention} check you DMs to setup your command!",
@@ -1470,7 +1470,7 @@ module Bot::Economy
           user.dm.send_message("Sorry, you can't to edit a command!")
           break
         end
-        
+
         # update command, validate
         if not Bot::CustomCommands::edit_custom_command(command_name, user.id, command_content)
           user.dm.send_message("Sorry, an error occurred and #{command_name} could not be edited!")
@@ -1507,7 +1507,7 @@ module Bot::Economy
       end
 
       # paginate results
-      searched_commands = Bot::DM::do_action?(event.user.id, DM_ACTION_LIST_CUSTOM_COMMANDS) do 
+      searched_commands = Bot::DM::do_action?(event.user.id, DM_ACTION_LIST_CUSTOM_COMMANDS) do
         filtered_data = Bot::CustomCommands::USER_CUSTOM_COMMANDS
           .where(owner_user_id: event.user.id)
         Paginator.new(
@@ -1519,7 +1519,7 @@ module Bot::Economy
           { url: event.user.avatar_url },                   # embed_thumbnail
           filtered_data,                                    # dataset
           :command_name,                                    # query_column
-          true,                                             # force_queries_lowercase 
+          true,                                             # force_queries_lowercase
           Bot::CustomCommands::COMMAND_HASH_TO_PAGINATOR_FIELD_LAMBDA # row_hash_to_field_Lambda
           # initial query: nil
           # results_per_page: default
@@ -1539,7 +1539,7 @@ module Bot::Economy
   RAFFLE_REQ_COUNT = 0
   command :raffle do |event, *args|
     break unless call_command?(event.channel.id)
-    
+
     opt_defaults = ["info", 1]
     parsed_args = Convenience::ParseArgsAndRespondIfInvalid(
       event,
@@ -1592,7 +1592,7 @@ module Bot::Economy
         }
 
         embed.title = "Raffle"
-        embed.description = 
+        embed.description =
           "The raffle is an event that occurs once every Friday at 5:00 PM GMT. " +
           "When it happens, any user that has purchased at least one " +
           "ticket can win! Your odds of winning are directly proportionate to " +
@@ -1601,7 +1601,7 @@ module Bot::Economy
           "#{roi_of_ticket} Starbucks. If you want a reminder call the command " +
           "+raffle reminder; call it again to remove the reminder. Enter now " +
           "to win big! "
-        
+
         embed.footer = {text: "Purchase tickets with +raffle buyticket [count] (default 1)"}
         embed.color = COLOR_EMBED
       end
@@ -1630,7 +1630,7 @@ module Bot::Economy
       FINE_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     user_id = parsed_args["user"].id
     user_mention = parsed_args["user"].mention
@@ -1684,7 +1684,7 @@ module Bot::Economy
       SHUTUPANDTAKEMYMONEY_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     # no need to clean because we're going to clear all of their balance
     user_id = parsed_args["user"].id
@@ -1717,7 +1717,7 @@ module Bot::Economy
       CLEARBALANCES_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     # no need to clean because we're going to clear all of their balance
     user_id = parsed_args["user"].id
@@ -1747,7 +1747,7 @@ module Bot::Economy
       GIMME_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     type = parsed_args["type"]
     amount = parsed_args["amount"]
@@ -1782,7 +1782,7 @@ module Bot::Economy
       TAKEIT_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     # attempt to withdraw
     amount = parsed_args["amount"]
@@ -1814,12 +1814,12 @@ module Bot::Economy
       DEBUGPROFILE_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil? 
+    break unless not parsed_args.nil?
 
     user = parsed_args["user"]
     Bot::Bank::clean_account(user.id)
-      
-    response = 
+
+    response =
       "**User:** #{user.full_username}\n" +
       "**Networth:** #{Bot::Bank::get_balance(user.id)} Starbucks" +
       "\n**Non-Expiring:** #{Bot::Bank::get_perm_balance(user.id)} Starbucks" +
@@ -1855,7 +1855,7 @@ module Bot::Economy
       LASTCHECKIN_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     last_checkin = USER_CHECKIN_TIME[user_id: parsed_args["user"].id]
     if last_checkin.nil?
@@ -1886,7 +1886,7 @@ module Bot::Economy
       CLEARCHECKIN_REQ_COUNT,
       opt_defaults,
       args)
-    break unless not parsed_args.nil?  
+    break unless not parsed_args.nil?
 
     USER_CHECKIN_TIME.where(user_id: parsed_args["user"].id).delete
     event.respond "Last checkin time cleared for #{parsed_args["user"].full_username}"
@@ -1941,7 +1941,7 @@ module Bot::Economy
     user = parsed_args["user"]
     item_type = parsed_args["item_type"]
     item_type = item_type > 0 ? item_type : nil
-    
+
     items = Bot::Inventory::get_inventory(user.id, item_type)
     value = Bot::Inventory::get_inventory_value(user.id)
     response = "#{user.full_username} inventory valued at #{value} Starbucks\n"
@@ -1953,7 +1953,7 @@ module Bot::Economy
         response += "#{item.ui_name}\n"
       end
     end
-    
+
     event.respond response
   end
 
@@ -2010,7 +2010,7 @@ module Bot::Economy
         tag_name = (0...10).map { (65 + rand(26)).chr }.join
         tag_content = "content #{counter}"
         next if Bot::Tags::has_tag(tag_name)
-        
+
         item = Bot::Inventory::add_item_by_name(user_id, 'tag')
         Bot::Tags::add_tag(tag_name, item.entry_id, user_id, tag_content)
       end
@@ -2024,7 +2024,7 @@ module Bot::Economy
     break unless Convenience::IsUserDev(event.user.id)
     counter = 0
     user_id = event.user.id
-    
+
     # prevent expiration
     if Bot::Bank::get_balance(user_id) <= 10000000
       Bot::Bank::deposit(user_id, 10000000)
@@ -2036,11 +2036,11 @@ module Bot::Economy
       command_name = (0...10).map { (65 + rand(26)).chr }.join
       command_content = "longer command content is long don't you think? #{counter}"
       next if Bot::CustomCommands::has_custom_command(command_name, user_id)
-      
+
       item = Bot::Inventory::add_item_by_name(user_id, 'custom_command')
       Bot::CustomCommands::add_custom_command(command_name, user_id, item.entry_id, command_content)
     end
 
-    return "done" 
+    return "done"
   end
 end

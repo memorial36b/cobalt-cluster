@@ -36,7 +36,7 @@ end
 module Bot::Tags
   extend Convenience
   include Constants
-    
+
   # User created tags
   # { tag_name, item_entry_id, owner_user_id, tag_content }
   USER_TAGS = DB[:econ_user_tags]
@@ -44,9 +44,9 @@ module Bot::Tags
   # Path to economy data folder
   ECON_DATA_PATH = "#{Bot::DATA_PATH}/economy".freeze
 
-  # Converts tag hashes to paginator fields. 
+  # Converts tag hashes to paginator fields.
   TAG_HASH_TO_PAGINATOR_FIELD_LAMBDA = lambda do |hash|
-    field_name  = hash[:tag_name] 
+    field_name  = hash[:tag_name]
     field_value = hash[:tag_content]
 
     field_name = "_ERROR_" if field_name.nil? or field_name.empty?
@@ -54,7 +54,7 @@ module Bot::Tags
 
     return PaginatorField.new(field_name, field_value)
   end
-  
+
   module_function
 
   # Get the max tag name length.
@@ -62,7 +62,7 @@ module Bot::Tags
   def tag_name_max_length
     limits_yaml = YAML.load_data!("#{ECON_DATA_PATH}/limits.yml")
     return limits_yaml['tag_name_max_length']
-  end 
+  end
 
   # Get max tag content length.
   # @return [Integer] max tag content length
@@ -93,7 +93,7 @@ module Bot::Tags
     case tag_name
     when "add", "edit", "delete"
       return false # collides with $tag command action
-    end    
+    end
 
     # will raise error on invalid content
     USER_TAGS << { item_entry_id: item_entry_id, owner_user_id: owner_user_id, tag_name: tag_name, tag_content: tag_content }

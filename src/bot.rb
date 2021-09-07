@@ -5,7 +5,7 @@ require 'discordrb'
 require 'yaml'
 
 # The main bot
-# All individual crystals will be submodules of this; this gives them access to the main 
+# All individual crystals will be submodules of this; this gives them access to the main
 # bot object through a constant, as well as a constant containing the path to the data folder
 module Bot
   # Loads config file into struct and parses info into a format readable by CommandBot constructor
@@ -52,7 +52,7 @@ module Bot
 
   puts 'Initializing the bot object...'
 
-  # Creates the bot object using the config attributes; this is a constant 
+  # Creates the bot object using the config attributes; this is a constant
   # in order to make it accessible by crystals
   BOT = Discordrb::Commands::CommandBot.new(config.to_h)
 
@@ -67,13 +67,13 @@ module Bot
   puts 'Loading additional libraries...'
 
   # Loads files from lib directory in parent
-  Dir['../lib/*.rb'].each do |path| 
+  Dir['../lib/*.rb'].each do |path|
     load path
     puts "+ Loaded file #{path[3..-1]}"
   end
-  
+
   # load helper modules that require db after lib is loaded
-  Dir['helper/*.rb'].each do |path| 
+  Dir['helper/*.rb'].each do |path|
     load path
     puts "+ Loaded file #{path[3..-1]}"
   end
@@ -81,8 +81,8 @@ module Bot
   puts 'Done.'
 
   # Loads a crystal from the given file and includes the module into the bot's container.
-  # 
-  # @param file [File] the file to load the crystal from. Filename must be the crystal 
+  #
+  # @param file [File] the file to load the crystal from. Filename must be the crystal
   #                    name in snake case, or this will not work! (The crystal template generator
   #                    will do this automatically.)
   def self.load_crystal(file_path)
