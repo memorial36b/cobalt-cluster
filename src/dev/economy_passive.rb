@@ -253,6 +253,6 @@ module Bot::EconomyPassive
   # @return [bool] Has link?
   def link?(message)
     return false if message.nil? or message.content.nil?
-    return message.content =~ /#{URI::DEFAULT_PARSER.make_regexp(['http', 'https'])}/
+    return message.content =~ /#{URI::regexp(['http', 'https'])}/
   end
 end
