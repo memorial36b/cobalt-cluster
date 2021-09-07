@@ -109,7 +109,7 @@ module Bot
     puts 'Done.'
   end
 
-  puts "Starting bot with logging mode #{config.log_mode}..."
+  puts "Starting bot with logging mode #{config.log_mode.to_s}..."
   BOT.ready { puts 'Bot started!' }
 
   unless ARGV.include? 'dryrun' # we don't actually run in dry run mode
