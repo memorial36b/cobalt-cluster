@@ -140,7 +140,7 @@ module Bot::Bank
 
     # iterate through balances and remove until amount is withdrawn
     user_transactions = USER_BALANCES.where{Sequel.&({user_id: user_id}, (amount > 0))}.order(Sequel.asc(:timestamp))
-    while amount > 0 and user_transactions.count > 0
+    while amount > 0 and user_transactions.count > 0 do
       transaction = user_transactions.first
       transaction_id = transaction[:transaction_id]
       old_amount = transaction[:amount]
