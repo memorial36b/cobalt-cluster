@@ -65,7 +65,7 @@ module Bot::BasicCommands
 
     # Checks to see if Update_Check_Frequency.txt exists in /scr/ as well as reading the contents of the file. This file is generated via the auto-updater script at startup and is only deleted if +exit is used
 
-    if File.exist? "Update_Check_Frequency.txt"
+    if File.exists? "Update_Check_Frequency.txt"
       file = File.open("Update_Check_Frequency.txt")
       auto_updater_frequency = "#{file.read} Minute(s)"
     else
