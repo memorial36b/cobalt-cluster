@@ -37,23 +37,28 @@ module Bot::BasicCommands
     last_pull_attempted.strip!
     remote_repo_url, err, status = Open3.capture3("git remote get-url origin")
     remote_repo_url.strip!
+    ruby_version, err, status = Open3.capture3("rvm current")
+    ruby_version.delete_prefix!("ruby-").strip!
 
     # Check to see if any generated files exist in /src/ These generated files indicate what mode Cobalt is being run on as well as if the auto-updater script is present and being utilized. Mode indicators are deleted & generated in Rakefile. Auto-updater indicators are generated in the auto-updater script and deleted only when the +exit command is used. Also checks which crystals should be loaded per the run mode
 
     if File.exist? 'Main.txt'
       run_mode = File.basename("Main.txt", ".txt")
       active_crystals = Dir["../src/main/*.rb"]
+      active_crystals = active_crystals.join("\n")
     elsif File.exist? 'Dev.txt'
       run_mode = File.basename("Dev.txt", ".txt")
       active_crystals_a1 = Dir["../src/dev/*.rb"]
       active_crystals_a2 = Dir["../src/helper/*.rb"]
       active_crystals = active_crystals_a1 + active_crystals_a2
+      active_crystals = active_crystals.join("\n")
     elsif File.exist? 'All.txt'
       run_mode = File.basename("All.txt", ".txt")
       active_crystals_a1 = Dir["../src/main/*.rb"]
       active_crystals_a2 = Dir["../src/dev/*.rb"]
       active_crystals_a3 = Dir["../src/helper/*.rb"]
       active_crystals = active_crystals_a1 + active_crystals_a2 + active_crystals_a3
+      active_crystals = active_crystals.join("\n")
 
     end
 
@@ -92,6 +97,7 @@ module Bot::BasicCommands
                   Branch: [#{current_branch}](https://github.com/hecksalmonids/cobalt-cluster/tree/#{current_branch})
                   Run Mode: #{run_mode}
                   Auto-Updater Present: #{auto_updater_enabled}
+                  Ruby Version: #{ruby_version}
                   Crystals Loaded: \n```#{active_crystals}```"
       )
 
