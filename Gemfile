@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 gem 'sqlite3'
 gem 'sequel'
-gem 'discordrb', github: 'shardlab/discordrb', tag: 'v3.4.1'
+gem 'discordrb', :git => 'https://github.com/shardlab/discordrb.git', tag: 'v3.4.1'
 gem 'discordrb-webhooks', '3.4.1'
 gem 'rufus-scheduler'
 gem 'tzinfo'
