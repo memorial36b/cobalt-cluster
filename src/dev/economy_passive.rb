@@ -50,6 +50,7 @@ module Bot::EconomyPassive
     next unless event.server == SERVER
     next if event.channel == nil || IGNORED_CHANNELS.include?(event.channel.id)
     next if event.user == nil
+    next if event.user.role?(BOT_ROLE_ID)
 
     # general chat awarding
     DATA_LOCK.synchronize do
@@ -141,7 +142,7 @@ module Bot::EconomyPassive
       chat_earned = {}
       @@sent_messages.each do |channel_id, users|
         next if users.empty?
-
+        
         # reward max message value points to each user
         users.each do |user_id|
           cur_value = chat_earned[user_id]
