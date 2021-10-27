@@ -523,6 +523,28 @@ module Bot::Economy
         )
 
         embed.add_field(
+          name: 'At Risk',
+          value: "#{Bot::Bank::get_at_risk_balance(user.id)} Starbucks",
+          nline: true
+        )
+
+        perma_balance = Bot::Bank::get_perm_balance(user.id)
+          if perma_balance < 0
+            embed.add_field(
+              name: "Outstanding Fines",
+              value: "#{-perma_balance} Starbucks",
+              inline: true
+            )
+          
+          elsif perma_balance > 0
+            embed.add_field(
+              name: "Non-Expiring",
+              value: "#{perma_balance} Starbucks",
+              inline: true
+            )
+          end
+
+        embed.add_field(
           name: "Time Until Next Check-in",
           value: get_time_until_next_checkin_string(user.id),
           inline: false
@@ -532,10 +554,32 @@ module Bot::Economy
         # row: networth and next checkin time
         # todo: display full networth (+ items value)
         embed.add_field(
-            name: 'Networth',
-            value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
-            inline: true
+          name: 'Networth',
+          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
+          inline: true
         )
+        
+        embed.add_field(
+          name: 'At Risk',
+          value: "#{Bot::Bank::get_at_risk_balance(user.id)} Starbucks",
+          inline: true
+        )
+
+        perma_balance = Bot::Bank::get_perm_balance(user.id)
+          if perma_balance < 0
+            embed.add_field(
+              name: "Outstanding Fines",
+              value: "#{-perma_balance} Starbucks",
+              inline: true
+            )
+        
+          elsif perma_balance > 0
+            embed.add_field(
+              name: "Non-Expiring",
+              value: "#{perma_balance} Starbucks",
+              inline: true
+            )
+          end
 
         embed.add_field(
           name: "Time Until Next Check-in",
@@ -592,9 +636,9 @@ module Bot::Economy
       # ROW 1: Balances
       # todo display full networth (+ item values)
       embed.add_field(
-          name: 'Networth',
-          value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
-          inline: true
+        name: 'Networth',
+        value: "#{Bot::Bank::get_balance(user.id)} Starbucks",
+        inline: true
       )
 
       embed.add_field(
@@ -610,12 +654,13 @@ module Bot::Economy
           value: "#{-perma_balance} Starbucks",
           inline: true
         )
-      #else
-        #embed.add_field(
-          #name: "Non-Expiring",
-          #value: "#{perma_balance} Starbucks",
-          #inline: true
-        #)
+      
+      elsif perma_balance > 0
+        embed.add_field(
+          name: "Non-Expiring",
+          value: "#{perma_balance} Starbucks",
+          inline: true
+        )
       end
 
       # ROW 2: Time until next checkin
