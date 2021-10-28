@@ -525,7 +525,7 @@ module Bot::Economy
         embed.add_field(
           name: 'At Risk',
           value: "#{Bot::Bank::get_at_risk_balance(user.id)} Starbucks",
-          nline: true
+          inline: true
         )
 
         perma_balance = Bot::Bank::get_perm_balance(user.id)
