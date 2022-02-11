@@ -125,3 +125,11 @@ unless DB[:user_timezone].columns.include?(:last_changed)
     add_column :last_changed, Integer, null: false, default: 0 # Add last_changed column
   end
 end
+
+# Upgrade raffle tickets to include a ticket count for supporting large quantity purchases
+unless DB[:econ_raffle].columns.include?(:ticket_count)
+  DB.alter_table(:econ_raffle) do
+     # Add ticket_count column, default is 1 so all entries remain valid
+    add_column :ticket_count, Integer, null: false, default: 1
+  end
+end

@@ -282,7 +282,7 @@ module Bot::Economy
     # todo: perform any other routine maintenance
   end
 
-  # schedule the raffle every friday at 5PM GMT
+  # Schedule the raffle every friday at 5PM GMT
   #
   # If the instance is killed on Friday before 5pm and is not revived until
   # afterwards, this will result in a missed raffle execution.
@@ -299,41 +299,88 @@ module Bot::Economy
     return next_friday_5pm
   end
 
-  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => next_friday_at_5pm() do
-    entry_count = RAFFLE_ENTRIES.count
-    entry_count = entry_count.nil? ? 0 : entry_count
+  # Get a map of all of the raffle tickets currently purchased.
+  #
+  # The return values are the total ticket count followed by
+  # a map of user ids to tickets purchased by user.
+  def self.collect_raffle_tickets()
+    purchase_entry_count = RAFFLE_ENTRIES.count
+    purchase_entry_count = purchase_entry_count.nil? ? 0 : purchase_entry_count
 
+    # count total number of tickets purchased by everyone
+    uid_to_ticket_map = {}
+    total_ticket_count = 0
+    if purchase_entry_count > 0
+      RAFFLE_ENTRIES.all do |purchase_entry|
+        uid = purchase_entry[:user_id]
+        ticket_count = purchase_entry[:ticket_count]
+        total_ticket_count += ticket_count
+        if not uid_to_ticket_map.key?(uid)
+          uid_to_ticket_map[uid] = ticket_count
+        else
+          uid_to_ticket_map[uid] += ticket_count
+        end
+      end
+    end
+
+    return total_ticket_count, uid_to_ticket_map
+  end
+
+  # Run the raffle immediately.
+  #
+  # This will iterate through all of the ticket purchases, select a winner,
+  # and then broadcast the results.
+  def self.run_raffle(event)
     # find bot commands channel
     channel = SERVER.channels.find{ |c| c.id == BOT_COMMANDS_CHANNEL_ID }
-    next if channel.nil?
+    return nil if channel.nil?
 
     # find raffle role
     raffle_role = SERVER.roles.find{ |r| r.id == RAFFLE_ROLE_ID }
 
-    if entry_count > 0
-      # get winner and reward them
-      winner_idx = rand(RAFFLE_ENTRIES.count)
-      winner_user_id = RAFFLE_ENTRIES.offset(winner_idx).first[:user_id]
-      winnings_value = entry_count * Bot::Bank::appraise_item('raffle_win')
-      RAFFLE_ENTRIES.delete # delete all entries
+    total_ticket_count, uid_to_ticket_map = collect_raffle_tickets()
+    if total_ticket_count > 0
+      RAFFLE_ENTRIES.delete
 
-      winner = DiscordUser.new(winner_user_id)
-      Bot::Bank::deposit(winner.id, winnings_value)
+      # find winning ticket
+      winning_ticket_idx = rand(total_ticket_count) # uniform distribution
+      winning_uid = nil
+      uid_to_ticket_map.each do |uid, ticket_count|
+          winning_ticket_idx -= ticket_count
+          if winning_ticket_idx < 0
+            winning_uid = uid
+            break
+          end
+      end
 
-      # post results and announce start of next
-      raffle_mention = raffle_role.nil? ? "@Raffle" : raffle_role.mention
-      cost_per_ticket = Bot::Bank::appraise_item('raffle_buyticket')
+      if winning_uid.nil?
+        puts "We didn't find a raffle ticket winner when there were entries. Something has gone wrong.\n"
+      else # winner, winner, chicken dinner
+        winnings_value = total_ticket_count * Bot::Bank::appraise_item('raffle_win')
+        
+        winner = DiscordUser.new(winning_uid)
+        Bot::Bank::deposit(winner.id, winnings_value)
 
-      msg = "#{winner.mention} has won the raffle...\n\n" +
-        "#{raffle_mention} A new one has begun! Use the command " +
-        "+raffle buyticket [number] (default 1) to purchase raffle " +
-        "tickets. Tickets cost #{cost_per_ticket} Starbucks each."
+        # post results and announce start of next
+        raffle_mention = raffle_role.nil? ? "@Raffle" : raffle_role.mention
+        cost_per_ticket = Bot::Bank::appraise_item('raffle_buyticket')
 
-      channel.send_message(msg)
+        msg = "#{winner.mention} has won the raffle...\n\n" +
+          "#{raffle_mention} A new one has begun! Use the command " +
+          "+raffle buyticket [number] (default 1) to purchase raffle " +
+          "tickets. Tickets cost #{cost_per_ticket} Starbucks each."
 
+        channel.send_message(msg)
+      end
     else
       channel.send_message("**No one entered the raffle. Aww...**")
     end
+  end
+
+  # Sechdule the raffle every {RAFFLE_FREQUENCY} days starting this upcoming Friday,
+  # always at 5PM GMT.
+  SCHEDULER.every "#{RAFFLE_FREQUENCY}d", :first_at => next_friday_at_5pm() do
+    run_raffle(nil)
   end
 
   ###########################
@@ -1610,11 +1657,7 @@ module Bot::Economy
         break
       end
 
-      # add the appropriate number of tickets
-      (0...tickets_to_buy).each do |ticket|
-        RAFFLE_ENTRIES << { user_id: event.user.id }
-      end
-
+      RAFFLE_ENTRIES << { user_id: event.user.id, ticket_count: tickets_to_buy }
       event.respond "#{event.user.mention}, you bought #{pl(tickets_to_buy, "ticket")}."
 
     when 'reminder', 'remind'
@@ -2028,6 +2071,30 @@ module Bot::Economy
     end
 
     event.respond "#{user.full_username}'s inventory was cleared"
+  end
+
+  # Execute the raffle on command for testing purposes.
+  command :runraffle do |event, *args|
+    break unless call_command?(event.channel.id)
+    break unless Convenience::IsUserDev(event.user.id)
+    run_raffle(event)
+    event.respond "Raffle has been run"
+  end
+
+  command :raffleentries do |event, *args|
+    break unless call_command?(event.channel.id)
+    break unless Convenience::IsUserDev(event.user.id)
+    ticket_count, uid_to_ticket_map = collect_raffle_tickets()
+
+    response = "#{ticket_count} tickets purchased\n"
+    uid_to_ticket_map.each do |uid, ticket_count|
+      user = DiscordUser.new(uid)
+      if not user.nil?
+        response += "#{user.full_username} has #{ticket_count} tickets.\n"
+      end
+    end
+
+    event.respond response
   end
 
   # econ dummy command, does nothing lazy cleanup devs only

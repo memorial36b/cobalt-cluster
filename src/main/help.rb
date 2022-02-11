@@ -658,6 +658,16 @@ module Bot::Help
           )
 
           embed.add_field(
+              name: "+runraffle",
+              value: "Force a raffle execution and reward the winner."
+          )
+
+          embed.add_field(
+              name: "+raffleentries",
+              value: "Debug display the total number of tickets and how many each user entered has."
+          )
+
+          embed.add_field(
               name: "+econdummy",
               value: "Force a database cleaning of your banking profile. Note: This doesn't delete your account; it removes expired temp balances."
           )
