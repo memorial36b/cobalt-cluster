@@ -4,6 +4,19 @@ require 'bundler/setup'
 require 'discordrb'
 require 'yaml'
 
+# Optional Include: IPC code & configuration data
+if ARGV.include? 'ipc'
+  ipc_data_path = File.expand_path('../data/cobalt_ipc.yml')
+  cobalt_instance_path = File.expand_path('../lib/cobalt_instance.rb')
+  unless File.exist?(ipc_data_path) and File.exist?(cobalt_instance_path)
+    puts "IPC requested but the code hasn't been copied over."
+    puts "Missing #{ipc_data_path}" unless File.exist?(ipc_data_path)
+    puts "Missing #{cobalt_instance_path}" unless File.exist?(cobalt_instance_path)
+    puts "Exiting"
+    exit(-1)
+  end
+end
+
 # The main bot
 # All individual crystals will be submodules of this; this gives them access to the main
 # bot object through a constant, as well as a constant containing the path to the data folder
@@ -92,6 +105,12 @@ module Bot
     puts "+ Loaded crystal #{module_name}"
   end
 
+  # Handles if we're told to shutdown by our IPC connection.
+  def self.on_kill_requested()
+    BOT.stop
+    puts 'Bot shutdown'
+  end
+
   # Loads crystals depending on command line flags.
   # If 'main' is provided, all main crystals are loaded. If 'dev' is provided, all development crystals are loaded.
   if ARGV.include? 'main'
@@ -113,6 +132,18 @@ module Bot
   BOT.ready { puts 'Bot started!' }
 
   unless ARGV.include? 'dryrun' # we don't actually run in dry run mode
+    cobalt_ipc_instance = nil
+    if ARGV.include? 'ipc'
+      ipc_data_path = File.expand_path('../data/cobalt_ipc.yml')
+      callback = Bot.method(:on_kill_requested)
+      cobalt_ipc_instance =  CobaltInstance.new(ipc_data_path, callback)
+      success = cobalt_ipc_instance.connect()
+      unless success
+        puts 'IPC could not be started. Exiting...'
+        exit(-1)
+      end
+    end
+
     # After loading all desired crystals, runs the bot
     BOT.run
   else

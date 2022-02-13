@@ -22,3 +22,7 @@ src/Dev.txt
 src/All.txt
 src/Updater-Enabled.txt
 src/Update_Check_Frequency.txt
+
+# Exclude files added by auto-updater
+data/cobalt_ipc.yml
+lib/cobalt_instance.rb
